@@ -1,3 +1,3 @@
 export const environment = {
-    baseUrl: 'https://qa.api.example.com',
+    baseUrl: 'https://streamline-api--streamline-39164.us-central1.hosted.app/',
 }
