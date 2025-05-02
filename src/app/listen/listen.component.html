@@ -1,0 +1,19 @@
+<!-- <ng-container *ngIf="stations$ | async as stations"> -->
+<div class="main-container">
+  <div class="radio-container">
+    <audio #audio controls autoplay class="audio-element" [src]="currentStation"></audio>
+  </div>
+  <div fxLayout="row" fxLayoutAlign="space-between center">
+    <div class="overlay-container left icon-wrapper">
+      <button mat-icon-button (click)="previous()">
+        <mat-icon class="transparent icon">chevron_left</mat-icon>
+      </button>
+    </div>
+    <div class="overlay-container right icon-wrapper" (click)="next()">
+      <button mat-icon-button>
+        <mat-icon class="transparent icon">chevron_right</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>
+<!-- </ng-container> -->

@@ -1,0 +1,52 @@
+<div
+  class="buttons header-container"
+  fxLayout="row"
+  fxLayoutAlign="space-between center"
+  style="width: 100%"
+>
+  <div class="icon-wrapper">
+    <a routerLink="/calls">
+      <mat-icon class="transparent icon">person</mat-icon>
+    </a>
+  </div>
+  <div>
+    <button
+      mat-button
+      button
+      class="transparent button large-button"
+      [routerLink]="['/calls']"
+    >
+      Calls
+    </button>
+    <button
+      mat-button
+      button
+      class="transparent button large-button"
+      [routerLink]="['/stream']"
+    >
+      Stream
+    </button>
+    <button
+      mat-button
+      button
+      class="transparent button large-button"
+      [routerLink]="['/watch']"
+    >
+      Watch
+    </button>
+    <button
+      mat-button
+      button
+      class="transparent button large-button"
+      [routerLink]="['/listen']"
+    >
+      Listen
+    </button>
+  </div>
+  <div class="icon-wrapper">
+    <a routerLink=".">
+      <mat-icon class="transparent icon">search</mat-icon>
+    </a>
+  </div>
+</div>
+<router-outlet></router-outlet>

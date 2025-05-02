@@ -1,0 +1,32 @@
+<!-- <ng-container *ngIf="videoTitles$ | async as videos"> -->
+<div class="main-container">
+  <div cass="video-container" fxLayout="row" fxLayoutAlign="center center">
+    <video
+      [class.landscape]="!isPortrait"
+      [class.portrait]="isPortrait"
+      (loadedmetadata)="onVideoLoaded(videoPlayer)"
+      #videoPlayer
+      controls
+      autoplay
+      muted
+      loop
+      [src]="currentTitle"
+    >
+      <!-- <source [src]="asset" type="video/mp4" /> -->
+      Does not support
+    </video>
+  </div>
+  <div fxLayout="row" fxLayoutAlign="space-between center">
+    <div class="overlay-container left icon-wrapper">
+      <button mat-icon-button (click)="previous()">
+        <mat-icon class="transparent icon">chevron_left</mat-icon>
+      </button>
+    </div>
+    <div class="overlay-container right icon-wrapper" (click)="next()">
+      <button mat-icon-button>
+        <mat-icon class="transparent icon">chevron_right</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>
+<!-- </ng-container> -->
