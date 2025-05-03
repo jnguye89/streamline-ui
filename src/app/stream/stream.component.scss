@@ -5,6 +5,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  position: relative;
 }
 
 .video-container {
@@ -16,4 +17,35 @@
 video {
   width: 100vw;
   height: auto;
+}
+
+.play.icon {
+  color: rgba(50, 248, 0, 0.7);
+}
+
+.pause.icon {
+  color:  rgba(255, 0, 0, 0.7);;
+}
+
+.icon {
+  width: 48px;
+  height: 48px;
+  line-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-color: transparent;
+  font-size: 60px;
+  padding: 10px;
+  margin: 10px;
+  
+}
+
+.button-container {
+  position: absolute;
+  bottom: 0;
+  // left: 50%;
+  width: 100vw;
 }

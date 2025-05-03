@@ -2,8 +2,20 @@
   <div cass="video-container" fxLayout="row" fxLayoutAlign="center center">
     <video #video autoplay playsinline muted></video>
   </div>
-  <div style="margin-top: 1rem;">
-    <button (click)="startWebcam()" [disabled]="streaming">Start</button>
-    <button (click)="stopWebcam()" [disabled]="!streaming">Stop</button>
+  <div class="button-container" xLayout="row" fxLayoutAlign="center">
+    <button
+      class="play icon"
+      (click)="resumeWebcam()"
+      [disabled]="isStreaming"
+    >
+      <mat-icon class="transparent">play_arrow</mat-icon>
+    </button>
+    <button
+      class="pause icon"
+      (click)="pauseWebcam()"
+      [disabled]="!isStreaming"
+    >
+      <mat-icon class="transparent">pause</mat-icon>
+    </button>
   </div>
 </div>
