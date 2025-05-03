@@ -1,3 +1,5 @@
+@import 'theme';
+
 .buttons {
   position: absolute;
   top: 10px;
@@ -28,6 +30,6 @@
 }
 
 .icon-wrapper mat-icon {
-  color: white; /* Foreground (icon) color */
+  color: $color-text; /* Foreground (icon) color */
   font-size: 24px; /* Optional: change size */
 }

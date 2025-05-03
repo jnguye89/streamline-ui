@@ -3,6 +3,7 @@ import { WatchComponent } from './watch/watch.component';
 import { CallsComponent } from './calls/calls.component';
 import { StreamComponent } from './stream/stream.component';
 import { ListenComponent } from './listen/listen.component';
+import { ProfileComponent } from './profile/profile.component';
 
 export const routes: Routes = [
     {
@@ -24,5 +25,9 @@ export const routes: Routes = [
     {
         path: 'listen',
         component: ListenComponent
+    },
+    {
+        path: 'profile',
+        component: ProfileComponent
     }
 ];

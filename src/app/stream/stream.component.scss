@@ -1,7 +1,7 @@
+@import 'theme';
+
 .main-container {
   background-color: #000000;
-  height: 100vh;
-  width: 100vw;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -10,13 +10,13 @@
 
 .video-container {
   position: relative;
-  width: 100%;
-  height: 100vh;
 }
 
 video {
   width: 100vw;
-  height: auto;
+  height: 100vh;
+  object-fit: cover;
+  // height: auto;/
 }
 
 .play.icon {
