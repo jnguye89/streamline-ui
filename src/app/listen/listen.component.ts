@@ -1,15 +1,16 @@
-import { Component, ElementRef, ViewChild } from '@angular/core';
-import { MatIconModule } from '@angular/material/icon';
-import { RouterModule } from '@angular/router';
-import { ListenService } from '../services/listen.service';
-import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
-import { HttpClientModule } from '@angular/common/http';
-import { CommonModule } from '@angular/common';
-import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
+import { Component, ElementRef, ViewChild } from "@angular/core";
+import { MatIconModule } from "@angular/material/icon";
+import { RouterModule } from "@angular/router";
+import { ListenService } from "../services/listen.service";
+import { BehaviorSubject, Subject, takeUntil } from "rxjs";
+import { HttpClientModule } from "@angular/common/http";
+import { CommonModule } from "@angular/common";
+import { MatButtonModule } from "@angular/material/button";
+import { MatChipsModule } from "@angular/material/chips";
+import { FlexLayoutModule } from "@angular/flex-layout";
 
 @Component({
-  selector: 'app-listen',
+  selector: "app-listen",
   standalone: true,
   imports: [
     MatIconModule,
@@ -19,20 +20,19 @@ import { MatChipsModule } from '@angular/material/chips';
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
+    FlexLayoutModule,
   ],
   providers: [ListenService],
-  templateUrl: './listen.component.html',
-  styleUrl: './listen.component.scss',
+  templateUrl: "./listen.component.html",
+  styleUrl: "./listen.component.scss",
 })
 export class ListenComponent {
   private destroy$ = new Subject<void>();
-  // @ViewChild('audio', { static: true }) audioRef!: ElementRef<HTMLAudioElement>;
-  // stations$: Observable<string[]> = of([]);
   private stationTitlesSubject = new BehaviorSubject<string[]>([]);
   stationTitles$ = this.stationTitlesSubject.asObservable();
 
   currentIndex = 0;
-  currentStation = '';
+  currentStation = "";
 
   constructor(private listenService: ListenService) {}
 

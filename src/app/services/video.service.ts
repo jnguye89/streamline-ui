@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -20,6 +20,12 @@ export class VideoService {
     formData.append('video', video);
     formData.append('title', title);
     return this.http.post(`${this.apiUrl}/upload`, formData);
+  }
+
+  uploadFirebaseVideo(video: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('video', video);
+    return this.http.post(`${this.apiUrl}/firebase/video`, formData);
   }
 
   getBlobVideos(): Observable<any> {

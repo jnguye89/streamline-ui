@@ -1,0 +1,12 @@
+<div class="main-container" >
+  <button mat-raised-button color="primary" (click)="fileInput.click()">
+    <mat-icon>upload</mat-icon> Upload Video
+  </button>
+  <input
+    type="file"
+    accept="video/*"
+    #fileInput
+    style="display: none"
+    (change)="onFileSelected($event)"
+  />
+</div>
