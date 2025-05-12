@@ -1,7 +1,18 @@
 <!-- <ng-container *ngIf="stations$ | async as stations"> -->
 <div class="main-container">
   <div class="radio-container">
-    <audio #audio controls autoplay class="audio-element" [src]="currentStation"></audio>
+    <div>
+      <h1>{{ currentStation?.name }}</h1>
+    </div>
+    <div>
+      <audio
+        #audio
+        controls
+        autoplay
+        class="audio-element"
+        [src]="currentStation?.url"
+      ></audio>
+    </div>
   </div>
   <div fxLayout="row" fxLayoutAlign="space-between center">
     <div class="overlay-container left icon-wrapper">

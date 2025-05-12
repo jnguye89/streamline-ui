@@ -5,9 +5,9 @@
   style="width: 100%"
 >
   <div class="icon-wrapper">
-    <a routerLink="/profile">
-      <mat-icon class="transparent icon">person</mat-icon>
-    </a>
+    <!-- <a routerLink="/profile"> -->
+      <mat-icon (click)="handleProfileClick()" class="transparent icon">person</mat-icon>
+    <!-- </a> -->
   </div>
   <div>
     <button
@@ -19,6 +19,7 @@
       Calls
     </button>
     <button
+      *ngIf="isAuthenticated$ | async"
       mat-button
       button
       class="transparent button large-button"

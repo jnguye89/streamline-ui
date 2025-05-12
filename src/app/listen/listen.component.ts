@@ -8,6 +8,7 @@ import { CommonModule } from "@angular/common";
 import { MatButtonModule } from "@angular/material/button";
 import { MatChipsModule } from "@angular/material/chips";
 import { FlexLayoutModule } from "@angular/flex-layout";
+import { Station } from "../models/station.model";
 
 @Component({
   selector: "app-listen",
@@ -28,11 +29,11 @@ import { FlexLayoutModule } from "@angular/flex-layout";
 })
 export class ListenComponent {
   private destroy$ = new Subject<void>();
-  private stationTitlesSubject = new BehaviorSubject<string[]>([]);
+  private stationTitlesSubject = new BehaviorSubject<Station[]>([]);
   stationTitles$ = this.stationTitlesSubject.asObservable();
 
   currentIndex = 0;
-  currentStation = "";
+  currentStation?: Station;
 
   constructor(private listenService: ListenService) {}
 

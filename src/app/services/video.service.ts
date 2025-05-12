@@ -25,7 +25,7 @@ export class VideoService {
   uploadFirebaseVideo(video: File): Observable<any> {
     const formData = new FormData();
     formData.append('video', video);
-    return this.http.post(`${this.apiUrl}/firebase/video`, formData);
+    return this.http.post(`${this.apiUrl}/video`, formData);
   }
 
   getBlobVideos(): Observable<any> {
@@ -37,6 +37,6 @@ export class VideoService {
   }
 
   getFirebaseVideos(): Observable<string[]> {
-    return this.http.get<string[]>(`${this.apiUrl}/firebase/videos`);
+    return this.http.get<string[]>(`${this.apiUrl}/videos`);
   }
 }
