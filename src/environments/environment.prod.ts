@@ -1,3 +1,3 @@
 export const environment = {
-  baseUrl: "http://streamline-api.eba-8bipfkbd.us-west-1.elasticbeanstalk.com/",
+  baseUrl: "https://zngyepx51d.execute-api.us-west-1.amazonaws.com/staging",
 };
