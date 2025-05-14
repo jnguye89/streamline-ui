@@ -1,3 +1,3 @@
 export const environment = {
-  baseUrl: "https://streamline-api--streamline-39164.us-central1.hosted.app/",
+  baseUrl: "http://streamline-api.eba-8bipfkbd.us-west-1.elasticbeanstalk.com/",
 };
