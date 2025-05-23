@@ -13,7 +13,7 @@ export class VideoService {
 
   uploadFirebaseVideo(video: File): Observable<any> {
     const formData = new FormData();
-    formData.append('video', video);
+    formData.append('ain', video);
     return this.http.post(`${this.apiUrl}/video`, formData);
   }
 
