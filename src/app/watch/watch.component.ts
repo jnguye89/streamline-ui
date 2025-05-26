@@ -1,17 +1,18 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { MatIconModule } from '@angular/material/icon';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatButtonModule } from '@angular/material/button';
-import { FlexLayoutModule } from '@angular/flex-layout';
-import { MatChipsModule } from '@angular/material/chips';
-import { VideoService } from '../services/video.service';
-import { HttpClientModule } from '@angular/common/http';
-import { RouterModule } from '@angular/router';
-import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
+import { AfterViewInit, Component, OnDestroy, OnInit } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { MatIconModule } from "@angular/material/icon";
+import { MatDividerModule } from "@angular/material/divider";
+import { MatButtonModule } from "@angular/material/button";
+import { FlexLayoutModule } from "@angular/flex-layout";
+import { MatChipsModule } from "@angular/material/chips";
+import { VideoService } from "../services/video.service";
+import { HttpClientModule } from "@angular/common/http";
+import { RouterModule } from "@angular/router";
+import { BehaviorSubject, Subject, takeUntil } from "rxjs";
+
 
 @Component({
-  selector: 'app-watch',
+  selector: "app-watch",
   standalone: true,
   imports: [
     MatButtonModule,
@@ -24,17 +25,17 @@ import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
     CommonModule,
   ],
   providers: [VideoService],
-  templateUrl: './watch.component.html',
-  styleUrl: './watch.component.scss',
+  templateUrl: "./watch.component.html",
+  styleUrl: "./watch.component.scss",
 })
-export class WatchComponent {
+export class WatchComponent implements OnDestroy {
   private destroy$ = new Subject<void>();
   private videoTitlesSubject = new BehaviorSubject<string[]>([]);
   videoTitles$ = this.videoTitlesSubject.asObservable();
   isPortrait = false;
 
   currentIndex = 0;
-  currentTitle = '';
+  currentTitle = "";
 
   constructor(private videoService: VideoService) {
     this.videoService

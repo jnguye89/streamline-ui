@@ -6,7 +6,10 @@ import { VideoService } from "../services/video.service";
 import { Subject, takeUntil } from "rxjs";
 import { HttpClientModule } from "@angular/common/http";
 import { DatePipe } from "@angular/common";
+import { io } from "socket.io-client";
+import { environment } from "../../environments/environment";
 
+const streamSocket = io(environment.baseUrl);
 @Component({
   selector: "app-stream",
   standalone: true,
@@ -38,29 +41,36 @@ export class StreamComponent {
       navigator.mediaDevices
         .getUserMedia({ video: true, audio: true })
         .then((stream) => {
+          const mediaRecorder = new MediaRecorder(stream, {
+            mimeType: "video/webm",
+          });
           this.stream = stream;
           this.videoElement.nativeElement.srcObject = stream;
           this.streaming = true;
           this.mediaRecorder = new MediaRecorder(stream);
           this.recordedChunks = [];
-    
-          this.mediaRecorder.ondataavailable = event => {
+
+          this.mediaRecorder.ondataavailable = (event) => {
             if (event.data.size > 0) {
               this.recordedChunks.push(event.data);
+              event.data.arrayBuffer().then((buffer) => {
+                console.log("Sending chunk", buffer.byteLength);
+                streamSocket.emit("stream-data", new Uint8Array(buffer));
+              });
             }
           };
-    
+
           this.mediaRecorder.onstop = () => {
-            const blob = new Blob(this.recordedChunks, { type: 'video/webm' });
-            this.uploadVideo(blob);
+            const blob = new Blob(this.recordedChunks, { type: "video/webm" });
+            // this.uploadVideo(blob);
           };
 
-          this.mediaRecorder.start();
+          this.mediaRecorder.start(100);
         })
         .catch((err) => {
           console.error("Error accessing webcam:", err);
         });
-        this.isStreaming = true;
+      this.isStreaming = true;
     } else {
       console.warn(
         "Webcam access is not available (possibly running on server)"
@@ -69,20 +79,26 @@ export class StreamComponent {
   }
 
   getFormattedNow(): string {
-    return this.datePipe.transform(new Date(), 'yyyyMMdd_HH:mm:ss') || '';
+    return this.datePipe.transform(new Date(), "yyyyMMdd_HH:mm:ss") || "";
   }
 
   uploadVideo(blob: Blob) {
-    var date = new Date().toString()
-    const file = new File([blob], `${this.getFormattedNow()}_webcam-recording.webm`, { type: 'video/webm' });
-    this.videoService.uploadFirebaseVideo(file).pipe(takeUntil(this.destroy$)).subscribe();
+    var date = new Date().toString();
+    const file = new File(
+      [blob],
+      `${this.getFormattedNow()}_webcam-recording.webm`,
+      { type: "video/webm" }
+    );
+    this.videoService
+      .uploadFirebaseVideo(file)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe();
   }
 
   resumeWebcam() {
     this.videoElement.nativeElement.play();
     this.mediaRecorder.resume();
     this.isStreaming = true;
-    console.log(this.isStreaming);
   }
 
   pauseWebcam() {
