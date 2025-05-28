@@ -9,7 +9,10 @@ import { DatePipe } from "@angular/common";
 import { io } from "socket.io-client";
 import { environment } from "../../environments/environment";
 
-const streamSocket = io(environment.baseUrl);
+const streamSocket = io(environment.baseUrl, {
+  transports: ["websocket"], 
+  withCredentials: true,
+});
 @Component({
   selector: "app-stream",
   standalone: true,
