@@ -10,9 +10,10 @@ import { io } from "socket.io-client";
 import { environment } from "../../environments/environment";
 
 const streamSocket = io(environment.baseUrl, {
-  transports: ["websocket"], 
+  transports: ["websocket"],
   withCredentials: true,
 });
+
 @Component({
   selector: "app-stream",
   standalone: true,
@@ -37,6 +38,13 @@ export class StreamComponent {
   }
 
   startWebcam() {
+    streamSocket.on("connect", () => {
+      console.log("Connected via WebSocket");
+    });
+
+    streamSocket.on("connect_error", (err) => {
+      console.error("WebSocket connection failed:", err);
+    });
     if (
       typeof navigator !== "undefined" &&
       navigator.mediaDevices?.getUserMedia
