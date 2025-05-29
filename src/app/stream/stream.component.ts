@@ -79,7 +79,7 @@ export class StreamComponent {
             // this.uploadVideo(blob);
           };
 
-          this.mediaRecorder.start(100);
+          this.mediaRecorder.start(300);
         })
         .catch((err) => {
           console.error("Error accessing webcam:", err);
