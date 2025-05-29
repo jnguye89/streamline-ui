@@ -12,6 +12,9 @@ import { environment } from "../../environments/environment";
 const streamSocket = io(environment.baseUrl, {
   transports: ["websocket"],
   withCredentials: true,
+  timeout: 5000,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
 });
 
 @Component({
