@@ -42,11 +42,19 @@ export class StreamComponent {
 
   startWebcam() {
     streamSocket.on("connect", () => {
-      console.log("Connected via WebSocket");
+      console.log("✅ Connected via WebSocket");
     });
 
-    streamSocket.on("connect_error", (err) => {
-      console.error("WebSocket connection failed:", err);
+    streamSocket.on("disconnect", (reason) => {
+      console.warn("❌ Disconnected:", reason);
+    });
+
+    streamSocket.on("reconnect_attempt", (attempt) => {
+      console.log("🔁 Reconnect attempt:", attempt);
+    });
+
+    streamSocket.on("error", (err) => {
+      console.error("⚠️ WebSocket error:", err);
     });
     if (
       typeof navigator !== "undefined" &&
@@ -68,7 +76,7 @@ export class StreamComponent {
             if (event.data.size > 0) {
               this.recordedChunks.push(event.data);
               event.data.arrayBuffer().then((buffer) => {
-                console.log("Sending chunk", buffer.byteLength);
+                // console.log("Sending chunk", buffer.byteLength);
                 streamSocket.emit("stream-data", new Uint8Array(buffer));
               });
             }
