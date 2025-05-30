@@ -64,7 +64,8 @@ export class StreamComponent {
         .getUserMedia({ video: true, audio: true })
         .then((stream) => {
           const mediaRecorder = new MediaRecorder(stream, {
-            mimeType: "video/webm;codecs=vp8",
+            mimeType: "video/webm;codecs=vp8", // explicit
+            videoBitsPerSecond: 1_200_000,
           });
           this.stream = stream;
           this.videoElement.nativeElement.srcObject = stream;
