@@ -64,7 +64,7 @@ export class StreamComponent {
         .getUserMedia({ video: true, audio: true })
         .then((stream) => {
           const mediaRecorder = new MediaRecorder(stream, {
-            mimeType: "video/webm",
+            mimeType: "video/webm;codecs=vp8",
           });
           this.stream = stream;
           this.videoElement.nativeElement.srcObject = stream;
@@ -87,7 +87,7 @@ export class StreamComponent {
             // this.uploadVideo(blob);
           };
 
-          this.mediaRecorder.start(300);
+          this.mediaRecorder.start(100);
         })
         .catch((err) => {
           console.error("Error accessing webcam:", err);
