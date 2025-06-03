@@ -6,21 +6,18 @@
     <button
       class="play icon"
       (click)="resumeWebcam()"
-      [disabled]="isStreaming"
+      [disabled]="broadcasting"
     >
       <mat-icon class="transparent">play_arrow</mat-icon>
     </button>
     <button
       class="pause icon"
       (click)="pauseWebcam()"
-      [disabled]="!isStreaming"
+      [disabled]="!broadcasting"
     >
       <mat-icon class="transparent">pause</mat-icon>
     </button>
-    <button
-      class="stop icon"
-      (click)="stopWebcam()"
-    >
+    <button class="stop icon" (click)="stopWebcam()">
       <mat-icon class="transparent">stop</mat-icon>
     </button>
   </div>

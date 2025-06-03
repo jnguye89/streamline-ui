@@ -7,4 +7,6 @@ export const environment = {
     audience:
       "http://streamlineapiv1-qa.eba-zte7tjpb.us-west-1.elasticbeanstalk.com/",
   },
+  ivsIngestEndpoint: 'rtmps://3b7d4b5b28f6.global-contribute.live-video.net:443/app',
+  ivsStreamKey: 'sk_us-west-2_o7Qj4w0Hymqs_v7RiHpdGHgb54zph1fjZAd0aDzRICb'
 };
