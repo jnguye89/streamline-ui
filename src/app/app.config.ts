@@ -1,4 +1,4 @@
-import { ApplicationConfig, importProvidersFrom } from "@angular/core";
+import { ApplicationConfig, importProvidersFrom, isDevMode } from "@angular/core";
 import { provideRouter } from "@angular/router";
 
 import { routes } from "./app.routes";
@@ -13,6 +13,7 @@ import { provideAuth0 } from "@auth0/auth0-angular";
 import { provideAuth0HttpInterceptor } from "./interceptors/autho-interceptor.provider"; // custom file
 import { OptionalAuthInterceptor } from "./interceptors/auth0.interceptor";
 import { environment } from "../environments/environment";
+import { provideServiceWorker } from '@angular/service-worker';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -21,18 +22,22 @@ export const appConfig: ApplicationConfig = {
     provideAnimationsAsync(),
     provideHttpClient(withInterceptors([])),
     provideAuth0({
-      domain: environment.auth0.domain,
-      clientId: environment.auth0.clientId,
-      authorizationParams: {
-        redirect_uri: window.location.origin,
-        audience: environment.auth0.audience,
-      },
+        domain: environment.auth0.domain,
+        clientId: environment.auth0.clientId,
+        authorizationParams: {
+            redirect_uri: window.location.origin,
+            audience: environment.auth0.audience,
+        },
     }),
     provideAuth0HttpInterceptor(),
     {
-      provide: HTTP_INTERCEPTORS,
-      useClass: OptionalAuthInterceptor,
-      multi: true,
+        provide: HTTP_INTERCEPTORS,
+        useClass: OptionalAuthInterceptor,
+        multi: true,
     },
-  ],
+    provideServiceWorker('ngsw-worker.js', {
+        enabled: !isDevMode(),
+        registrationStrategy: 'registerWhenStable:30000'
+    })
+],
 };

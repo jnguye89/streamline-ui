@@ -23,6 +23,7 @@
     "@angular/platform-browser-dynamic": "^17.1.0",
     "@angular/platform-server": "^17.1.0",
     "@angular/router": "^17.1.0",
+    "@angular/service-worker": "^17.1.0",
     "@angular/ssr": "^17.1.0",
     "@auth0/auth0-angular": "^2.2.3",
     "amazon-ivs-player": "^1.40.0",

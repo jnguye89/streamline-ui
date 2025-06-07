@@ -1,12 +1,37 @@
-@import './styles/theme'; // without the underscore or .scss
-
+@import "./styles/theme"; // without the underscore or .scss
 
 /* You can add global styles to this file, and also import other style files */
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
-
+// html,
+// body {
+//   height: 100%;
+// }
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
 
 body {
-    background-color: #000000;
+  background-color: #000000;
+}
+/* Fullscreen overlay shown only in portrait */
+#rotate-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  place-content: center;
+  background: #000;
+  color: #fff;
+  text-align: center;
+  font: 1.2rem/1.4 sans-serif;
+  z-index: 9999;
+}
+
+@media (orientation: portrait) {
+  #rotate-overlay {
+    display: grid;
   }
+  app-root {
+    display: none;
+  }
+}
