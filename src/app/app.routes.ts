@@ -10,11 +10,12 @@ import { LandingComponent } from "./landing/landing.component";
 export const routes: Routes = [
   {
     path: "",
-    component: LandingComponent,
+    component: WatchComponent,
   },
-//   { path: "home", loadChildren: {
-
-//   } },
+  // {
+  //   path: "home",
+  //   component: WatchComponent,
+  // },
   {
     path: "watch",
     component: WatchComponent,
