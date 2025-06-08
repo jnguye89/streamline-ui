@@ -6,16 +6,17 @@ import { ListenComponent } from "./listen/listen.component";
 import { ProfileComponent } from "./profile/profile.component";
 import { LiveComponent } from "./live/live.component";
 import { LandingComponent } from "./landing/landing.component";
+import { ConverseComponent } from "./converse/converse.component";
 
 export const routes: Routes = [
   {
     path: "",
     component: WatchComponent,
   },
-  // {
-  //   path: "home",
-  //   component: WatchComponent,
-  // },
+  {
+    path: "converse",
+    component: ConverseComponent,
+  },
   {
     path: "watch",
     component: WatchComponent,

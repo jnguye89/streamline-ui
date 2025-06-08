@@ -6,7 +6,9 @@
 >
   <div class="icon-wrapper">
     <!-- <a routerLink="/profile"> -->
-      <mat-icon (click)="handleProfileClick()" class="transparent icon">person</mat-icon>
+    <mat-icon (click)="handleProfileClick()" class="transparent icon"
+      >person</mat-icon
+    >
     <!-- </a> -->
   </div>
   <div>
@@ -42,6 +44,14 @@
       [routerLink]="['/live']"
     >
       Live
+    </button>
+    <button
+      mat-button
+      button
+      class="transparent button large-button"
+      [routerLink]="['/converse']"
+    >
+      Converse
     </button>
     <button
       mat-button
