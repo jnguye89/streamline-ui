@@ -11,13 +11,17 @@ export class VideoService {
 
   constructor(private http: HttpClient) {}
 
-  uploadFirebaseVideo(video: File): Observable<any> {
+  uploadVideo(video: File): Observable<any> {
     const formData = new FormData();
     formData.append('file', video);
     return this.http.post(`${this.apiUrl}/video`, formData);
   }
+  
+  getUserVideos(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/video/user`);
+  }
 
-  getFirebaseVideos(): Observable<string[]> {
+  getVideos(): Observable<string[]> {
     return this.http.get<string[]>(`${this.apiUrl}/video`);
   }
 }

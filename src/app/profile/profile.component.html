@@ -1,4 +1,4 @@
-<div class="main-container" >
+<div class="main-container">
   <button mat-raised-button color="primary" (click)="fileInput.click()">
     <mat-icon>upload</mat-icon> Upload Video
   </button>
@@ -9,4 +9,17 @@
     style="display: none"
     (change)="onFileSelected($event)"
   />
+  <h1>Your Videos</h1>
+  <div fxLayout="row" fxLayoutAlign="space-around center" class="video-gallery">
+    <div *ngFor="let video of videos">
+      <div class="video-item">
+        <video
+          [src]="video.videoPath"
+          controls
+          autoplay
+          class="video-player"
+        ></video>
+      </div>
+    </div>
+  </div>
 </div>

@@ -39,7 +39,7 @@ export class WatchComponent implements OnDestroy {
 
   constructor(private videoService: VideoService) {
     this.videoService
-      .getFirebaseVideos()
+      .getVideos()
       .pipe(takeUntil(this.destroy$))
       .subscribe((titles) => {
         this.videoTitlesSubject.next(titles);
