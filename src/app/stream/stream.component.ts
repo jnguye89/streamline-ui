@@ -1,100 +1,80 @@
-import { Component, ElementRef, OnDestroy, ViewChild } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from "@angular/core";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { VideoService } from "../services/video.service";
-import { Subject } from "rxjs";
+import { first, Subject } from "rxjs";
 import { HttpClientModule } from "@angular/common/http";
-import { DatePipe } from "@angular/common";
+import { CommonModule, DatePipe } from "@angular/common";
 import { IvsBroadcastService } from "../services/ivs-broadcast.service";
+import { AuthService } from "@auth0/auth0-angular";
 
 @Component({
   selector: "app-stream",
   standalone: true,
-  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, HttpClientModule],
+  imports: [
+    MatButtonModule,
+    MatIconModule,
+    FlexLayoutModule,
+    HttpClientModule,
+    CommonModule,
+  ],
   providers: [VideoService, DatePipe, IvsBroadcastService],
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
-export class StreamComponent implements OnDestroy {
+export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
+  isAuthenticated$ = this.auth.isAuthenticated$;
   private destroy$ = new Subject<void>();
   @ViewChild("video") videoElement!: ElementRef<HTMLVideoElement>;
   broadcasting = false;
 
-  constructor(private ivs: IvsBroadcastService) {}
+  constructor(public auth: AuthService, private ivs: IvsBroadcastService) {}
+
+  async ngOnInit() {
+    this.isAuthenticated$.pipe(first()).subscribe((isAuthenticated) => {
+      if (!isAuthenticated) {
+        this.auth.loginWithPopup();
+      }
+    });
+  }
 
   async ngAfterViewInit() {
-    // this.ivs.startBroadcast();
     this.videoElement.nativeElement.srcObject =
-      await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
     await this.ivs.init();
-    this.ivs.startBroadcast();
-  }
-  // async ngAfterViewInit() {
-  //   await this.ivs.init();
-  //   this.ivs.metrics // observable polling if you want live stats
-  //     ?.pipe(takeUntil(this.destroy$))
-  //     .subscribe((m) => console.log("bitrate", m.video.bitrate));
-  //   // mirror local cam
-  //   this.videoElement.nativeElement.srcObject =
-  //     await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-  // }
-
-  async toggle() {
-    //   if (this.broadcasting) await this.ivs.stop();
-    //   else await this.ivs.start();
-    //   this.broadcasting = !this.broadcasting;
   }
 
-  // getFormattedNow(): string {
-  //   return this.datePipe.transform(new Date(), "yyyyMMdd_HH:mm:ss") || "";
-  // }
-
-  uploadVideo(blob: Blob) {
-    //   var date = new Date().toString();
-    //   const file = new File(
-    //     [blob],
-    //     `${this.getFormattedNow()}_webcam-recording.webm`,
-    //     { type: "video/webm" }
-    //   );
-    //   this.videoService
-    //     .uploadFirebaseVideo(file)
-    //     .pipe(takeUntil(this.destroy$))
-    //     .subscribe();
-  }
+  async toggle() {}
 
   resumeWebcam() {
     this.ivs.startBroadcast();
     this.videoElement.nativeElement.play();
-    //   this.mediaRecorder.resume();
-    //   this.isStreaming = true;
     this.broadcasting = true;
-    //   this.ivs.start();
   }
 
   pauseWebcam() {
     this.videoElement.nativeElement.pause();
     this.ivs.stopBroadcast();
     this.broadcasting = false;
-    //   this.isStreaming = false;
-    //   this.mediaRecorder.pause();
   }
 
   stopWebcam() {
     this.ivs.stopBroadcast();
     this.videoElement.nativeElement.srcObject = null;
-    // this.media
-    //   if (this.stream) {
-    //     this.stream.getTracks().forEach((track) => track.stop());
-    //     this.mediaRecorder.stop();
-    //     this.videoElement.nativeElement.srcObject = null;
-    //     this.streaming = false;
-    //   }
+    this.broadcasting = false;
   }
 
   ngOnDestroy() {
-    // this.stopWebcam();
+    this.broadcasting = false;
     this.destroy$.next();
     this.destroy$.complete();
   }

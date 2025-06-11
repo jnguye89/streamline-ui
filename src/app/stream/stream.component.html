@@ -1,4 +1,4 @@
-<div class="main-container">
+<div class="main-container" *ngIf="isAuthenticated$ | async">
   <div cass="video-container" fxLayout="row" fxLayoutAlign="center center">
     <video #video autoplay playsinline muted></video>
   </div>
@@ -20,5 +20,13 @@
     <button class="stop icon" (click)="stopWebcam()">
       <mat-icon class="transparent">stop</mat-icon>
     </button>
+    <span
+      class="live-indicator"
+      [ngClass]="broadcasting ? 'live' : 'offline'"
+      aria-live="polite"
+    >
+      <i class="dot"></i>
+      <span class="label">{{ broadcasting ? "LIVE" : "OFFLINE" }}</span>
+    </span>
   </div>
 </div>
