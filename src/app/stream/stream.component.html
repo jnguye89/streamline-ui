@@ -2,7 +2,7 @@
   <div cass="video-container" fxLayout="row" fxLayoutAlign="center center">
     <video #video autoplay playsinline muted></video>
   </div>
-  <div class="button-container" xLayout="row" fxLayoutAlign="center">
+  <div class="button-container" xLayout="row" fxLayoutAlign="center" div fxLayout="row" fxLayoutAlign="space-evenly center">
     <button
       class="play icon"
       (click)="resumeWebcam()"
@@ -28,5 +28,15 @@
       <i class="dot"></i>
       <span class="label">{{ broadcasting ? "LIVE" : "OFFLINE" }}</span>
     </span>
+    <button mat-raised-button (click)="fileInput.click()">
+      <mat-icon>upload</mat-icon> Upload Video
+    </button>
+    <input
+      type="file"
+      accept="video/*"
+      #fileInput
+      style="display: none"
+      (change)="onFileSelected($event)"
+    />
   </div>
 </div>

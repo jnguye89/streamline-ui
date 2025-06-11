@@ -36,7 +36,11 @@ export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
   @ViewChild("video") videoElement!: ElementRef<HTMLVideoElement>;
   broadcasting = false;
 
-  constructor(public auth: AuthService, private ivs: IvsBroadcastService) {}
+  constructor(
+    public auth: AuthService,
+    private ivs: IvsBroadcastService,
+    private videoService: VideoService
+  ) {}
 
   async ngOnInit() {
     this.isAuthenticated$.pipe(first()).subscribe((isAuthenticated) => {
@@ -77,5 +81,13 @@ export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
     this.broadcasting = false;
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  onFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const file = input.files[0];
+    this.videoService.uploadVideo(file).pipe(first()).subscribe();
   }
 }
