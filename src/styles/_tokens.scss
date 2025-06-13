@@ -1,0 +1,38 @@
+:root {
+  /* colours */
+  --c-primary: #0e76ff;
+  --c-surface: #111;
+  --c-on-surface: #fff;
+
+  /* spacing / radii */
+  --space-1: .25rem;
+  --space-2: .5rem;
+  --radius: .75rem;
+
+  /* typography scale (fluid) */
+  --fs-base: clamp(.875rem, .5vw + .75rem, 1rem);
+  --fs-lg:   clamp(1rem,   .6vw + .9rem,  1.25rem);
+}
+
+/* styles that only apply when installed */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  body {
+    /* give the app shell its own header height when the URL bar is gone */
+    padding-top: var(--app-bar-height);
+    background: var(--c-surface);
+  }
+
+  /* collapse in-browser tooltips that are redundant in app mode */
+  .tooltip-hint { display: none; }
+}
+
+body {
+  padding-top: env(safe-area-inset-top);    /* iOS notch */
+  padding-bottom: env(safe-area-inset-bottom);
+  background-color: var(--c-surface);
+}
+
+.meta-theme-color {
+  /* Angular: bind this to a token so browsers tint addr-bar & task-switcher */
+  content: var(--c-primary);
+}

@@ -113,6 +113,8 @@ export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
 
   ngOnDestroy() {
     this.broadcasting = false;
+    this.videoElement.nativeElement.srcObject = null;
+    this.ivs.stopBroadcast();
     this.destroy$.next();
     this.destroy$.complete();
   }

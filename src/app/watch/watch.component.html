@@ -1,6 +1,11 @@
 <!-- <ng-container *ngIf="videoTitles$ | async as videos"> -->
 <div class="main-container">
-  <div cass="video-container" fxLayout="row" fxLayoutAlign="center center" *ngIf="currentTitle">
+  <div
+    class="video-container"
+    fxLayout="row"
+    fxLayoutAlign="center center"
+    *ngIf="currentTitle"
+  >
     <video
       [class.landscape]="!isPortrait"
       [class.portrait]="isPortrait"
@@ -9,6 +14,8 @@
       controls
       autoplay
       muted
+      defaultMuted
+      playsinline
       loop
       [src]="currentTitle!.videoPath"
     >
@@ -28,7 +35,13 @@
       </button>
     </div>
   </div>
-  <div class="button-container down-padding" fxLayout="row" fxLayoutAlign="center" fxLayout="row" fxLayoutAlign="space-evenly center">
+  <div
+    class="button-container down-padding"
+    fxLayout="row"
+    fxLayoutAlign="center"
+    fxLayout="row"
+    fxLayoutAlign="space-evenly center"
+  >
     <button mat-icon-button (click)="goToProfile()">
       <mat-icon class="transparent icon">arrow_downward</mat-icon>
     </button>

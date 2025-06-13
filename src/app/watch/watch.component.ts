@@ -1,4 +1,11 @@
-import { AfterViewInit, Component, OnDestroy, OnInit } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { MatIconModule } from "@angular/material/icon";
 import { MatDividerModule } from "@angular/material/divider";
@@ -28,9 +35,11 @@ import { Video } from "../models/video.model";
   templateUrl: "./watch.component.html",
   styleUrl: "./watch.component.scss",
 })
-export class WatchComponent implements OnDestroy {
+export class WatchComponent implements OnDestroy, AfterViewInit {
   private destroy$ = new Subject<void>();
   private videoTitlesSubject = new BehaviorSubject<Video[]>([]);
+  @ViewChild("player", { static: false })
+  playerRef!: ElementRef<HTMLVideoElement>;
   videoTitles$ = this.videoTitlesSubject.asObservable();
   isPortrait = false;
 
@@ -49,6 +58,10 @@ export class WatchComponent implements OnDestroy {
           this.currentTitle = videos[this.currentIndex];
         }
       });
+  }
+
+  ngAfterViewInit(): void {
+    // this.playerRef.nativeElement.play();
   }
 
   ngOnDestroy() {
@@ -81,9 +94,19 @@ export class WatchComponent implements OnDestroy {
   onVideoLoaded(video: HTMLVideoElement) {
     const aspectRatio = video.videoWidth / video.videoHeight;
     this.isPortrait = aspectRatio < 1; // if width < height, it's portrait
+    video.defaultMuted = true;
+    video.muted = true;
+    video
+      .play()
+      .then(() => {
+        console.log("✅ video started");
+      })
+      .catch((err) => {
+        console.warn("🚫 play() was blocked or failed:", err);
+      });
   }
 
   goToProfile() {
-    this.router.navigate(['/profile', this.currentTitle?.user || '']);
+    this.router.navigate(["/profile", this.currentTitle?.user || ""]);
   }
 }
