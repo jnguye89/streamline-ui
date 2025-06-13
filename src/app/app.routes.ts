@@ -14,6 +14,10 @@ export const routes: Routes = [
     component: WatchComponent,
   },
   {
+    path: "profile/:id",
+    component: ProfileComponent
+  },
+  {
     path: "converse",
     component: ConverseComponent,
   },

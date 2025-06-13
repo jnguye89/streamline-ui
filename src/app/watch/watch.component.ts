@@ -7,9 +7,9 @@ import { FlexLayoutModule } from "@angular/flex-layout";
 import { MatChipsModule } from "@angular/material/chips";
 import { VideoService } from "../services/video.service";
 import { HttpClientModule } from "@angular/common/http";
-import { RouterModule } from "@angular/router";
+import { Router, RouterModule } from "@angular/router";
 import { BehaviorSubject, Subject, takeUntil } from "rxjs";
-
+import { Video } from "../models/video.model";
 
 @Component({
   selector: "app-watch",
@@ -30,23 +30,23 @@ import { BehaviorSubject, Subject, takeUntil } from "rxjs";
 })
 export class WatchComponent implements OnDestroy {
   private destroy$ = new Subject<void>();
-  private videoTitlesSubject = new BehaviorSubject<string[]>([]);
+  private videoTitlesSubject = new BehaviorSubject<Video[]>([]);
   videoTitles$ = this.videoTitlesSubject.asObservable();
   isPortrait = false;
 
   currentIndex = 0;
-  currentTitle = "";
+  currentTitle: Video | null = null;
 
-  constructor(private videoService: VideoService) {
+  constructor(private videoService: VideoService, private router: Router) {
     this.videoService
       .getVideos()
       .pipe(takeUntil(this.destroy$))
-      .subscribe((titles) => {
-        this.videoTitlesSubject.next(titles);
+      .subscribe((videos) => {
+        this.videoTitlesSubject.next(videos);
 
-        if (titles.length > 0) {
-          this.currentIndex = Math.floor(Math.random() * titles.length);
-          this.currentTitle = titles[this.currentIndex];
+        if (videos.length > 0) {
+          this.currentIndex = Math.floor(Math.random() * videos.length);
+          this.currentTitle = videos[this.currentIndex];
         }
       });
   }
@@ -81,5 +81,9 @@ export class WatchComponent implements OnDestroy {
   onVideoLoaded(video: HTMLVideoElement) {
     const aspectRatio = video.videoWidth / video.videoHeight;
     this.isPortrait = aspectRatio < 1; // if width < height, it's portrait
+  }
+
+  goToProfile() {
+    this.router.navigate(['/profile', this.currentTitle?.user || '']);
   }
 }

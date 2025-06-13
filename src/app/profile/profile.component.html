@@ -1,15 +1,18 @@
 <div class="main-container">
-  <button mat-raised-button color="primary" (click)="fileInput.click()">
-    <mat-icon>upload</mat-icon> Upload Video
-  </button>
-  <input
-    type="file"
-    accept="video/*"
-    #fileInput
-    style="display: none"
-    (change)="onFileSelected($event)"
-  />
-  <h1>Your Videos</h1>
+  <div *ngIf="(isAuthenticated$ | async) && !userId">
+    <button mat-raised-button color="primary" (click)="fileInput.click()">
+      <mat-icon>upload</mat-icon> Upload Video
+    </button>
+    <input
+      type="file"
+      accept="video/*"
+      #fileInput
+      style="display: none"
+      (change)="onFileSelected($event)"
+    />
+  </div>
+  <br/>
+  <h1>Videos</h1>
   <div fxLayout="row" fxLayoutAlign="space-around center" class="video-gallery">
     <div *ngFor="let video of videos">
       <div class="video-item">

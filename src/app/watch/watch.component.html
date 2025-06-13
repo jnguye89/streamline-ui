@@ -1,6 +1,6 @@
 <!-- <ng-container *ngIf="videoTitles$ | async as videos"> -->
 <div class="main-container">
-  <div cass="video-container" fxLayout="row" fxLayoutAlign="center center">
+  <div cass="video-container" fxLayout="row" fxLayoutAlign="center center" *ngIf="currentTitle">
     <video
       [class.landscape]="!isPortrait"
       [class.portrait]="isPortrait"
@@ -10,8 +10,8 @@
       autoplay
       muted
       loop
-      [src]="currentTitle"
-    >  
+      [src]="currentTitle!.videoPath"
+    >
       <!-- <source [src]="asset" type="video/mp4" /> -->
       Does not support
     </video>
@@ -27,6 +27,11 @@
         <mat-icon class="transparent icon">chevron_right</mat-icon>
       </button>
     </div>
+  </div>
+  <div class="button-container down-padding" fxLayout="row" fxLayoutAlign="center" fxLayout="row" fxLayoutAlign="space-evenly center">
+    <button mat-icon-button (click)="goToProfile()">
+      <mat-icon class="transparent icon">arrow_downward</mat-icon>
+    </button>
   </div>
 </div>
 <!-- </ng-container> -->
