@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { Video } from '../models/video.model';
+import { StreamStatus } from '../models/sttream-status.model';
 
 @Injectable({
   providedIn: 'root',
@@ -24,5 +25,9 @@ export class VideoService {
 
   getVideos(): Observable<Video[]> {
     return this.http.get<Video[]>(`${this.apiUrl}/video`);
+  }
+
+  getStreamStatus(): Observable<StreamStatus> {
+    return this.http.get<StreamStatus>(`${this.apiUrl}/video/status`);
   }
 }

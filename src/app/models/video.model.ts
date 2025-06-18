@@ -1,4 +1,4 @@
 export interface Video {
-    user: string;
+    user: string | null;
     videoPath: string;
 }

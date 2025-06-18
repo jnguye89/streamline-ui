@@ -1,28 +1,29 @@
 <!-- <ng-container *ngIf="videoTitles$ | async as videos"> -->
 <div class="main-container">
-  <div
-    class="video-container"
-    fxLayout="row"
-    fxLayoutAlign="center center"
-    *ngIf="currentTitle"
-  >
-    <video
-      [class.landscape]="!isPortrait"
-      [class.portrait]="isPortrait"
-      (loadedmetadata)="onVideoLoaded(videoPlayer)"
-      #videoPlayer
-      controls
-      autoplay
-      muted
-      defaultMuted
-      playsinline
-      loop
-      [src]="currentTitle!.videoPath"
+    <div
+      class="video-container"
+      fxLayout="row"
+      fxLayoutAlign="center center"
+      *ngIf="currentIndex"
     >
-      <!-- <source [src]="asset" type="video/mp4" /> -->
-      Does not support
-    </video>
-  </div>
+      <video
+        [class.landscape]="!isPortrait"
+        [class.portrait]="isPortrait"
+        [hidden]="isLive"
+        (loadedmetadata)="onVideoLoaded(videoPlayer)"
+        #videoPlayer
+        controls
+        autoplay
+        muted
+        defaultMuted
+        playsinline
+        loop
+        [src]="currentTitle!.videoPath"
+      >
+        <!-- <source [src]="asset" type="video/mp4" /> -->
+        Does not support
+      </video>
+    </div>
   <div fxLayout="row" fxLayoutAlign="space-between center">
     <div class="overlay-container left icon-wrapper">
       <button mat-icon-button (click)="previous()">
@@ -42,7 +43,11 @@
     fxLayout="row"
     fxLayoutAlign="space-evenly center"
   >
-    <button mat-icon-button (click)="goToProfile()">
+    <button
+      mat-icon-button
+      (click)="goToProfile()"
+      *ngIf="!!currentTitle && !!currentTitle.user"
+    >
       <mat-icon class="transparent icon">arrow_downward</mat-icon>
     </button>
   </div>

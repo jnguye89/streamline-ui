@@ -16,7 +16,6 @@ export class LiveComponent implements AfterViewInit {
     const videoEl = document.getElementById("live-player") as HTMLVideoElement;
 
     if (IVSPlayer.isPlayerSupported) {
-      console.log("supported");
       const player = IVSPlayer.create();
       player.attachHTMLVideoElement(videoEl);
       player.load(environment.streamUrl);

@@ -1,18 +1,21 @@
-@import 'theme';
+@import 'tokens';
 
+:host {
+    // padding-top: var(--app-bar-height)
+}
 .main-container {
-    height: 100vh;
-    width: 100vw;
+    padding-top: var(--app-bar-height);
     display: flex;
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    color: $color-text;
+    color: var(c-on-surface);
 }
 
 .video-player {
-    max-width: 200px;
-    max-height: 400px;
+    padding-top: var(--app-bar-height);
+    max-width: 30vw;
+    max-height: 70vh;
     padding: 20px;
 }
 

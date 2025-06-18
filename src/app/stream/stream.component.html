@@ -1,8 +1,36 @@
-<div class="main-container" *ngIf="isAuthenticated$ | async"fxLayout="row" fxLayoutAlign="center center">
-  <div cass="video-container" fxLayout="row" fxLayoutAlign="center center">
-    <video #video autoplay playsinline muted></video>
+<div
+  class="main-container"
+  *ngIf="isAuthenticated$ | async"
+  fxLayout="row"
+  fxLayoutAlign="space-between center"
+>
+  <video #video autoplay playsinline muted></video>
+  <div fxLayout="column" fxLayoutAlign="space-evenly center">
+    <button mat-raised-button (click)="fileInput.click()">
+      <mat-icon>upload</mat-icon>
+    </button>
+    <input
+      type="file"
+      accept="video/*"
+      #fileInput
+      style="display: none"
+      (change)="onFileSelected($event)"
+    />
   </div>
-  <div class="button-container" fxLayout="row" fxLayoutAlign="center" fxLayout="row" fxLayoutAlign="space-evenly center">
+  <div
+    class="button-container"
+    fxLayout="column"
+    fxFlexAlign="center"
+    fxLayoutAlign="space-evenly center"
+  >
+    <span
+      class="live-indicator"
+      [ngClass]="broadcasting ? 'live' : 'offline'"
+      aria-live="polite"
+    >
+      <i class="dot"></i>
+      <span class="label">{{ broadcasting ? "LIVE" : "OFFLINE" }}</span>
+    </span>
     <button
       class="play icon"
       (click)="resumeWebcam()"
@@ -20,23 +48,7 @@
     <button class="stop icon" (click)="stopWebcam()">
       <mat-icon class="transparent">stop</mat-icon>
     </button>
-    <span
-      class="live-indicator"
-      [ngClass]="broadcasting ? 'live' : 'offline'"
-      aria-live="polite"
-    >
-      <i class="dot"></i>
-      <span class="label">{{ broadcasting ? "LIVE" : "OFFLINE" }}</span>
-    </span>
-    <button mat-raised-button (click)="fileInput.click()">
-      <mat-icon>upload</mat-icon> Upload Video
-    </button>
-    <input
-      type="file"
-      accept="video/*"
-      #fileInput
-      style="display: none"
-      (change)="onFileSelected($event)"
-    />
   </div>
 </div>
+<!-- <div cass="video-container"> -->
+<!-- </div> -->
