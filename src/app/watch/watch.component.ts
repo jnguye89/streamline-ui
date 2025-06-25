@@ -1,9 +1,4 @@
-import {
-  AfterViewInit,
-  Component,
-  OnDestroy,
-  ViewChild,
-} from "@angular/core";
+import { AfterViewInit, Component, OnDestroy, ViewChild } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { MatIconModule } from "@angular/material/icon";
 import { MatDividerModule } from "@angular/material/divider";
@@ -58,52 +53,63 @@ export class WatchComponent implements OnDestroy, AfterViewInit {
   currentTitle: Video | null = null;
   isLive = false;
 
-  constructor(private videoService: VideoService, private router: Router) {}
-
-  private checkIfStreamIsLive(): Observable<StreamStatus> {
-    return this.videoService.getStreamStatus().pipe(
-      catchError((error) => {
-        console.error("Error checking stream status:", error);
-        return of({ isLive: false } as StreamStatus); // fallback value
-      })
-    );
-  }
-
-  ngAfterViewInit(): void {
+  constructor(private videoService: VideoService, private router: Router) {
     this.videoService
       .getVideos()
-      .pipe(
-        switchMap((videos) =>
-          forkJoin({
-            videos: of(videos),
-            // status: this.checkIfStreamIsLive(), // your new HTTP call
-          })
-        ),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(({ videos }) => {
-        // if (status.isLive) {
-        //   this.isLive = true;
-        //   const videoEl = document.getElementById(
-        //     "live-player"
-        //   ) as HTMLVideoElement;
-        //   console.log(videoEl);
-
-        //   // if (IVSPlayer.isPlayerSupported) {
-        //   const player = IVSPlayer.create();
-        //   player.attachHTMLVideoElement(videoEl);
-        //   player.load(environment.streamUrl);
-        //   player.play();
-        //   //   } else {
-        //   //     console.error("IVS player not supported in this browser");
-        //   //   }
-        // }
-        // } else if (videos.length > 0) {
-        this.currentIndex = Math.floor(Math.random() * videos.length);
-        this.currentTitle = videos[this.currentIndex];
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((videos) => {
         this.videoTitlesSubject.next(videos);
-        // }
+        if (videos.length > 0) {
+          this.currentIndex = Math.floor(Math.random() * videos.length);
+          this.currentTitle = videos[this.currentIndex];
+        }
       });
+  }
+
+  // private checkIfStreamIsLive(): Observable<StreamStatus> {
+  //   return this.videoService.getStreamStatus().pipe(
+  //     catchError((error) => {
+  //       console.error("Error checking stream status:", error);
+  //       return of({ isLive: false } as StreamStatus); // fallback value
+  //     })
+  //   );
+  // }
+
+  ngAfterViewInit(): void {
+    // this.videoService
+    //   .getVideos()
+    //   .pipe(
+    //     switchMap((videos) =>
+    //       forkJoin({
+    //         videos: of(videos),
+    //         // status: this.checkIfStreamIsLive(), // your new HTTP call
+    //       })
+    //     ),
+    //     takeUntil(this.destroy$)
+    //   )
+    //   .subscribe(({ videos }) => {
+    //     // if (status.isLive) {
+    //     //   this.isLive = true;
+    //     //   const videoEl = document.getElementById(
+    //     //     "live-player"
+    //     //   ) as HTMLVideoElement;
+    //     //   console.log(videoEl);
+
+    //     //   // if (IVSPlayer.isPlayerSupported) {
+    //     //   const player = IVSPlayer.create();
+    //     //   player.attachHTMLVideoElement(videoEl);
+    //     //   player.load(environment.streamUrl);
+    //     //   player.play();
+    //     //   //   } else {
+    //     //   //     console.error("IVS player not supported in this browser");
+    //     //   //   }
+    //     // }
+    //     // } else if (videos.length > 0) {
+    //     this.currentIndex = Math.floor(Math.random() * videos.length);
+    //     this.currentTitle = videos[this.currentIndex];
+    //     this.videoTitlesSubject.next(videos);
+    //     // }
+    //   });
   }
 
   ngOnDestroy() {
@@ -134,6 +140,7 @@ export class WatchComponent implements OnDestroy, AfterViewInit {
   }
 
   onVideoLoaded(video: HTMLVideoElement) {
+    console.log("video loaded: ", video);
     const aspectRatio = video.videoWidth / video.videoHeight;
     this.isPortrait = aspectRatio < 1; // if width < height, it's portrait
     video.defaultMuted = true;

@@ -15,4 +15,8 @@ export class ListenService {
   getStations(limit = 100): Observable<Station[]> {
     return this.http.get<Station[]>(`${this.apiUrl}/listen/stations/${limit}`);
   }
+
+  getAudio(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/listen`);
+  }
 }

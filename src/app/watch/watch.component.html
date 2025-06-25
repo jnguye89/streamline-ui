@@ -1,55 +1,53 @@
 <!-- <ng-container *ngIf="videoTitles$ | async as videos"> -->
 <div class="main-container">
-    <div
-      class="video-container"
-      fxLayout="row"
-      fxLayoutAlign="center center"
-      *ngIf="currentIndex"
-    >
-      <video
-        [class.landscape]="!isPortrait"
-        [class.portrait]="isPortrait"
-        [hidden]="isLive"
-        (loadedmetadata)="onVideoLoaded(videoPlayer)"
-        #videoPlayer
-        controls
-        autoplay
-        muted
-        defaultMuted
-        playsinline
-        loop
-        [src]="currentTitle!.videoPath"
-      >
-        <!-- <source [src]="asset" type="video/mp4" /> -->
-        Does not support
-      </video>
-    </div>  
-  <div fxLayout="row" fxLayoutAlign="space-between center">
-    <div class="overlay-container left icon-wrapper">
-      <button mat-icon-button (click)="previous()">
-        <mat-icon class="transparent icon">chevron_left</mat-icon>
-      </button>
-    </div>
-    <div class="overlay-container right icon-wrapper" (click)="next()">
-      <button mat-icon-button>
-        <mat-icon class="transparent icon">chevron_right</mat-icon>
-      </button>
-    </div>
-  </div>
   <div
-    class="button-container down-padding"
+    class="video-container"
     fxLayout="row"
-    fxLayoutAlign="center"
-    fxLayout="row"
-    fxLayoutAlign="space-evenly center"
+    fxLayoutAlign="center center"
+    *ngIf="currentTitle"
   >
-    <button
-      mat-icon-button
-      (click)="goToProfile()"
-      *ngIf="!!currentTitle && !!currentTitle.user"
+    <video
+      [class.landscape]="!isPortrait"
+      [class.portrait]="isPortrait"
+      (loadedmetadata)="onVideoLoaded(videoPlayer)"
+      #videoPlayer
+      controls
+      autoplay
+      muted
+      defaultMuted
+      playsinline
+      loop
+      [src]="currentTitle!.videoPath"
     >
-      <mat-icon class="transparent icon">arrow_downward</mat-icon>
-    </button>
+      Does not support
+    </video>
+    <div fxLayout="row" fxLayoutAlign="space-between center">
+      <div class="overlay-container left icon-wrapper">
+        <button mat-icon-button (click)="previous()">
+          <mat-icon class="transparent icon">chevron_left</mat-icon>
+        </button>
+      </div>
+      <div class="overlay-container right icon-wrapper" (click)="next()">
+        <button mat-icon-button>
+          <mat-icon class="transparent icon">chevron_right</mat-icon>
+        </button>
+      </div>
+    </div>
+    <div
+      class="button-container down-padding"
+      fxLayout="row"
+      fxLayoutAlign="center"
+      fxLayout="row"
+      fxLayoutAlign="space-evenly center"
+    >
+      <button
+        mat-icon-button
+        (click)="goToProfile()"
+        *ngIf="!!currentTitle && !!currentTitle.user"
+      >
+        <mat-icon class="transparent icon">arrow_downward</mat-icon>
+      </button>
+    </div>
   </div>
+  <!-- </ng-container> -->
 </div>
-<!-- </ng-container> -->

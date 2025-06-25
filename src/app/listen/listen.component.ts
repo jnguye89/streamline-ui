@@ -8,7 +8,7 @@ import { CommonModule } from "@angular/common";
 import { MatButtonModule } from "@angular/material/button";
 import { MatChipsModule } from "@angular/material/chips";
 import { FlexLayoutModule } from "@angular/flex-layout";
-import { Station } from "../models/station.model";
+import { Audio } from "../models/Audio.model";
 
 @Component({
   selector: "app-listen",
@@ -29,24 +29,24 @@ import { Station } from "../models/station.model";
 })
 export class ListenComponent {
   private destroy$ = new Subject<void>();
-  private stationTitlesSubject = new BehaviorSubject<Station[]>([]);
+  private stationTitlesSubject = new BehaviorSubject<Audio[]>([]);
   stationTitles$ = this.stationTitlesSubject.asObservable();
 
   currentIndex = 0;
-  currentStation?: Station;
+  currentStation?: Audio;
 
   constructor(private listenService: ListenService) {}
 
   ngOnInit() {
     this.listenService
-      .getStations(100)
+      .getAudio()
       .pipe(takeUntil(this.destroy$))
-      .subscribe((stations) => {
-        this.stationTitlesSubject.next(stations);
+      .subscribe((audio) => {
+        this.stationTitlesSubject.next(audio);
 
-        if (stations.length > 0) {
-          this.currentIndex = Math.floor(Math.random() * stations.length);
-          this.currentStation = stations[this.currentIndex];
+        if (audio.length > 0) {
+          this.currentIndex = Math.floor(Math.random() * audio.length);
+          this.currentStation = audio[this.currentIndex];
         }
       });
   }

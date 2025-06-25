@@ -32,6 +32,7 @@
     "rxjs": "~7.8.0",
     "socket.io-client": "^4.8.1",
     "tslib": "^2.3.0",
+    "voximplant-websdk": "^4.8.10-2896",
     "zone.js": "~0.14.3"
   },
   "devDependencies": {

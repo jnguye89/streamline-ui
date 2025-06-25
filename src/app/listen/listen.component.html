@@ -2,15 +2,16 @@
 <div class="main-container">
   <div class="radio-container">
     <div>
-      <h1>{{ currentStation?.name }}</h1>
+      <!-- <h1>{{ currentStation?.name }}</h1> -->
     </div>
     <div>
       <audio
         #audio
         controls
         autoplay
+        loop
         class="audio-element"
-        [src]="currentStation?.url"
+        [src]="currentStation?.audioPath"
       ></audio>
     </div>
   </div>

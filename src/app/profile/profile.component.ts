@@ -41,7 +41,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
       this.auth.user$
         .pipe(
           first(),
-          tap((user) => console.log(user)),
           concatMap((user) => {
             if (!!user) {
               return this.videoService.getUserVideos(`${user.sub}`);
@@ -76,7 +75,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
       .uploadVideo(file)
       .pipe(
         tap(() => console.log("upload done, now fetching user videos")),
-        concatMap(() => this.videoService.getUserVideos("123")),
+        // concatMap(() => this.videoService.getUserVideos("123")),
         takeUntil(this.destroy$)
       )
       .subscribe((videos: any[]) => (this.videos = videos));
