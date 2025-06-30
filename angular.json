@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "streamline": {
+    "skriin": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -20,7 +20,7 @@
             "stylePreprocessorOptions": {
               "includePaths": ["src/styles"]
             },
-            "outputPath": "dist/streamline",
+            "outputPath": "dist/skriin",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": ["zone.js"],
@@ -96,10 +96,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "streamline:build:production"
+              "buildTarget": "skriin:build:production"
             },
             "development": {
-              "buildTarget": "streamline:build:development"
+              "buildTarget": "skriin:build:development"
             }
           },
           "defaultConfiguration": "development"
@@ -107,7 +107,7 @@
         "extract-i18n": {
           "builder": "@angular-devkit/build-angular:extract-i18n",
           "options": {
-            "buildTarget": "streamline:build"
+            "buildTarget": "skriin:build"
           }
         },
         "test": {
