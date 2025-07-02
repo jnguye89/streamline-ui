@@ -5,7 +5,6 @@ import { StreamComponent } from "./stream/stream.component";
 import { ListenComponent } from "./listen/listen.component";
 import { ProfileComponent } from "./profile/profile.component";
 import { LiveComponent } from "./live/live.component";
-import { LandingComponent } from "./landing/landing.component";
 import { ConverseComponent } from "./converse/converse.component";
 
 export const routes: Routes = [
@@ -18,7 +17,7 @@ export const routes: Routes = [
     component: ProfileComponent
   },
   {
-    path: "converse",
+    path: "yap",
     component: ConverseComponent,
   },
   {
