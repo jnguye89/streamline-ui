@@ -1,10 +1,16 @@
-import { Component, OnDestroy, OnInit } from "@angular/core";
-import { VideoService } from "../services/video.service";
+import {
+  Component,
+  Inject,
+  OnDestroy,
+  OnInit,
+  PLATFORM_ID,
+} from "@angular/core";
+import { VideoService } from "../../services/video.service";
 import { HttpClientModule } from "@angular/common/http";
 import { MatIconModule } from "@angular/material/icon";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { concatMap, first, Subject, takeUntil, tap } from "rxjs";
-import { CommonModule } from "@angular/common";
+import { CommonModule, isPlatformBrowser } from "@angular/common";
 import { AuthService } from "@auth0/auth0-angular";
 import { ActivatedRoute, Router } from "@angular/router";
 

@@ -1,0 +1,12 @@
+<div class="main-container" *ngIf="isAuthenticated$ | async">
+  <!-- <div> -->
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+    
+  <input [(ngModel)]="targetUser" placeholder="Target SIP address" />
+  <button (click)="startCall()">Call</button>
+  <button (click)="endCall()">Hang Up</button>
+  <!-- </div> -->
+</div>

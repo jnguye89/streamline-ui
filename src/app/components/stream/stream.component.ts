@@ -2,14 +2,16 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  Inject,
   OnDestroy,
   OnInit,
+  PLATFORM_ID,
   ViewChild,
 } from "@angular/core";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
-import { VideoService } from "../services/video.service";
+import { VideoService } from "../../services/video.service";
 import {
   combineLatest,
   filter,
@@ -22,8 +24,8 @@ import {
   takeUntil,
 } from "rxjs";
 import { HttpClientModule } from "@angular/common/http";
-import { CommonModule, DatePipe } from "@angular/common";
-import { IvsBroadcastService } from "../services/ivs-broadcast.service";
+import { CommonModule, DatePipe, isPlatformBrowser } from "@angular/common";
+import { IvsBroadcastService } from "../../services/ivs-broadcast.service";
 import { AuthService } from "@auth0/auth0-angular";
 import { Router } from "@angular/router";
 
@@ -52,43 +54,48 @@ export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
     public auth: AuthService,
     private ivs: IvsBroadcastService,
     private videoService: VideoService,
-    private router: Router
+    private router: Router,
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   async ngOnInit() {
-    this.isAuthenticated$.pipe(first()).subscribe((isAuth) => {
-      if (!isAuth)
-        this.auth.loginWithRedirect({
-          appState: {
-            // -> comes back to us after login
-            target: this.router.url,
-          },
-        });
-    });
-
-    /* 2️⃣ When BOTH auth === true AND the view is present, start the player */
-    combineLatest([
-      this.isAuthenticated$.pipe(filter(Boolean)),
-      this.viewReady$,
-    ])
-      .pipe(
-        take(1), // run once
-        switchMap(() =>
-          from(
-            navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-          )
-        ),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(async (stream) => {
-        this.videoElement.nativeElement.srcObject = stream;
-        await this.videoElement.nativeElement.play();
-        await this.ivs.init();
+    if (isPlatformBrowser(this.platformId)) {
+      this.isAuthenticated$.pipe(first()).subscribe((isAuth) => {
+        if (!isAuth)
+          this.auth.loginWithRedirect({
+            appState: {
+              // -> comes back to us after login
+              target: this.router.url,
+            },
+          });
       });
+
+      /* 2️⃣ When BOTH auth === true AND the view is present, start the player */
+      combineLatest([
+        this.isAuthenticated$.pipe(filter(Boolean)),
+        this.viewReady$,
+      ])
+        .pipe(
+          take(1), // run once
+          switchMap(() =>
+            from(
+              navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            )
+          ),
+          takeUntil(this.destroy$)
+        )
+        .subscribe(async (stream) => {
+          this.videoElement.nativeElement.srcObject = stream;
+          await this.videoElement.nativeElement.play();
+          await this.ivs.init();
+        });
+    }
   }
 
   async ngAfterViewInit() {
-    this.viewReady$.next();
+    if (isPlatformBrowser(this.platformId)) {
+      this.viewReady$.next();
+    }
   }
 
   async toggle() {}

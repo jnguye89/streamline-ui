@@ -1,14 +1,14 @@
 import { Component, ElementRef, ViewChild } from "@angular/core";
 import { MatIconModule } from "@angular/material/icon";
 import { RouterModule } from "@angular/router";
-import { ListenService } from "../services/listen.service";
+import { ListenService } from "../../services/listen.service";
 import { BehaviorSubject, Subject, takeUntil } from "rxjs";
 import { HttpClientModule } from "@angular/common/http";
 import { CommonModule } from "@angular/common";
 import { MatButtonModule } from "@angular/material/button";
 import { MatChipsModule } from "@angular/material/chips";
 import { FlexLayoutModule } from "@angular/flex-layout";
-import { Audio } from "../models/Audio.model";
+import { Audio } from "../../models/Audio.model";
 
 @Component({
   selector: "app-listen",
