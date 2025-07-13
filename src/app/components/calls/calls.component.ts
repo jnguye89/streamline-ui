@@ -1,16 +1,20 @@
-import { CommonModule, isPlatformBrowser } from "@angular/common";
-import {
-  Component,
-  Inject,
-  OnDestroy,
-  OnInit,
-  PLATFORM_ID,
-} from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { Component, OnDestroy, OnInit } from "@angular/core";
 import { AuthService } from "@auth0/auth0-angular";
 import { Router } from "@angular/router";
-import { first } from "rxjs";
+import {
+  combineLatest,
+  filter,
+  first,
+  Observable,
+  Subject,
+  switchMap,
+  take,
+  takeUntil,
+} from "rxjs";
 import { VoximplantService } from "../../services/voximplant.service";
 import { FormsModule } from "@angular/forms";
+import { UserIntegration } from "../../models/user-integration.model";
 
 @Component({
   selector: "app-calls",
@@ -20,7 +24,7 @@ import { FormsModule } from "@angular/forms";
   templateUrl: "./calls.component.html",
   styleUrl: "./calls.component.scss",
 })
-export class CallsComponent implements OnInit, OnDestroy {
+export class CallsComponent implements OnInit {
   targetUser: string = "receiver@app.account.voximplant.com";
   isAuthenticated$ = this.auth.isAuthenticated$;
 
@@ -39,20 +43,31 @@ export class CallsComponent implements OnInit, OnDestroy {
             target: this.router.url,
           },
         });
-      } else this.voximplantService.initialize();
+      } else {
+        this.auth
+          .getAccessTokenSilently()
+          // combineLatest([this.getVoxUser(), this.getAccessToken()])
+          .pipe(
+            filter((token) => !!token), // filter out empty tokens
+            switchMap((token) => this.getVoxUser(token)),
+            take(1)
+          )
+          .subscribe((userIntegration) => {
+            this.voximplantService.login(userIntegration.integrationUsername);
+          });
+      }
     });
   }
 
-  ngOnDestroy(): void {
-    this.voximplantService.hangup();
+  private getVoxUser(token: string): Observable<UserIntegration> {
+    return this.voximplantService.getVoxImplantUser(token);
   }
 
   startCall(): void {
-    // console.log('starting call')
-    this.voximplantService.call(this.targetUser);
+    this.voximplantService.callUser("6872d2d67c39260acfc71cd9");
   }
 
   endCall(): void {
-    this.voximplantService.hangup();
+    // this.voximplantService.hangup();
   }
 }

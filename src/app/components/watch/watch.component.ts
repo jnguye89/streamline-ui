@@ -6,21 +6,9 @@ import { MatButtonModule } from "@angular/material/button";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { MatChipsModule } from "@angular/material/chips";
 import { VideoService } from "../../services/video.service";
-import { HttpClientModule } from "@angular/common/http";
 import { Router, RouterModule } from "@angular/router";
-import {
-  BehaviorSubject,
-  catchError,
-  forkJoin,
-  Observable,
-  of,
-  Subject,
-  switchMap,
-  takeUntil,
-} from "rxjs";
+import { BehaviorSubject, Subject, takeUntil } from "rxjs";
 import { Video } from "../../models/video.model";
-import { environment } from "../../../environments/environment";
-import { StreamStatus } from "../../models/sttream-status.model";
 
 declare const IVSPlayer: any;
 
@@ -33,7 +21,6 @@ declare const IVSPlayer: any;
     MatDividerModule,
     FlexLayoutModule,
     MatChipsModule,
-    HttpClientModule,
     RouterModule,
     CommonModule,
   ],
@@ -94,7 +81,6 @@ export class WatchComponent implements OnDestroy, AfterViewInit {
     //     //     "live-player"
     //     //   ) as HTMLVideoElement;
     //     //   console.log(videoEl);
-
     //     //   // if (IVSPlayer.isPlayerSupported) {
     //     //   const player = IVSPlayer.create();
     //     //   player.attachHTMLVideoElement(videoEl);

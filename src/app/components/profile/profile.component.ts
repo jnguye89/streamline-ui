@@ -6,7 +6,6 @@ import {
   PLATFORM_ID,
 } from "@angular/core";
 import { VideoService } from "../../services/video.service";
-import { HttpClientModule } from "@angular/common/http";
 import { MatIconModule } from "@angular/material/icon";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { concatMap, first, Subject, takeUntil, tap } from "rxjs";
@@ -17,7 +16,7 @@ import { ActivatedRoute, Router } from "@angular/router";
 @Component({
   selector: "app-profile",
   standalone: true,
-  imports: [HttpClientModule, MatIconModule, FlexLayoutModule, CommonModule],
+  imports: [MatIconModule, FlexLayoutModule, CommonModule],
   providers: [VideoService],
   templateUrl: "./profile.component.html",
   styleUrl: "./profile.component.scss",

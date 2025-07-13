@@ -12,6 +12,7 @@ import {
   HTTP_INTERCEPTORS,
   provideHttpClient,
   withInterceptors,
+  withInterceptorsFromDi,
 } from "@angular/common/http";
 import { provideAuth0 } from "@auth0/auth0-angular";
 import { provideAuth0HttpInterceptor } from "./interceptors/autho-interceptor.provider"; // custom file
@@ -25,7 +26,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideClientHydration(),
     provideAnimationsAsync(),
-    provideHttpClient(withInterceptors([])),
+    provideHttpClient(withInterceptorsFromDi()),
     provideAuth0({
       domain: environment.auth0.domain,
       clientId: environment.auth0.clientId,

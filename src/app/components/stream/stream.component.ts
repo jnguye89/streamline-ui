@@ -23,7 +23,6 @@ import {
   take,
   takeUntil,
 } from "rxjs";
-import { HttpClientModule } from "@angular/common/http";
 import { CommonModule, DatePipe, isPlatformBrowser } from "@angular/common";
 import { IvsBroadcastService } from "../../services/ivs-broadcast.service";
 import { AuthService } from "@auth0/auth0-angular";
@@ -36,7 +35,6 @@ import { Router } from "@angular/router";
     MatButtonModule,
     MatIconModule,
     FlexLayoutModule,
-    HttpClientModule,
     CommonModule,
   ],
   providers: [VideoService, DatePipe, IvsBroadcastService],
