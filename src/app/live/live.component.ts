@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, OnInit } from "@angular/core";
 import { environment } from "../../environments/environment";
-import { Meta, Title } from "@angular/platform-browser";
+import { SeoService } from "../services/seo.service";
 
 declare const IVSPlayer: any;
 
@@ -14,7 +14,7 @@ declare const IVSPlayer: any;
 export class LiveComponent implements AfterViewInit, OnInit {
   isPortrait = false;
 
-  constructor(private titleService: Title, private metaService: Meta) {}
+  constructor(private seo: SeoService) {}
   ngAfterViewInit(): void {
     const videoEl = document.getElementById("live-player") as HTMLVideoElement;
 
@@ -39,35 +39,12 @@ export class LiveComponent implements AfterViewInit, OnInit {
     const keywords =
       "live tv channels, sports streaming, ai chaptering, instant replay tv, multi-angle live";
 
-    this.titleService.setTitle(title);
-
-    this.metaService.updateTag({ name: "description", content: description });
-    this.metaService.updateTag({ name: "keywords", content: keywords });
-    this.metaService.updateTag({ name: "robots", content: "index, follow" });
-
-    this.metaService.updateTag({ property: "og:title", content: title });
-    this.metaService.updateTag({
-      property: "og:description",
-      content: description,
-    });
-    this.metaService.updateTag({ property: "og:type", content: "website" });
-    this.metaService.updateTag({
-      property: "og:url",
-      content: "https://www.yoursite.com/live",
-    });
-    this.metaService.updateTag({
-      property: "og:image",
-      content: "https://www.yoursite.com/assets/live-og-image.jpg",
-    });
-
-    this.metaService.updateTag({
-      name: "twitter:card",
-      content: "summary_large_image",
-    });
-    this.metaService.updateTag({ name: "twitter:title", content: title });
-    this.metaService.updateTag({
-      name: "twitter:description",
-      content: description,
+    this.seo.setTags({
+      title,
+      description,
+      keywords,
+      path: "/watch",
+      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
     });
   }
 }

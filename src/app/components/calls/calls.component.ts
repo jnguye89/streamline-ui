@@ -2,16 +2,11 @@ import { CommonModule } from "@angular/common";
 import { Component, ElementRef, OnInit, ViewChild } from "@angular/core";
 import { AuthService } from "@auth0/auth0-angular";
 import { Router } from "@angular/router";
-import {
-  combineLatest,
-  filter,
-  Observable,
-  switchMap,
-  take,
-} from "rxjs";
+import { combineLatest, filter, Observable, switchMap, take } from "rxjs";
 import { VoximplantService } from "../../services/voximplant.service";
 import { FormsModule } from "@angular/forms";
 import { UserIntegration } from "../../models/user-integration.model";
+import { SeoService } from "../../services/seo.service";
 
 @Component({
   selector: "app-calls",
@@ -32,10 +27,12 @@ export class CallsComponent implements OnInit {
   constructor(
     private auth: AuthService,
     private router: Router,
-    private voximplantService: VoximplantService
+    private voximplantService: VoximplantService,
+    private seo: SeoService
   ) {}
 
   async ngOnInit() {
+    this.setUpSeo();
     combineLatest([this.auth.isAuthenticated$, this.auth.isLoading$])
       .pipe(
         filter(([isAuthenticated, isLoading]) => !isLoading),
@@ -90,5 +87,21 @@ export class CallsComponent implements OnInit {
 
   endCall(): void {
     // this.voximplantService.hangup();
+  }
+
+  private setUpSeo() {
+    const title = "Calls - Skriin AI TV";
+    const description =
+      "Place crystal-clear AI-enhanced video and voice calls from any smart-TV. Auto-framing, noise cleanup, instant family conferencing.";
+    const keywords =
+      "ai video calls on tv, smart tv calling, skriin calls, family video chat, noise cancelling tv calls";
+
+    this.seo.setTags({
+      title,
+      description,
+      keywords,
+      path: "/watch",
+      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
+    });
   }
 }

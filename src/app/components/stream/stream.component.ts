@@ -28,6 +28,7 @@ import { IvsBroadcastService } from "../../services/ivs-broadcast.service";
 import { AuthService } from "@auth0/auth0-angular";
 import { Router } from "@angular/router";
 import { Meta, Title } from "@angular/platform-browser";
+import { SeoService } from "../../services/seo.service";
 
 @Component({
   selector: "app-stream",
@@ -49,8 +50,7 @@ export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
     private ivs: IvsBroadcastService,
     private videoService: VideoService,
     private router: Router,
-    private titleService: Title,
-    private metaService: Meta,
+    private seo: SeoService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
@@ -138,35 +138,12 @@ export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
     const keywords =
       "live game streaming, smart tv streamer, ai overlays, low latency broadcast, twitch youtube stream";
 
-    this.titleService.setTitle(title);
-
-    this.metaService.updateTag({ name: "description", content: description });
-    this.metaService.updateTag({ name: "keywords", content: keywords });
-    this.metaService.updateTag({ name: "robots", content: "index, follow" });
-
-    this.metaService.updateTag({ property: "og:title", content: title });
-    this.metaService.updateTag({
-      property: "og:description",
-      content: description,
-    });
-    this.metaService.updateTag({ property: "og:type", content: "website" });
-    this.metaService.updateTag({
-      property: "og:url",
-      content: "https://www.yoursite.com/stream",
-    });
-    this.metaService.updateTag({
-      property: "og:image",
-      content: "https://www.yoursite.com/assets/stream-og-image.jpg",
-    });
-
-    this.metaService.updateTag({
-      name: "twitter:card",
-      content: "summary_large_image",
-    });
-    this.metaService.updateTag({ name: "twitter:title", content: title });
-    this.metaService.updateTag({
-      name: "twitter:description",
-      content: description,
+    this.seo.setTags({
+      title,
+      description,
+      keywords,
+      path: "/watch",
+      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
     });
   }
 }

@@ -4,6 +4,7 @@ import { Observable } from "rxjs";
 import { environment } from "../../environments/environment";
 import { Station } from "../models/station.model";
 import { Meta, Title } from "@angular/platform-browser";
+import { SeoService } from "./seo.service";
 
 @Injectable({
   providedIn: "root",
@@ -11,11 +12,7 @@ import { Meta, Title } from "@angular/platform-browser";
 export class ListenService implements OnInit {
   private apiUrl = environment.baseUrl;
 
-  constructor(
-    private http: HttpClient,
-    private titleService: Title,
-    private metaService: Meta
-  ) {}
+  constructor(private http: HttpClient, private seo: SeoService) {}
 
   ngOnInit(): void {
     this.setUpSeo();
@@ -36,35 +33,12 @@ export class ListenService implements OnInit {
     const keywords =
       "podcast player tv, smart tv radio, ambient soundscapes, ai audio recommendations, spatial audio tv";
 
-    this.titleService.setTitle(title);
-
-    this.metaService.updateTag({ name: "description", content: description });
-    this.metaService.updateTag({ name: "keywords", content: keywords });
-    this.metaService.updateTag({ name: "robots", content: "index, follow" });
-
-    this.metaService.updateTag({ property: "og:title", content: title });
-    this.metaService.updateTag({
-      property: "og:description",
-      content: description,
-    });
-    this.metaService.updateTag({ property: "og:type", content: "website" });
-    this.metaService.updateTag({
-      property: "og:url",
-      content: "https://www.yoursite.com/listen",
-    });
-    this.metaService.updateTag({
-      property: "og:image",
-      content: "https://www.yoursite.com/assets/listen-og-image.jpg",
-    });
-
-    this.metaService.updateTag({
-      name: "twitter:card",
-      content: "summary_large_image",
-    });
-    this.metaService.updateTag({ name: "twitter:title", content: title });
-    this.metaService.updateTag({
-      name: "twitter:description",
-      content: description,
+    this.seo.setTags({
+      title,
+      description,
+      keywords,
+      path: "/watch",
+      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
     });
   }
 }

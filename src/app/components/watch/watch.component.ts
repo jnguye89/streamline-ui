@@ -16,6 +16,7 @@ import { Router, RouterModule } from "@angular/router";
 import { BehaviorSubject, Subject, takeUntil } from "rxjs";
 import { Video } from "../../models/video.model";
 import { Meta, Title } from "@angular/platform-browser";
+import { SeoService } from "../../services/seo.service";
 
 declare const IVSPlayer: any;
 
@@ -50,8 +51,7 @@ export class WatchComponent implements OnDestroy, AfterViewInit, OnInit {
   constructor(
     private videoService: VideoService,
     private router: Router,
-    private titleService: Title,
-    private metaService: Meta
+    private seo: SeoService
   ) {
     this.videoService
       .getVideos()
@@ -167,36 +167,12 @@ export class WatchComponent implements OnDestroy, AfterViewInit, OnInit {
       "Discover and watch creators, VODs, podcasts and cloud DVR in one curated interface powered by AI recommendations and voice search.";
     const keywords =
       "watch streaming content, creator hub tv, ai recommendations, vod player, voice search tv";
-
-    this.titleService.setTitle(title);
-
-    this.metaService.updateTag({ name: "description", content: description });
-    this.metaService.updateTag({ name: "keywords", content: keywords });
-    this.metaService.updateTag({ name: "robots", content: "index, follow" });
-
-    this.metaService.updateTag({ property: "og:title", content: title });
-    this.metaService.updateTag({
-      property: "og:description",
-      content: description,
-    });
-    this.metaService.updateTag({ property: "og:type", content: "website" });
-    this.metaService.updateTag({
-      property: "og:url",
-      content: "https://www.yoursite.com/watch",
-    });
-    this.metaService.updateTag({
-      property: "og:image",
-      content: "https://www.yoursite.com/assets/watch-og-image.jpg",
-    });
-
-    this.metaService.updateTag({
-      name: "twitter:card",
-      content: "summary_large_image",
-    });
-    this.metaService.updateTag({ name: "twitter:title", content: title });
-    this.metaService.updateTag({
-      name: "twitter:description",
-      content: description,
+    this.seo.setTags({
+      title,
+      description,
+      keywords,
+      path: "/watch",
+      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
     });
   }
 }

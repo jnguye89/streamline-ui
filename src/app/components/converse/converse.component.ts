@@ -5,6 +5,7 @@ import {
   SafeResourceUrl,
   Title,
 } from "@angular/platform-browser";
+import { SeoService } from "../../services/seo.service";
 
 @Component({
   selector: "app-converse",
@@ -16,11 +17,7 @@ import {
 export class ConverseComponent implements OnInit {
   safeUrl: SafeResourceUrl;
 
-  constructor(
-      private sanitizer: DomSanitizer,
-      private titleService: Title,
-      private metaService: Meta
-  ) {
+  constructor(private sanitizer: DomSanitizer, private seo: SeoService) {
     this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
       "https://bayareaaitv.com/"
     );
@@ -37,35 +34,12 @@ export class ConverseComponent implements OnInit {
     const keywords =
       "ai voice assistant tv, talk to tv, llm search, conversational ui, smart tv chatbot";
 
-    this.titleService.setTitle(title);
-
-    this.metaService.updateTag({ name: "description", content: description });
-    this.metaService.updateTag({ name: "keywords", content: keywords });
-    this.metaService.updateTag({ name: "robots", content: "index, follow" });
-
-    this.metaService.updateTag({ property: "og:title", content: title });
-    this.metaService.updateTag({
-      property: "og:description",
-      content: description,
-    });
-    this.metaService.updateTag({ property: "og:type", content: "website" });
-    this.metaService.updateTag({
-      property: "og:url",
-      content: "https://www.yoursite.com/yap",
-    });
-    this.metaService.updateTag({
-      property: "og:image",
-      content: "https://www.yoursite.com/assets/yap-og-image.jpg",
-    });
-
-    this.metaService.updateTag({
-      name: "twitter:card",
-      content: "summary_large_image",
-    });
-    this.metaService.updateTag({ name: "twitter:title", content: title });
-    this.metaService.updateTag({
-      name: "twitter:description",
-      content: description,
+    this.seo.setTags({
+      title,
+      description,
+      keywords,
+      path: "/watch",
+      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
     });
   }
 }
