@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, OnDestroy, OnInit } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { AuthService } from "@auth0/auth0-angular";
 import { Router } from "@angular/router";
 import {
@@ -7,10 +7,8 @@ import {
   filter,
   first,
   Observable,
-  Subject,
   switchMap,
   take,
-  takeUntil,
 } from "rxjs";
 import { VoximplantService } from "../../services/voximplant.service";
 import { FormsModule } from "@angular/forms";
@@ -26,7 +24,7 @@ import { UserIntegration } from "../../models/user-integration.model";
 })
 export class CallsComponent implements OnInit {
   targetUser: string = "receiver@app.account.voximplant.com";
-  isAuthenticated$ = this.auth.isAuthenticated$;
+  isAuthenticated$: Observable<boolean> = this.auth.isAuthenticated$;
 
   constructor(
     private auth: AuthService,
@@ -35,32 +33,52 @@ export class CallsComponent implements OnInit {
   ) {}
 
   async ngOnInit() {
-    this.isAuthenticated$.pipe(first()).subscribe((isAuthenticated) => {
-      if (!isAuthenticated) {
-        this.auth.loginWithRedirect({
-          appState: {
-            // -> comes back to us after login
-            target: this.router.url,
-          },
-        });
-      } else {
-        this.auth
-          .getAccessTokenSilently()
-          // combineLatest([this.getVoxUser(), this.getAccessToken()])
-          .pipe(
-            filter((token) => !!token), // filter out empty tokens
-            switchMap((token) => this.getVoxUser(token)),
-            take(1)
-          )
-          .subscribe((userIntegration) => {
-            this.voximplantService.login(userIntegration.integrationUsername);
-          });
-      }
-    });
+    combineLatest([this.auth.isAuthenticated$, this.auth.isLoading$])
+      .pipe(
+        filter(([isAuthenticated, isLoading]) => !isLoading),
+        take(1),
+        switchMap(([isAuthenticated]) => {
+          if (!isAuthenticated) {
+            this.auth.loginWithRedirect({
+              appState: {
+                // -> comes back to us after login
+                target: this.router.url,
+              },
+            });
+            // Return an empty observable since we're redirecting
+            return [];
+          } else {
+            // Return the observable for the user integration
+            return this.getVoxUser();
+          }
+        })
+      )
+      .subscribe((userIntegration: UserIntegration) => {
+        if (userIntegration) {
+          this.voximplantService.login(userIntegration.integrationUsername);
+        }
+      });
+
+      this.voximplantService.listen();
+    // this.isAuthenticated$.pipe(first()).subscribe((isAuthenticated) => {
+    //   if (!isAuthenticated) {
+    //     this.auth.loginWithRedirect({
+    //       appState: {
+    //         // -> comes back to us after login
+    //         target: this.router.url,
+    //       },
+    //     });
+    //   } else {
+    //       this.getVoxUser()
+    //       .subscribe((userIntegration) => {
+    //         this.voximplantService.login(userIntegration.integrationUsername);
+    //       });
+    //   }
+    // });
   }
 
-  private getVoxUser(token: string): Observable<UserIntegration> {
-    return this.voximplantService.getVoxImplantUser(token);
+  private getVoxUser(): Observable<UserIntegration> {
+    return this.voximplantService.getVoxImplantUser();
   }
 
   startCall(): void {

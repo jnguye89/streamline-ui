@@ -54,7 +54,7 @@ export class VoximplantService {
 
   /** One-time-key login */
   async login(userId: string): Promise<void> {
-    console.log(userId);
+    // console.log()
     userId = userId.split("|")[0]; // remove any Auth0 prefix
     const fullUser = `${userId}@skriin.jnguye89.n2.voximplant.com`;
 
@@ -83,15 +83,15 @@ export class VoximplantService {
     this.client.requestOneTimeLoginKey(fullUser);
   }
 
-  getVoxImplantUser(token: string): Observable<UserIntegration> {
+  getVoxImplantUser(): Observable<UserIntegration> {
     return this.http.post<UserIntegration>(
       `${environment.baseUrl}/user/integration/voximplant`,
       null,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`, // pass the token from Auth0
-        },
-      }
+      // {
+      //   headers: {
+      //     Authorization: `Bearer ${token}`, // pass the token from Auth0
+      //   },
+      // }
     );
   }
   /* ---- OUTGOING call ------------------------------------------ */

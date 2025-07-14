@@ -34,8 +34,10 @@ export const appConfig: ApplicationConfig = {
         redirect_uri: window.location.origin,
         audience: environment.auth0.audience,
       },
+      cacheLocation: "localstorage", // <– this helps avoid iframe issues
+      useRefreshTokens: true,
     }),
-    provideAuth0HttpInterceptor(),
+    // provideAuth0HttpInterceptor(),
     {
       provide: HTTP_INTERCEPTORS,
       useClass: OptionalAuthInterceptor,
@@ -45,9 +47,10 @@ export const appConfig: ApplicationConfig = {
       enabled: !isDevMode(),
       registrationStrategy: "registerWhenStable:30000",
     }),
-    PostLoginRedirectService, provideServiceWorker('ngsw-worker.js', {
-            enabled: !isDevMode(),
-            registrationStrategy: 'registerWhenStable:30000'
-          }),
+    PostLoginRedirectService,
+    provideServiceWorker("ngsw-worker.js", {
+      enabled: !isDevMode(),
+      registrationStrategy: "registerWhenStable:30000",
+    }),
   ],
 };
