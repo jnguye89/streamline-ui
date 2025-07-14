@@ -15,23 +15,23 @@ body {
   background-color: #000000;
 }
 /* Fullscreen overlay shown only in portrait */
-#rotate-overlay {
-  position: fixed;
-  inset: 0;
-  display: none;
-  place-content: center;
-  background: #000;
-  color: #fff;
-  text-align: center;
-  font: 1.2rem/1.4 sans-serif;
-  z-index: 9999;
-}
+// #rotate-overlay {
+//   position: fixed;
+//   inset: 0;
+//   display: none;
+//   place-content: center;
+//   background: #000;
+//   color: #fff;
+//   text-align: center;
+//   font: 1.2rem/1.4 sans-serif;
+//   z-index: 9999;
+// }
 
-@media (orientation: portrait) {
-  #rotate-overlay {
-    display: grid;
-  }
-  app-root {
-    display: none;
-  }
-}
+// @media (orientation: portrait) {
+//   #rotate-overlay {
+//     display: grid;
+//   }
+//   app-root {
+//     display: none;
+//   }
+// }
