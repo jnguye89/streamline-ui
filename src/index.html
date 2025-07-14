@@ -7,11 +7,16 @@
       content="View videos, add your own and talk with your friends."
     />
     <meta name="robots" content="index, follow" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta charset="utf-8" />
     <base href="/" />
-    <link rel="canonical" href="https://www.mysite.com/current-page" />
-
+    <link rel="canonical" href="https://skriin.com" />
+    <meta property="og:title" content="Skriin AI TV – Talk to your TV" />
+    <meta
+      property="og:description"
+      content="The mini-PC smart-TV box that streams, chats, and curates with AI."
+    />
+    <meta property="og:image" content="https://skriin.com/og-cover.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover"
@@ -34,8 +39,6 @@
     <script src="https://player.live-video.net/1.40.0/amazon-ivs-player.min.js"></script>
     <script src="https://cdn.voximplant.com/voximplant.min.js"></script>
     <link rel="manifest" href="manifest.webmanifest" />
-    <!-- <meta name="theme-color" content="#1976d2"> -->
-    <link rel="manifest" href="manifest.webmanifest" />
     <meta
       name="theme-color"
       content="#0e76ff"
@@ -46,8 +49,76 @@
       content="#001122"
       media="(prefers-color-scheme: dark)"
     />
+    <script
+      src="https://player.live-video.net/1.40.0/amazon-ivs-player.min.js"
+      defer
+    ></script>
+    <script src="https://cdn.voximplant.com/voximplant.min.js" defer></script>
   </head>
   <body class="mat-typography">
+    <noscript>
+      <style>
+        /* basic layout so it doesn’t look broken */
+        .no-js-wrapper {
+          max-width: 680px;
+          margin: 2rem auto;
+          padding: 1rem;
+          font-family: Arial, sans-serif;
+          text-align: center;
+        }
+        .no-js-wrapper h1 {
+          font-size: 1.75rem;
+          margin: 0.5rem 0;
+        }
+        .no-js-wrapper p {
+          margin: 0.75rem 0 1.25rem;
+        }
+        .no-js-wrapper form {
+          display: flex;
+          gap: 0.5rem;
+          justify-content: center;
+        }
+        .no-js-wrapper input[type="email"] {
+          padding: 0.5rem;
+          font-size: 1rem;
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          width: 240px;
+        }
+        .no-js-wrapper button {
+          padding: 0.55rem 1rem;
+          font-size: 1rem;
+          border: none;
+          border-radius: 4px;
+          background: #0e76ff;
+          color: #fff;
+          cursor: pointer;
+        }
+      </style>
+
+      <div class="no-js-wrapper">
+        <h1>Skriin AI TV</h1>
+
+        <p>
+          Skriin turns any screen into an AI-powered Smart-TV box.<br />
+          Stream. Chat. Discover. All from your couch.
+        </p>
+
+        <form
+          action="https://example.us1.list-manage.com/subscribe/post"
+          method="post"
+          target="_blank"
+        >
+          <input type="email" name="EMAIL" placeholder="Your email" required />
+          <button type="submit">Join the wait-list</button>
+        </form>
+
+        <p style="font-size: 0.9rem; margin-top: 1rem">
+          (You’re seeing this message because JavaScript is off or failed to
+          load.)
+        </p>
+      </div>
+    </noscript>
     <app-root></app-root>
   </body>
 </html>
