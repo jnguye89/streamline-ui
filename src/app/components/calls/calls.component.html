@@ -1,10 +1,12 @@
 <div class="main-container" *ngIf="isAuthenticated$ | async">
   <!-- <div> -->
-    <br/>
-    <br/>
-    <br/>
-    <br/>
-    
+  <br />
+  <br />
+  <br />
+  <br />
+  <audio #remoteAudio autoplay></audio>
+  <audio #localAudio autoplay muted></audio>
+
   <input [(ngModel)]="targetUser" placeholder="Target SIP address" />
   <button (click)="startCall()">Call</button>
   <button (click)="endCall()">Hang Up</button>

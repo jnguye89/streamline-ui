@@ -1,11 +1,10 @@
 import { CommonModule } from "@angular/common";
-import { Component, OnInit } from "@angular/core";
+import { Component, ElementRef, OnInit, ViewChild } from "@angular/core";
 import { AuthService } from "@auth0/auth0-angular";
 import { Router } from "@angular/router";
 import {
   combineLatest,
   filter,
-  first,
   Observable,
   switchMap,
   take,
@@ -25,6 +24,10 @@ import { UserIntegration } from "../../models/user-integration.model";
 export class CallsComponent implements OnInit {
   targetUser: string = "receiver@app.account.voximplant.com";
   isAuthenticated$: Observable<boolean> = this.auth.isAuthenticated$;
+  @ViewChild("remoteAudio", { static: true })
+  remoteAudioRef!: ElementRef<HTMLAudioElement>;
+  @ViewChild("localAudio", { static: true })
+  localAudioRef!: ElementRef<HTMLAudioElement>;
 
   constructor(
     private auth: AuthService,
@@ -59,7 +62,7 @@ export class CallsComponent implements OnInit {
         }
       });
 
-      this.voximplantService.listen();
+    this.voximplantService.listen();
     // this.isAuthenticated$.pipe(first()).subscribe((isAuthenticated) => {
     //   if (!isAuthenticated) {
     //     this.auth.loginWithRedirect({

@@ -27,16 +27,12 @@ import { CommonModule, DatePipe, isPlatformBrowser } from "@angular/common";
 import { IvsBroadcastService } from "../../services/ivs-broadcast.service";
 import { AuthService } from "@auth0/auth0-angular";
 import { Router } from "@angular/router";
+import { Meta, Title } from "@angular/platform-browser";
 
 @Component({
   selector: "app-stream",
   standalone: true,
-  imports: [
-    MatButtonModule,
-    MatIconModule,
-    FlexLayoutModule,
-    CommonModule,
-  ],
+  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule],
   providers: [VideoService, DatePipe, IvsBroadcastService],
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
@@ -53,10 +49,13 @@ export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
     private ivs: IvsBroadcastService,
     private videoService: VideoService,
     private router: Router,
+    private titleService: Title,
+    private metaService: Meta,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   async ngOnInit() {
+    this.setUpSeo();
     if (isPlatformBrowser(this.platformId)) {
       this.isAuthenticated$.pipe(first()).subscribe((isAuth) => {
         if (!isAuth)
@@ -130,5 +129,44 @@ export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
 
     const file = input.files[0];
     this.videoService.uploadVideo(file).pipe(first()).subscribe();
+  }
+
+  private setUpSeo() {
+    const title = "Stream – Skriin AI TV";
+    const description =
+      "One-click streaming hub: push gameplay, camera or desktop to Twitch, YouTube & Skriin Cloud. AI overlays, chat integration, 0.6 s latency.";
+    const keywords =
+      "live game streaming, smart tv streamer, ai overlays, low latency broadcast, twitch youtube stream";
+
+    this.titleService.setTitle(title);
+
+    this.metaService.updateTag({ name: "description", content: description });
+    this.metaService.updateTag({ name: "keywords", content: keywords });
+    this.metaService.updateTag({ name: "robots", content: "index, follow" });
+
+    this.metaService.updateTag({ property: "og:title", content: title });
+    this.metaService.updateTag({
+      property: "og:description",
+      content: description,
+    });
+    this.metaService.updateTag({ property: "og:type", content: "website" });
+    this.metaService.updateTag({
+      property: "og:url",
+      content: "https://www.yoursite.com/stream",
+    });
+    this.metaService.updateTag({
+      property: "og:image",
+      content: "https://www.yoursite.com/assets/stream-og-image.jpg",
+    });
+
+    this.metaService.updateTag({
+      name: "twitter:card",
+      content: "summary_large_image",
+    });
+    this.metaService.updateTag({ name: "twitter:title", content: title });
+    this.metaService.updateTag({
+      name: "twitter:description",
+      content: description,
+    });
   }
 }

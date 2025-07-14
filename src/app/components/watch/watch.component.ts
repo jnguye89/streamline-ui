@@ -1,4 +1,10 @@
-import { AfterViewInit, Component, OnDestroy, ViewChild } from "@angular/core";
+import {
+  AfterViewInit,
+  Component,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+} from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { MatIconModule } from "@angular/material/icon";
 import { MatDividerModule } from "@angular/material/divider";
@@ -9,6 +15,7 @@ import { VideoService } from "../../services/video.service";
 import { Router, RouterModule } from "@angular/router";
 import { BehaviorSubject, Subject, takeUntil } from "rxjs";
 import { Video } from "../../models/video.model";
+import { Meta, Title } from "@angular/platform-browser";
 
 declare const IVSPlayer: any;
 
@@ -28,10 +35,10 @@ declare const IVSPlayer: any;
   templateUrl: "./watch.component.html",
   styleUrl: "./watch.component.scss",
 })
-export class WatchComponent implements OnDestroy, AfterViewInit {
+export class WatchComponent implements OnDestroy, AfterViewInit, OnInit {
   private destroy$ = new Subject<void>();
   private videoTitlesSubject = new BehaviorSubject<Video[]>([]);
-  @ViewChild("player", { static: false })
+  // @ViewChild("player", { static: false })
   // playerRef!: ElementRef<HTMLVideoElement>;
   videoTitles$ = this.videoTitlesSubject.asObservable();
   isPortrait = false;
@@ -40,7 +47,12 @@ export class WatchComponent implements OnDestroy, AfterViewInit {
   currentTitle: Video | null = null;
   isLive = false;
 
-  constructor(private videoService: VideoService, private router: Router) {
+  constructor(
+    private videoService: VideoService,
+    private router: Router,
+    private titleService: Title,
+    private metaService: Meta
+  ) {
     this.videoService
       .getVideos()
       .pipe(takeUntil(this.destroy$))
@@ -61,6 +73,10 @@ export class WatchComponent implements OnDestroy, AfterViewInit {
   //     })
   //   );
   // }
+
+  ngOnInit() {
+    this.setUpSeo();
+  }
 
   ngAfterViewInit(): void {
     // this.videoService
@@ -143,5 +159,44 @@ export class WatchComponent implements OnDestroy, AfterViewInit {
 
   goToProfile() {
     this.router.navigate(["/profile", this.currentTitle?.user || ""]);
+  }
+
+  private setUpSeo() {
+    const title = "Watch – Skriin AI TV";
+    const description =
+      "Discover and watch creators, VODs, podcasts and cloud DVR in one curated interface powered by AI recommendations and voice search.";
+    const keywords =
+      "watch streaming content, creator hub tv, ai recommendations, vod player, voice search tv";
+
+    this.titleService.setTitle(title);
+
+    this.metaService.updateTag({ name: "description", content: description });
+    this.metaService.updateTag({ name: "keywords", content: keywords });
+    this.metaService.updateTag({ name: "robots", content: "index, follow" });
+
+    this.metaService.updateTag({ property: "og:title", content: title });
+    this.metaService.updateTag({
+      property: "og:description",
+      content: description,
+    });
+    this.metaService.updateTag({ property: "og:type", content: "website" });
+    this.metaService.updateTag({
+      property: "og:url",
+      content: "https://www.yoursite.com/watch",
+    });
+    this.metaService.updateTag({
+      property: "og:image",
+      content: "https://www.yoursite.com/assets/watch-og-image.jpg",
+    });
+
+    this.metaService.updateTag({
+      name: "twitter:card",
+      content: "summary_large_image",
+    });
+    this.metaService.updateTag({ name: "twitter:title", content: title });
+    this.metaService.updateTag({
+      name: "twitter:description",
+      content: description,
+    });
   }
 }
