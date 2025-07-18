@@ -1,10 +1,10 @@
-import { Injectable } from "@angular/core";
+import { ElementRef, Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { firstValueFrom, Observable } from "rxjs";
 import { environment } from "../../environments/environment";
 import { UserIntegration } from "../models/user-integration.model";
-import { CallEvents } from "voximplant-websdk";
-import { Events } from "voximplant-websdk";
+// import { CallEvents } from "voximplant-websdk";
+// import { Events } from "voximplant-websdk";
 
 declare const VoxImplant: any; // global from <script src="voximplant.min.js">
 
@@ -31,6 +31,10 @@ export class VoximplantService {
         this.client.removeEventListener(VoxImplant.Events.SDKReady, ready);
         res();
       };
+
+      this.client.addEventListener("*", (event: any) => {
+        console.log(`[CLIENT EVENT] ${event.type}`, event);
+      });
       this.client.addEventListener(VoxImplant.Events.SDKReady, ready);
       this.client.init({ node, micRequired: true }); // kicks off WebRTC init
     });
@@ -86,60 +90,150 @@ export class VoximplantService {
   getVoxImplantUser(): Observable<UserIntegration> {
     return this.http.post<UserIntegration>(
       `${environment.baseUrl}/user/integration/voximplant`,
-      null,
-      // {
-      //   headers: {
-      //     Authorization: `Bearer ${token}`, // pass the token from Auth0
-      //   },
-      // }
+      null
     );
   }
   /* ---- OUTGOING call ------------------------------------------ */
-  callUser(targetUser: string) {
-    const call = this.client.call(
-      {
-        number: "6872d2d67c39260acfc71cd9", // must match Voximplant userName
-        video: { sendVideo: false, receiveVideo: false },
-      },
-      true // display incoming video automatically
-    ); // returns Call instance :contentReference[oaicite:1]{index=1}
+  callUser(targetUser: string, remoteAudio: ElementRef<HTMLAudioElement>) {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+      console.log("🎙️ Caller mic access granted");
+      const call = this.client.call(
+        {
+          number: targetUser,
+          sendAudio: true,
+          receiveAudio: true,
+          video: { sendVideo: false, receiveVideo: false },
+        },
+        true
+      );
 
-    call.addEventListener(CallEvents.ProgressToneStart, () =>
-      console.log("⏳ ringing…")
-    );
-    call.addEventListener(CallEvents.Connected, () =>
-      console.log("✅ call connected")
-    );
-    call.addEventListener(CallEvents.Disconnected, () =>
-      console.log("🔚 call ended")
-    );
+      call.addEventListener(VoxImplant.CallEvents.ProgressToneStart, () =>
+        console.log("⏳ ringing…")
+      );
+      // call.addEventListener(VoxImplant.CallEvents.Connected, () =>
+      //   console.log("✅ call connected")
+      // );
+      call.addEventListener(VoxImplant.CallEvents.Disconnected, () =>
+        console.log("🔚 call ended")
+      );
+      call.addEventListener("Failed", (e: any) => {
+        console.error("❌ Call failed", {
+          code: e.code,
+          reason: e.reason,
+          headers: e.headers,
+        });
+      });
+      call.addEventListener("Connected", () => {
+        setTimeout(() => {
+          const streams = call.getRemoteStreams?.();
+          console.log("📥 [caller] getRemoteStreams:", streams);
+          if (streams?.length) {
+            remoteAudio.nativeElement.srcObject = streams[0];
+            remoteAudio.nativeElement.play().catch(console.error);
+          } else {
+            console.warn("⚠️ [caller] No remote stream found");
+          }
+        }, 500);
+      });
 
-    this.currentCall = call;
+      this.currentCall = call;
+
+      // this.currentCall = call;
+      console.log("📞 [DEBUG] call instance", this.currentCall);
+      console.log(
+        "📞 [DEBUG] typeof getLocalStreams:",
+        typeof this.currentCall.getLocalStreams
+      );
+      // this.setupCallMedia(call, remoteAudio);
+    });
   }
 
   /* ---- INCOMING call ------------------------------------------ */
-  listen() {
-    this.client.addEventListener(Events.IncomingCall, (e: { call: any }) => {
-      console.log('there is an incoming call from', e.call.from);
-      this.currentCall = e.call;
+  listen(remoteAudio: ElementRef<HTMLAudioElement>) {
+    this.client.addEventListener(
+      VoxImplant.Events.IncomingCall,
+      (e: { call: any }) => {
+        console.log("📞 Incoming call from", e.call.from);
 
-      this.currentCall.addEventListener(CallEvents.Connected, () =>
-        console.log("✅ incoming call connected")
-      );
-      this.currentCall.addEventListener(CallEvents.Disconnected, () =>
-        console.log("🔚 call ended")
-      );
+        this.currentCall = e.call;
 
-      // auto-answer with audio only
-      this.currentCall.answer({
-        video: { sendVideo: false, receiveVideo: false },
-      });
-    });
+        this.currentCall.addEventListener(VoxImplant.CallEvents.Connected, () =>
+          console.log("✅ Incoming call connected")
+        );
+        // this.currentCall.on(VoxImplant.CallEvents.Connected, () =>
+        //   console.log("✅ Incoming call connected")
+        // );
+
+        // this.currentCall.on(VoxImplant.CallEvents.Disconnected, () =>
+        //   console.log("🔚 Call ended")
+        // );
+
+        this.currentCall.addEventListener(
+          VoxImplant.CallEvents.Disconnected,
+          () => console.log("🔚 Call ended")
+        );
+
+        this.currentCall.addEventListener("StreamAdded", (event: any) => {
+          console.log("🎧 [callee] StreamAdded fired", event);
+          const stream = event.stream;
+          if (stream) {
+            remoteAudio.nativeElement.srcObject = stream;
+            remoteAudio.nativeElement.play().catch(console.error);
+          }
+        });
+
+        navigator.mediaDevices
+          .getUserMedia({ audio: true })
+          .then(() => {
+            console.log("🎤 Callee mic access granted");
+            this.currentCall.answer({
+              sendAudio: true,
+              receiveAudio: true,
+              video: { sendVideo: false, receiveVideo: false },
+            });
+          })
+          .catch(console.error);
+
+        // this.setupCallMedia(this.currentCall, remoteAudio);
+        // navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+        //   console.log("🎙️ Callee mic access granted");
+        //   // Auto-answer with audio only
+        //   this.currentCall.answer({
+        //     video: { sendVideo: false, receiveVideo: false },
+        //     sendAudio: true,
+        //     receiveAudio: true,
+        //   });
+        // });
+      }
+    );
   }
 
   /* ---- Hang up ------------------------------------------------- */
   hangup() {
     this.currentCall?.hangup();
     this.currentCall = undefined;
+  }
+
+  private setupCallMedia(call: any, remoteAudio: ElementRef<HTMLAudioElement>) {
+    const originalCallDispatch = call.dispatchEvent;
+    call.dispatchEvent = function (event: any) {
+      console.log(`[CALL dispatchEvent]`, event?.type, event);
+      return originalCallDispatch.call(this, event);
+    };
+    console.log("in steam added 1");
+
+    call.addEventListener("Connected", () => {
+      setTimeout(() => {
+        const localStreams = call.getLocalStreams?.();
+        console.log("📤 Local stream on callee:", localStreams);
+        const streams = call.getRemoteStreams?.();
+        if (streams?.length > 0) {
+          remoteAudio.nativeElement.srcObject = streams[0];
+          remoteAudio.nativeElement.play().catch(console.error);
+        } else {
+          console.warn("⚠️ Still no remote stream after delay");
+        }
+      }, 500); // try 500ms or more
+    });
   }
 }

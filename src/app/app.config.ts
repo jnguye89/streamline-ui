@@ -26,17 +26,17 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideClientHydration(),
     provideAnimationsAsync(),
-    provideHttpClient(withInterceptorsFromDi()),
     provideAuth0({
       domain: environment.auth0.domain,
       clientId: environment.auth0.clientId,
       authorizationParams: {
-        redirect_uri: window.location.origin,
         audience: environment.auth0.audience,
+        redirect_uri: window.location.origin,
       },
-      cacheLocation: "localstorage", // <– this helps avoid iframe issues
+      cacheLocation: "localstorage", // required for refresh tokens in SPAs
       useRefreshTokens: true,
     }),
+    provideHttpClient(withInterceptorsFromDi()),
     // provideAuth0HttpInterceptor(),
     {
       provide: HTTP_INTERCEPTORS,
@@ -48,9 +48,5 @@ export const appConfig: ApplicationConfig = {
       registrationStrategy: "registerWhenStable:30000",
     }),
     PostLoginRedirectService,
-    provideServiceWorker("ngsw-worker.js", {
-      enabled: !isDevMode(),
-      registrationStrategy: "registerWhenStable:30000",
-    }),
   ],
 };

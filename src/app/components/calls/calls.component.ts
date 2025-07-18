@@ -35,7 +35,7 @@ export class CallsComponent implements OnInit {
     this.setUpSeo();
     combineLatest([this.auth.isAuthenticated$, this.auth.isLoading$])
       .pipe(
-        filter(([isAuthenticated, isLoading]) => !isLoading),
+        filter(([_, isLoading]) => !isLoading),
         take(1),
         switchMap(([isAuthenticated]) => {
           if (!isAuthenticated) {
@@ -49,6 +49,10 @@ export class CallsComponent implements OnInit {
             return [];
           } else {
             // Return the observable for the user integration
+            navigator.mediaDevices
+              .getUserMedia({ audio: true })
+              .then(() => console.log("🎤 Mic access granted"))
+              .catch((err) => console.error("❌ Mic access DENIED", err));
             return this.getVoxUser();
           }
         })
@@ -59,22 +63,11 @@ export class CallsComponent implements OnInit {
         }
       });
 
-    this.voximplantService.listen();
-    // this.isAuthenticated$.pipe(first()).subscribe((isAuthenticated) => {
-    //   if (!isAuthenticated) {
-    //     this.auth.loginWithRedirect({
-    //       appState: {
-    //         // -> comes back to us after login
-    //         target: this.router.url,
-    //       },
-    //     });
-    //   } else {
-    //       this.getVoxUser()
-    //       .subscribe((userIntegration) => {
-    //         this.voximplantService.login(userIntegration.integrationUsername);
-    //       });
-    //   }
-    // });
+    this.voximplantService.listen(this.remoteAudioRef);
+  }
+
+  logout() {
+    this.auth.logout();
   }
 
   private getVoxUser(): Observable<UserIntegration> {
@@ -82,7 +75,10 @@ export class CallsComponent implements OnInit {
   }
 
   startCall(): void {
-    this.voximplantService.callUser("6872d2d67c39260acfc71cd9");
+    this.voximplantService.callUser(
+      "6872d2d67c39260acfc71cd9",
+      this.remoteAudioRef
+    );
   }
 
   endCall(): void {
