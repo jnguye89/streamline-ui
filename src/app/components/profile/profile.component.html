@@ -1,4 +1,10 @@
 <div class="main-container">
+  <div *ngIf="isUploading" class="upload-overlay">
+    <div class="upload-overlay-content">
+      <mat-icon class="upload-icon">cloud_upload</mat-icon>
+      <p class="upload-message">Uploading video, please wait...</p>
+    </div>
+  </div>
   <div *ngIf="(isAuthenticated$ | async) && !userId">
     <button mat-raised-button color="primary" (click)="fileInput.click()">
       <mat-icon>upload</mat-icon> Upload Video
@@ -8,10 +14,11 @@
       accept="video/*"
       #fileInput
       style="display: none"
+      [disabled]="isUploading"
       (change)="onFileSelected($event)"
     />
   </div>
-  <br/>
+  <br />
   <h1>Videos</h1>
   <div fxLayout="row wrap" fxLayoutGap="16px" fxLayoutAlign="center">
     <div *ngFor="let video of videos">
@@ -20,6 +27,8 @@
           [src]="video.videoPath"
           controls
           autoplay
+          muted
+          lop
           class="video-player"
         ></video>
       </div>

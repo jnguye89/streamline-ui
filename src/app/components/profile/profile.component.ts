@@ -26,6 +26,8 @@ export class ProfileComponent implements OnInit, OnDestroy {
   userId: string | null = null;
   private destroy$ = new Subject<void>();
   videos: any[] = [];
+  isUploading = false; // <-- Added
+
   constructor(
     private videoService: VideoService,
     public auth: AuthService,
@@ -74,8 +76,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
-
+    if (input.files[0].size > 500 * 1024 * 1024) {
+      alert("This file is too large (limit is 500MB)");
+      return;
+    }
     const file = input.files[0];
+    this.isUploading = true; // <-- Start loading
     this.videoService
       .uploadVideo(file)
       .pipe(
@@ -83,6 +89,15 @@ export class ProfileComponent implements OnInit, OnDestroy {
         // concatMap(() => this.videoService.getUserVideos("123")),
         takeUntil(this.destroy$)
       )
-      .subscribe((videos: any[]) => (this.videos = videos));
+      .subscribe({
+        next: (video: any) => {
+          this.videos.push(video)
+          this.isUploading = false; // <-- Done
+        },
+        error: (err) => {
+          console.error("Upload failed:", err);
+          this.isUploading = false; // <-- Done even on error
+        },
+      });
   }
 }
