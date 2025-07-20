@@ -27,7 +27,7 @@ export class OptionalAuthInterceptor implements HttpInterceptor {
   private getToken$(): Observable<string> {
     // if a fetch is already running, return the same observable
     if (!this.tokenInFlight$) {
-      console.log("[OptionalAuthInterceptor] Fetching token...");
+      // console.log("[OptionalAuthInterceptor] Fetching token...");
       this.tokenInFlight$ = from(
         this.auth.getAccessTokenSilently({
           detailedResponse: true,
@@ -36,12 +36,12 @@ export class OptionalAuthInterceptor implements HttpInterceptor {
           },
         })
       ).pipe(
-        tap((res) =>
-          console.log("[OptionalAuthInterceptor] Token response:", res)
-        ),
+        // tap((res) =>
+        //   console.log("[OptionalAuthInterceptor] Token response:", res)
+        // ),
         switchMap((res) => {
           const token = res.access_token;
-          console.log("[OptionalAuthInterceptor] Extracted token:", token);
+          // console.log("[OptionalAuthInterceptor] Extracted token:", token);
           return [token];
         }),
         catchError((err) => {
@@ -60,12 +60,10 @@ export class OptionalAuthInterceptor implements HttpInterceptor {
     req: HttpRequest<any>,
     next: HttpHandler
   ): Observable<HttpEvent<any>> {
-    console.log("in interceptor");
     return this.getToken$().pipe(
-      tap((token) => console.log(token)),
+      // tap((token) => console.log(token)),
       take(1),
       switchMap((token) => {
-        console.log("Interceptor injecting token for:", req.url);
         if (req.url.includes(environment.baseUrl)) {
           const authReq = req.clone({
             setHeaders: { Authorization: `Bearer ${token}` },
@@ -75,7 +73,6 @@ export class OptionalAuthInterceptor implements HttpInterceptor {
         return next.handle(req);
       }),
       catchError((err) => {
-        console.warn("Token error in interceptor:", err);
         // Optionally: redirect to login if token is required
         return next.handle(req); // Fallback: continue without token
       })

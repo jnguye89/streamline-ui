@@ -76,10 +76,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
-    if (input.files[0].size > 500 * 1024 * 1024) {
-      alert("This file is too large (limit is 500MB)");
-      return;
-    }
 
     const file = input.files[0];
     this.isUploading = true; // <-- Start loading
