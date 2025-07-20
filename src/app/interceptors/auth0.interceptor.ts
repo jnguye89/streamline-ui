@@ -6,7 +6,7 @@ import {
   HttpHandler,
   HttpEvent,
 } from "@angular/common/http";
-import { Observable, from, throwError } from "rxjs";
+import { Observable, from, of, throwError } from "rxjs";
 import { AuthService } from "@auth0/auth0-angular";
 import {
   switchMap,
@@ -17,6 +17,7 @@ import {
   map,
 } from "rxjs/operators";
 import { environment } from "../../environments/environment";
+import { env } from "process";
 
 @Injectable()
 export class OptionalAuthInterceptor implements HttpInterceptor {
@@ -65,10 +66,13 @@ export class OptionalAuthInterceptor implements HttpInterceptor {
       take(1),
       switchMap((token) => {
         console.log("Interceptor injecting token for:", req.url);
-        const authReq = req.clone({
-          setHeaders: { Authorization: `Bearer ${token}` },
-        });
-        return next.handle(authReq);
+        if (req.url.includes(environment.baseUrl)) {
+          const authReq = req.clone({
+            setHeaders: { Authorization: `Bearer ${token}` },
+          });
+          return next.handle(authReq);
+        }
+        return next.handle(req);
       }),
       catchError((err) => {
         console.warn("Token error in interceptor:", err);

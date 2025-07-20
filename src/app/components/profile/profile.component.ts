@@ -80,24 +80,15 @@ export class ProfileComponent implements OnInit, OnDestroy {
       alert("This file is too large (limit is 500MB)");
       return;
     }
+
     const file = input.files[0];
     this.isUploading = true; // <-- Start loading
     this.videoService
-      .uploadVideo(file)
-      .pipe(
-        tap(() => console.log("upload done, now fetching user videos")),
-        // concatMap(() => this.videoService.getUserVideos("123")),
-        takeUntil(this.destroy$)
-      )
-      .subscribe({
-        next: (video: any) => {
-          this.videos.push(video)
-          this.isUploading = false; // <-- Done
-        },
-        error: (err) => {
-          console.error("Upload failed:", err);
-          this.isUploading = false; // <-- Done even on error
-        },
+      .uploadToPresignedUrl(file)
+      .catch((er) => (this.isUploading = false))
+      .then((file) => {
+        this.isUploading = false;
+        this.videos.push(file);
       });
   }
 }
