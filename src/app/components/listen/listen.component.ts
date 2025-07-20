@@ -6,13 +6,18 @@ import { BehaviorSubject, Subject, takeUntil } from "rxjs";
 import { CommonModule } from "@angular/common";
 import { MatButtonModule } from "@angular/material/button";
 import { MatChipsModule } from "@angular/material/chips";
+import { MatInputModule } from "@angular/material/input";
+import { MatSliderModule } from "@angular/material/slider";
+import { MatFormFieldModule } from "@angular/material/form-field";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { Audio } from "../../models/Audio.model";
+import { FormsModule } from "@angular/forms";
 
 @Component({
   selector: "app-listen",
   standalone: true,
   imports: [
+    MatSliderModule,
     MatIconModule,
     RouterModule,
     CommonModule,
@@ -20,12 +25,18 @@ import { Audio } from "../../models/Audio.model";
     MatIconModule,
     MatChipsModule,
     FlexLayoutModule,
+    MatFormFieldModule,
+    MatInputModule,
+    FormsModule,
   ],
   providers: [ListenService],
   templateUrl: "./listen.component.html",
   styleUrl: "./listen.component.scss",
 })
 export class ListenComponent {
+  isPlaying = false;
+  volume = 50;
+  @ViewChild("audio") audioRef!: ElementRef<HTMLAudioElement>;
   private destroy$ = new Subject<void>();
   private stationTitlesSubject = new BehaviorSubject<Audio[]>([]);
   stationTitles$ = this.stationTitlesSubject.asObservable();
@@ -41,6 +52,7 @@ export class ListenComponent {
       .pipe(takeUntil(this.destroy$))
       .subscribe((audio) => {
         this.stationTitlesSubject.next(audio);
+        this.isPlaying = true;
 
         if (audio.length > 0) {
           this.currentIndex = Math.floor(Math.random() * audio.length);
@@ -52,6 +64,20 @@ export class ListenComponent {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete;
+  }
+
+  togglePlay() {
+    const audio = this.audioRef?.nativeElement;
+    console.log(audio);
+    if (!audio) return;
+
+    if (this.isPlaying) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+
+    this.isPlaying = !this.isPlaying;
   }
 
   next() {
@@ -74,5 +100,19 @@ export class ListenComponent {
       this.currentIndex = titles.length - 1;
     }
     this.currentStation = titles[this.currentIndex];
+  }
+
+  changeVolume(event: Event) {
+    const inputElement = event.target as HTMLInputElement | null;
+    const value = inputElement?.valueAsNumber ?? this.volume;
+
+    // Fallback to 0.5 if value is invalid
+    const normalized = isFinite(value) ? value / 100 : 0.5;
+
+    this.volume = value;
+
+    if (this.audioRef?.nativeElement) {
+      this.audioRef.nativeElement.volume = normalized;
+    }
   }
 }

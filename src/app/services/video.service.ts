@@ -53,6 +53,7 @@ export class VideoService {
       },
       body: file,
     });
+    console.log(uploadUrl);
 
     return await firstValueFrom(
       this.http.post<{ user: string; videoPath: string }>(

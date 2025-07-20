@@ -1,8 +1,11 @@
-<!-- <ng-container *ngIf="stations$ | async as stations"> -->
 <div class="main-container">
-  <div class="radio-container">
-    <div>
-      <!-- <h1>{{ currentStation?.name }}</h1> -->
+  <h1 class="title">Radio</h1>
+  <p class="subtitle">Minimal radio station player</p>
+
+  <div class="player-card">
+    <div class="station-info">
+      <h2>{{ currentStation?.name ?? currentStation?.user }}</h2>
+      <!-- <p class="genre">{{ currentStation?.genre || "Jazz" }}</p> -->
     </div>
     <div>
       <audio
@@ -14,18 +17,32 @@
         [src]="currentStation?.audioPath"
       ></audio>
     </div>
-  </div>
-  <div fxLayout="row" fxLayoutAlign="space-between center">
-    <div class="overlay-container left icon-wrapper">
-      <button mat-icon-button (click)="previous()">
-        <mat-icon class="transparent icon">chevron_left</mat-icon>
+
+    <div class="controls">
+      <button class="circle-button" (click)="previous()">
+        <mat-icon>skip_previous</mat-icon>
+      </button>
+
+      <button class="circle-button play-button" (click)="togglePlay()">
+        <mat-icon>{{ isPlaying ? "pause" : "play_arrow" }}</mat-icon>
+      </button>
+
+      <button class="circle-button" (click)="next()">
+        <mat-icon>skip_next</mat-icon>
       </button>
     </div>
-    <div class="overlay-container right icon-wrapper" (click)="next()">
-      <button mat-icon-button>
-        <mat-icon class="transparent icon">chevron_right</mat-icon>
-      </button>
+
+    <div class="volume-control">
+      <mat-icon>volume_up</mat-icon>
+
+      <mat-slider min="0" max="100" step="1">
+        <input
+          matSliderThumb
+          [(ngModel)]="volume"
+          #slider
+          (input)="changeVolume($event)"
+      /></mat-slider>
+      <span>{{ volume }}</span>
     </div>
   </div>
 </div>
-<!-- </ng-container> -->

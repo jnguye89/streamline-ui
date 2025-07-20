@@ -4,4 +4,5 @@ export interface Audio {
     audioPath: string;
     createdAt: string;
     updatedAt:string;
+    name: string;
 }
