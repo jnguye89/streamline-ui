@@ -34,3 +34,17 @@
   color: var(--c-primary); /* Foreground (icon) color */
   font-size: 24px; /* Optional: change size */
 }
+
+
+/* Base: hide overlay */
+#rotate-overlay { display:none; }
+
+/* Show overlay ONLY on portrait phones ≤ 768px */
+@media (orientation:portrait) and (max-width:768px) {
+#rotate-overlay {
+position:fixed; inset:0; z-index:9999;
+display:flex; align-items:center; justify-content:center;
+background:#000; color:#fff; font-size:1.25rem;
+text-align:center; padding:2rem;
+}
+}
