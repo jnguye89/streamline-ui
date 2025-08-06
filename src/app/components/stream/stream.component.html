@@ -1,11 +1,10 @@
-<div
-  class="main-container"
-  *ngIf="isAuthenticated$ | async"
-  fxLayout="row"
-  fxLayoutAlign="space-between center"
->
-  <video #video autoplay playsinline muted></video>
-  <div fxLayout="column" fxLayoutAlign="space-evenly center">
+<div class="main-container" fxLayout="row" fxLayoutAlign="space-between center">
+  <!-- *ngIf="isAuthenticated$ | async" -->
+  <video #preview autoplay muted playsinline class="w-full bg-black" id="publisher-video"></video>
+  <button (click)="goLive()" [disabled]="live">Go Live</button>
+  <button (click)="stop()" [disabled]="!live">Stop</button>
+  <!-- <video #video autoplay playsinline muted></video> -->
+  <!-- <div fxLayout="column" fxLayoutAlign="space-evenly center">
     <button mat-raised-button (click)="fileInput.click()">
       <mat-icon>upload</mat-icon>
     </button>
@@ -48,7 +47,7 @@
     <button class="stop icon" (click)="stopWebcam()">
       <mat-icon class="transparent">stop</mat-icon>
     </button>
-  </div>
+  </div> -->
 </div>
 <!-- <div cass="video-container"> -->
 <!-- </div> -->
