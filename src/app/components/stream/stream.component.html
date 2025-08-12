@@ -1,11 +1,6 @@
-<div
-  class="main-container"
-  *ngIf="isAuthenticated$ | async"
-  fxLayout="row"
-  fxLayoutAlign="space-between center"
->
-  <video #video autoplay playsinline muted></video>
-  <div fxLayout="column" fxLayoutAlign="space-evenly center">
+<!-- <div class="main-container" *ngIf="isAuthenticated$ | async" fxLayout="row" fxLayoutAlign="space-between center"> -->
+<video #video autoplay playsinline muted></video>
+<!-- <div fxLayout="column" fxLayoutAlign="space-evenly center">
     <button mat-raised-button (click)="fileInput.click()">
       <mat-icon>upload</mat-icon>
     </button>
@@ -30,14 +25,18 @@
     >
       <i class="dot"></i>
       <span class="label">{{ broadcasting ? "LIVE" : "OFFLINE" }}</span>
-    </span>
-    <button
-      class="play icon"
-      (click)="resumeWebcam()"
-      [disabled]="broadcasting"
-    >
-      <mat-icon class="transparent">play_arrow</mat-icon>
-    </button>
+    </span> -->
+    <br/>
+    <br/>
+    <br/>
+    <br/>
+<button class="play icon" (click)="resumeWebcam()" [disabled]="broadcasting">
+  <mat-icon class="transparent">play_arrow</mat-icon>
+</button>
+<button class="stop icon" (click)="stopWebcam()">
+  <mat-icon class="transparent">stop</mat-icon>
+</button>
+<!-- 
     <button
       class="pause icon"
       (click)="pauseWebcam()"
@@ -47,8 +46,8 @@
     </button>
     <button class="stop icon" (click)="stopWebcam()">
       <mat-icon class="transparent">stop</mat-icon>
-    </button>
-  </div>
-</div>
+    </button> -->
+<!-- </div> -->
+<!-- </div> -->
 <!-- <div cass="video-container"> -->
 <!-- </div> -->

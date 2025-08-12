@@ -6,7 +6,7 @@ import {
   HttpHandler,
   HttpEvent,
 } from "@angular/common/http";
-import { Observable, from, of, throwError } from "rxjs";
+import { Observable, from, throwError } from "rxjs";
 import { AuthService } from "@auth0/auth0-angular";
 import {
   switchMap,
@@ -14,15 +14,13 @@ import {
   shareReplay,
   take,
   tap,
-  map,
 } from "rxjs/operators";
 import { environment } from "../../environments/environment";
-import { env } from "process";
 
 @Injectable()
 export class OptionalAuthInterceptor implements HttpInterceptor {
   private tokenInFlight$: Observable<string> | null = null;
-  constructor(private auth: AuthService) {}
+  constructor(private auth: AuthService) { }
 
   private getToken$(): Observable<string> {
     // if a fetch is already running, return the same observable

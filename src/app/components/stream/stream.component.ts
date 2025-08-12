@@ -2,10 +2,7 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
-  Inject,
-  OnDestroy,
   OnInit,
-  PLATFORM_ID,
   ViewChild,
 } from "@angular/core";
 import { FlexLayoutModule } from "@angular/flex-layout";
@@ -13,32 +10,24 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { VideoService } from "../../services/video.service";
 import {
-  combineLatest,
-  filter,
-  first,
-  from,
   ReplaySubject,
   Subject,
-  switchMap,
-  take,
-  takeUntil,
 } from "rxjs";
-import { CommonModule, DatePipe, isPlatformBrowser } from "@angular/common";
-import { IvsBroadcastService } from "../../services/ivs-broadcast.service";
+import { CommonModule, DatePipe } from "@angular/common";
 import { AuthService } from "@auth0/auth0-angular";
-import { Router } from "@angular/router";
-import { Meta, Title } from "@angular/platform-browser";
 import { SeoService } from "../../services/seo.service";
+import { WowzaPublishService } from "../../services/wowza-publish.service";
+import { WebRtcState } from "../../models/webrtc-state.model";
 
 @Component({
   selector: "app-stream",
   standalone: true,
   imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule],
-  providers: [VideoService, DatePipe, IvsBroadcastService],
+  providers: [VideoService, DatePipe, WowzaPublishService],
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
-export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
+export class StreamComponent implements AfterViewInit {
   isAuthenticated$ = this.auth.isAuthenticated$;
   private destroy$ = new Subject<void>();
   @ViewChild("video") videoElement!: ElementRef<HTMLVideoElement>;
@@ -46,89 +35,28 @@ export class StreamComponent implements OnDestroy, AfterViewInit, OnInit {
   private viewReady$ = new ReplaySubject<void>(1);
 
   constructor(
+    private wowzaService: WowzaPublishService,
     public auth: AuthService,
-    private ivs: IvsBroadcastService,
-    private videoService: VideoService,
-    private router: Router,
     private seo: SeoService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {}
-
-  async ngOnInit() {
-    this.setUpSeo();
-    if (isPlatformBrowser(this.platformId)) {
-      this.isAuthenticated$.pipe(first()).subscribe((isAuth) => {
-        if (!isAuth)
-          this.auth.loginWithRedirect({
-            appState: {
-              // -> comes back to us after login
-              target: this.router.url,
-            },
-          });
-      });
-
-      /* 2️⃣ When BOTH auth === true AND the view is present, start the player */
-      combineLatest([
-        this.isAuthenticated$.pipe(filter(Boolean)),
-        this.viewReady$,
-      ])
-        .pipe(
-          take(1), // run once
-          switchMap(() =>
-            from(
-              navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            )
-          ),
-          takeUntil(this.destroy$)
-        )
-        .subscribe(async (stream) => {
-          this.videoElement.nativeElement.srcObject = stream;
-          await this.videoElement.nativeElement.play();
-          await this.ivs.init();
-        });
-    }
-  }
+  ) { }
 
   async ngAfterViewInit() {
-    if (isPlatformBrowser(this.platformId)) {
-      this.viewReady$.next();
+    this.setUpSeo();
+    const state: WebRtcState = {
+      sdpUrl: 'wss://9b8d039ecdad.entrypoint.cloud.wowza.com/webrtc-session.json',
+      applicationName: 'app-82XX3701',
+      streamName: 'VU5rZnln',
+      videoElementPublish: this.videoElement.nativeElement
     }
+    this.wowzaService.init(state);
   }
-
-  async toggle() {}
 
   resumeWebcam() {
-    this.ivs.startBroadcast();
-    this.videoElement.nativeElement.play();
-    this.broadcasting = true;
-  }
-
-  pauseWebcam() {
-    this.videoElement.nativeElement.pause();
-    this.ivs.stopBroadcast();
-    this.broadcasting = false;
+    this.wowzaService.start();
   }
 
   stopWebcam() {
-    this.ivs.stopBroadcast();
-    this.videoElement.nativeElement.srcObject = null;
-    this.broadcasting = false;
-  }
-
-  ngOnDestroy() {
-    this.broadcasting = false;
-    this.videoElement.nativeElement.srcObject = null;
-    this.ivs.stopBroadcast();
-    this.destroy$.next();
-    this.destroy$.complete();
-  }
-
-  onFileSelected(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-
-    const file = input.files[0];
-    this.videoService.uploadVideo(file).pipe(first()).subscribe();
+    this.wowzaService.stop();
   }
 
   private setUpSeo() {

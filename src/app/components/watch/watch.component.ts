@@ -116,7 +116,7 @@ export class WatchComponent implements OnDestroy, AfterViewInit, OnInit {
 
   ngOnDestroy() {
     this.destroy$.next();
-    this.destroy$.complete;
+    this.destroy$.complete();
   }
 
   next() {
