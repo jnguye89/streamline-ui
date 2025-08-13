@@ -43,6 +43,30 @@ video {
   margin: 10px;
 }
 
+.controls-container {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom)); // plays nice with iOS notches
+  transform: translateX(-50%);
+  z-index: 10; // above the video (-1)
+  display: flex;
+  justify-content: center;
+  width: max-content; // shrink to fit the buttons
+  gap: 12px;
+
+  /* optional niceties */
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+.controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 // .button-container {
 //   position: absolute;
 //   bottom: 0;
@@ -57,6 +81,7 @@ video {
   font-weight: 600;
   font-size: 0.875rem;
   user-select: none;
+
   // background-color: transparent;
   .dot {
     width: 0.6rem;
@@ -67,6 +92,7 @@ video {
 
   &.live {
     color: #ff1744; // bright red
+
     .dot {
       animation: pulse 1.2s infinite ease-in-out;
     }
@@ -78,11 +104,13 @@ video {
 }
 
 @keyframes pulse {
+
   0%,
   100% {
     transform: scale(1);
     opacity: 1;
   }
+
   50% {
     transform: scale(1.6);
     opacity: 0.4;
