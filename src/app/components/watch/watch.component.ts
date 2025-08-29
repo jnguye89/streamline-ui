@@ -3,7 +3,6 @@ import {
   Component,
   OnDestroy,
   OnInit,
-  ViewChild,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { MatIconModule } from "@angular/material/icon";
@@ -15,7 +14,6 @@ import { VideoService } from "../../services/video.service";
 import { Router, RouterModule } from "@angular/router";
 import { BehaviorSubject, Subject, takeUntil } from "rxjs";
 import { Video } from "../../models/video.model";
-import { Meta, Title } from "@angular/platform-browser";
 import { SeoService } from "../../services/seo.service";
 
 declare const IVSPlayer: any;
@@ -39,8 +37,6 @@ declare const IVSPlayer: any;
 export class WatchComponent implements OnDestroy, AfterViewInit, OnInit {
   private destroy$ = new Subject<void>();
   private videoTitlesSubject = new BehaviorSubject<Video[]>([]);
-  // @ViewChild("player", { static: false })
-  // playerRef!: ElementRef<HTMLVideoElement>;
   videoTitles$ = this.videoTitlesSubject.asObservable();
   isPortrait = false;
 
@@ -65,53 +61,11 @@ export class WatchComponent implements OnDestroy, AfterViewInit, OnInit {
       });
   }
 
-  // private checkIfStreamIsLive(): Observable<StreamStatus> {
-  //   return this.videoService.getStreamStatus().pipe(
-  //     catchError((error) => {
-  //       console.error("Error checking stream status:", error);
-  //       return of({ isLive: false } as StreamStatus); // fallback value
-  //     })
-  //   );
-  // }
-
   ngOnInit() {
     this.setUpSeo();
   }
 
   ngAfterViewInit(): void {
-    // this.videoService
-    //   .getVideos()
-    //   .pipe(
-    //     switchMap((videos) =>
-    //       forkJoin({
-    //         videos: of(videos),
-    //         // status: this.checkIfStreamIsLive(), // your new HTTP call
-    //       })
-    //     ),
-    //     takeUntil(this.destroy$)
-    //   )
-    //   .subscribe(({ videos }) => {
-    //     // if (status.isLive) {
-    //     //   this.isLive = true;
-    //     //   const videoEl = document.getElementById(
-    //     //     "live-player"
-    //     //   ) as HTMLVideoElement;
-    //     //   console.log(videoEl);
-    //     //   // if (IVSPlayer.isPlayerSupported) {
-    //     //   const player = IVSPlayer.create();
-    //     //   player.attachHTMLVideoElement(videoEl);
-    //     //   player.load(environment.streamUrl);
-    //     //   player.play();
-    //     //   //   } else {
-    //     //   //     console.error("IVS player not supported in this browser");
-    //     //   //   }
-    //     // }
-    //     // } else if (videos.length > 0) {
-    //     this.currentIndex = Math.floor(Math.random() * videos.length);
-    //     this.currentTitle = videos[this.currentIndex];
-    //     this.videoTitlesSubject.next(videos);
-    //     // }
-    //   });
   }
 
   ngOnDestroy() {
@@ -172,7 +126,6 @@ export class WatchComponent implements OnDestroy, AfterViewInit, OnInit {
       description,
       keywords,
       path: "/watch",
-      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
     });
   }
 }

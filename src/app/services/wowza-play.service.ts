@@ -11,6 +11,7 @@ export class WowzaPlayService {
 
     init(player: HTMLVideoElement) {
         (window as any).wowzaWebRTCPlay = new WowzaWebRTCPlay();
+        this.getAvailableStreams();
         wowzaWebRTCPlay.set({
             videoElementPlay: player,
             sdpURL: 'wss://9b8d039ecdad.entrypoint.cloud.wowza.com/webrtc-session.json',
@@ -27,5 +28,9 @@ export class WowzaPlayService {
 
     stop() {
         wowzaWebRTCPlay.stop();
+    }
+
+    getAvailableStreams() {
+        wowzaWebRTCPlay.getAvailableStreams().then((res: any) => console.log(res));
     }
 }

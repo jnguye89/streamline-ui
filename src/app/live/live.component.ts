@@ -20,6 +20,7 @@ export class LiveComponent implements AfterViewInit, OnInit, OnDestroy {
   ngAfterViewInit(): void {
     const videoEl = document.getElementById("live-player") as HTMLVideoElement;
     this.wowzaPlayService.init(videoEl);
+    this.wowzaPlayService.getAvailableStreams();
     this.wowzaPlayService.play();
   }
 

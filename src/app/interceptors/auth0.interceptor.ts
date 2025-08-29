@@ -59,10 +59,12 @@ export class OptionalAuthInterceptor implements HttpInterceptor {
     next: HttpHandler
   ): Observable<HttpEvent<any>> {
     return this.getToken$().pipe(
-      // tap((token) => console.log(token)),
+      tap((token) => console.log('interceptor')),
       take(1),
       switchMap((token) => {
+        console.log('token', token)
         if (req.url.includes(environment.baseUrl)) {
+          console.log('url matches');
           const authReq = req.clone({
             setHeaders: { Authorization: `Bearer ${token}` },
           });

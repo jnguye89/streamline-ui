@@ -2,7 +2,6 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
-  OnInit,
   ViewChild,
 } from "@angular/core";
 import { FlexLayoutModule } from "@angular/flex-layout";
@@ -11,8 +10,13 @@ import { MatIconModule } from "@angular/material/icon";
 import { VideoService } from "../../services/video.service";
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
-  ReplaySubject,
+  filter,
+  map,
+  Observable,
+  of,
   Subject,
+  switchMap,
+  take,
   takeUntil,
 } from "rxjs";
 import { CommonModule, DatePipe } from "@angular/common";
@@ -21,6 +25,8 @@ import { SeoService } from "../../services/seo.service";
 import { WowzaPublishService } from "../../services/wowza-publish.service";
 import { WebRtcState } from "../../models/webrtc-state.model";
 import { Router } from "@angular/router";
+import { StreamUpdate, WowzaService } from "../../services/wowza.service";
+import { LiveStream } from "../../models/live-stream.model";
 
 @Component({
   selector: "app-stream",
@@ -32,12 +38,15 @@ import { Router } from "@angular/router";
 })
 export class StreamComponent implements AfterViewInit {
   isAuthenticated$ = this.auth.isAuthenticated$;
-  isLive$ = this.wowzaService.isLive$;
+  isLive$ = this.wowzaPublishService.isLive$;
+  isReady = false;
+  streamId: number | undefined;
   private destroy$ = new Subject<void>();
   @ViewChild("video") videoElement!: ElementRef<HTMLVideoElement>;
 
   constructor(
-    private wowzaService: WowzaPublishService,
+    private wowzaPublishService: WowzaPublishService,
+    private wowzaService: WowzaService,
     public auth: AuthService,
     private seo: SeoService,
     private snack: MatSnackBar,
@@ -45,17 +54,44 @@ export class StreamComponent implements AfterViewInit {
   ) { }
 
   ngOnInit() {
-    this.wowzaService.errors$
-      .pipe(takeUntil(this.destroy$))
+    this.isAuthenticated$.pipe(
+      takeUntil(this.destroy$)).subscribe(isAuthenticated => {
+        isAuthenticated ? this.init() : this.login();
+      });
+  }
+
+  init() {
+    this.wowzaPublishService.errors$
+      .pipe(
+        takeUntil(this.destroy$))
       .subscribe(err => {
         this.snack.open(err.message, 'Dismiss', {
           duration: 6000,
           horizontalPosition: 'right',
           verticalPosition: 'top',
         });
-        // Optional: log details to console/telemetry
+        // Optional: log details to console/telemetry 
         if (err.details) console.error('[WOWZA ERROR]', err);
       });
+    this.wowzaService.getAvailableStreamOnce()
+      .pipe(
+        switchMap(s => this.getUpdates$(s).pipe(
+          filter(u => u.phase === 'ready'),
+          take(1),
+          map(updates => ({ s, updates }))
+        )
+        ),
+        takeUntil(this.destroy$)).subscribe(({ s, updates }) => {
+          const state: WebRtcState = {
+            sdpUrl: s.wssStreamUrl,
+            applicationName: s.applicationName,
+            streamName: s.streamName,
+            videoElementPublish: this.videoElement.nativeElement
+          }
+          this.wowzaPublishService.init(state);
+          this.isReady = true;
+          this.streamId = s.id;
+        });
   }
 
   login() {
@@ -63,27 +99,36 @@ export class StreamComponent implements AfterViewInit {
       appState: {
         // -> comes back to us after login
         target: this.router.url,
+        audience: 'http://streamlineapiv1-qa.eba-zte7tjpb.us-west-1.elasticbeanstalk.com/',
+        scope: 'openid profile email offline_access'
       },
     });
   }
 
   async ngAfterViewInit() {
     this.setUpSeo();
-    const state: WebRtcState = {
-      sdpUrl: 'wss://9b8d039ecdad.entrypoint.cloud.wowza.com/webrtc-session.json',
-      applicationName: 'app-82XX3701',
-      streamName: 'VU5rZnln',
-      videoElementPublish: this.videoElement.nativeElement
+  }
+
+  getUpdates$(s: LiveStream): Observable<StreamUpdate> {
+    if (s.phase == 'ready') {
+      return of({
+        id: s.id,
+        phase: s.phase
+      })
     }
-    this.wowzaService.init(state);
+    return this.wowzaService.updates$(s.id);
   }
 
   resumeWebcam() {
-    this.wowzaService.startPublish();
+    this.wowzaPublishService.startPublish();
+    this.wowzaService.start(this.streamId!);
   }
 
   stopWebcam() {
-    this.wowzaService.stopPublish();
+    this.wowzaPublishService.stopPublish();
+    this.wowzaService.stop(this.streamId!).pipe(
+      takeUntil(this.destroy$))
+      .subscribe();
   }
 
   ngOnDestroy(): void {
@@ -103,7 +148,6 @@ export class StreamComponent implements AfterViewInit {
       description,
       keywords,
       path: "/watch",
-      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
     });
   }
 }
