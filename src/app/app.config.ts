@@ -33,8 +33,6 @@ export const appConfig: ApplicationConfig = {
         audience: environment.auth0.audience,
         redirect_uri: window.location.origin,
       },
-      cacheLocation: "localstorage", // required for refresh tokens in SPAs
-      useRefreshTokens: true,
     }),
     provideHttpClient(withInterceptorsFromDi()),
     // provideAuth0HttpInterceptor(),

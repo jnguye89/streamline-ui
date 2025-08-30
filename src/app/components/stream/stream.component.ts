@@ -99,8 +99,7 @@ export class StreamComponent implements AfterViewInit {
       appState: {
         // -> comes back to us after login
         target: this.router.url,
-        audience: 'http://streamlineapiv1-qa.eba-zte7tjpb.us-west-1.elasticbeanstalk.com/',
-        scope: 'openid profile email offline_access'
+        // scope: 'openid profile email offline_access'
       },
     });
   }
