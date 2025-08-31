@@ -1,4 +1,4 @@
-<!-- <ng-container *ngIf="videoTitles$ | async as videos"> -->
+<!-- <ng-container *ngIf="videoTitles$ | async as videos">
 <div class="main-container">
   <div
     class="video-container"
@@ -49,5 +49,39 @@
       </button>
     </div>
   </div>
-  <!-- </ng-container> -->
+</div> -->
+<!-- watch.component.html -->
+<div class="watch-container" [class.portrait]="isPortrait">
+  <video [class.landscape]="!isPortrait" [class.portrait]="isPortrait" controls autoplay muted defaultMuted playsinline
+    loop #player id="watch-player" (loadedmetadata)="onVideoLoaded(player)"></video>
+
+  <div class="overlay">
+    <div class="left">
+      <mat-chip-set>
+        <mat-chip *ngIf="currentItem?.type === 'live'" color="warn" selected>LIVE</mat-chip>
+      </mat-chip-set>
+      <div class="title">{{ currentItem?.title }}</div>
+    </div>
+
+    <div class="controls">
+      <button mat-icon-button (click)="previous()" [disabled]="!hasMany">
+        <mat-icon>skip_previous</mat-icon>
+      </button>
+      <button mat-icon-button (click)="next()" [disabled]="!hasMany">
+        <mat-icon>skip_next</mat-icon>
+      </button>
+      <button mat-icon-button *ngIf="currentItem?.user" (click)="goToProfile()">
+        <mat-icon>person</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Optional: show the playlist chips -->
+<div class="chips">
+  <mat-chip-listbox>
+    <mat-chip-option *ngFor="let item of playlist; let i = index" [selected]="i === currentIndex" (click)="select(i)">
+      <span *ngIf="item.type === 'live'">●</span> {{ item.title }}
+    </mat-chip-option>
+  </mat-chip-listbox>
 </div>

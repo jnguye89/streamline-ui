@@ -2,12 +2,13 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable, NgZone } from "@angular/core";
 import { environment } from "../../environments/environment";
 import { LiveStream } from "../models/live-stream.model";
-import { defer, firstValueFrom, Observable, shareReplay } from "rxjs";
+import { defer, firstValueFrom, map, Observable, shareReplay } from "rxjs";
+import { PlayItem } from "../models/play-item.model";
 
 export type StreamUpdate = { id: number; phase: string; wowzaState?: string; errorMessage?: string; };
 
 @Injectable({ providedIn: 'root' })
-export class WowzaService {
+export class StreamService {
     private sessionId: string = '';
     private es?: EventSource;
     private apiUrl = environment.baseUrl;
@@ -68,5 +69,25 @@ export class WowzaService {
 
     stop(id: number): Observable<void> {
         return this.http.put<void>(`${this.apiUrl}/stream/${id}/stop`, null);
+    }
+
+    getLiveStreams(): Observable<PlayItem[]> {
+        // Change '/api/live/streams' to your actual endpoint path
+        return this.http.get<LiveStream[]>(`${this.apiUrl}/stream`).pipe(
+            map(rows =>
+                rows
+                    .filter(r => !!r.wssStreamUrl)
+                    .map(r => ({
+                        type: 'live',
+                        id: r.id,
+                        title: r.streamName,
+                        user: r.provisonedUser,
+                        wssUrl: r.wssStreamUrl,
+                        applicationName: r.applicationName,
+                        streamName: r.streamName
+                        // thumbnail: r.thumbnail
+                    }) as PlayItem)
+            )
+        );
     }
 }

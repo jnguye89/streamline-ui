@@ -25,7 +25,7 @@ import { SeoService } from "../../services/seo.service";
 import { WowzaPublishService } from "../../services/wowza-publish.service";
 import { WebRtcState } from "../../models/webrtc-state.model";
 import { Router } from "@angular/router";
-import { StreamUpdate, WowzaService } from "../../services/wowza.service";
+import { StreamUpdate, StreamService } from "../../services/stream.service";
 import { LiveStream } from "../../models/live-stream.model";
 
 @Component({
@@ -46,7 +46,7 @@ export class StreamComponent implements AfterViewInit {
 
   constructor(
     private wowzaPublishService: WowzaPublishService,
-    private wowzaService: WowzaService,
+    private streamService: StreamService,
     public auth: AuthService,
     private seo: SeoService,
     private snack: MatSnackBar,
@@ -73,7 +73,7 @@ export class StreamComponent implements AfterViewInit {
         // Optional: log details to console/telemetry 
         if (err.details) console.error('[WOWZA ERROR]', err);
       });
-    this.wowzaService.getAvailableStreamOnce()
+    this.streamService.getAvailableStreamOnce()
       .pipe(
         switchMap(s => this.getUpdates$(s).pipe(
           filter(u => u.phase === 'ready'),
@@ -115,17 +115,17 @@ export class StreamComponent implements AfterViewInit {
         phase: s.phase
       })
     }
-    return this.wowzaService.updates$(s.id);
+    return this.streamService.updates$(s.id);
   }
 
   resumeWebcam() {
     this.wowzaPublishService.startPublish();
-    this.wowzaService.start(this.streamId!);
+    this.streamService.start(this.streamId!);
   }
 
   stopWebcam() {
     this.wowzaPublishService.stopPublish();
-    this.wowzaService.stop(this.streamId!).pipe(
+    this.streamService.stop(this.streamId!).pipe(
       takeUntil(this.destroy$))
       .subscribe();
   }

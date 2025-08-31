@@ -6,16 +6,13 @@ import {
 import { provideRouter } from "@angular/router";
 
 import { routes } from "./app.routes";
-import { provideClientHydration } from "@angular/platform-browser";
 import { provideAnimationsAsync } from "@angular/platform-browser/animations/async";
 import {
   HTTP_INTERCEPTORS,
   provideHttpClient,
-  withInterceptors,
   withInterceptorsFromDi,
 } from "@angular/common/http";
 import { provideAuth0 } from "@auth0/auth0-angular";
-import { provideAuth0HttpInterceptor } from "./interceptors/autho-interceptor.provider"; // custom file
 import { OptionalAuthInterceptor } from "./interceptors/auth0.interceptor";
 import { environment } from "../environments/environment";
 import { provideServiceWorker } from "@angular/service-worker";
@@ -24,7 +21,6 @@ import { PostLoginRedirectService } from "./services/post-login-redirect.service
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes),
-    provideClientHydration(),
     provideAnimationsAsync(),
     provideAuth0({
       domain: environment.auth0.domain,
