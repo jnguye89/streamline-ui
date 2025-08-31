@@ -1,4 +1,12 @@
 <video #video autoplay playsinline muted></video>
+<!-- Setup overlay: visible until isReady === true -->
+<div class="screen-overlay" *ngIf="!isReady" aria-live="polite" role="status">
+  <div class="overlay-card">
+    <mat-progress-spinner mode="indeterminate" diameter="48"></mat-progress-spinner>
+    <h2>We’re setting up your stream…</h2>
+    <p>This can take a few seconds.</p>
+  </div>
+</div>
 <div class="controls-container">
   <div class="controls" *ngIf="isAuthenticated$ | async">
     <span class="live-indicator" [ngClass]="(isLive$ | async) ? 'live' : 'offline'" aria-live="polite">

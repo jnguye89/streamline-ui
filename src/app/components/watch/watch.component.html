@@ -1,87 +1,62 @@
-<!-- <ng-container *ngIf="videoTitles$ | async as videos">
-<div class="main-container">
-  <div
-    class="video-container"
-    fxLayout="row"
-    fxLayoutAlign="center center"
-    *ngIf="currentTitle"
-  >
-    <video
-      [class.landscape]="!isPortrait"
-      [class.portrait]="isPortrait"
-      (loadedmetadata)="onVideoLoaded(videoPlayer)"
-      #videoPlayer
-      controls
-      autoplay
-      muted
-      defaultMuted
-      playsinline
-      loop
-      [src]="currentTitle!.videoPath"
-    >
-      Does not support
-    </video>
-    <div fxLayout="row" fxLayoutAlign="space-between center">
-      <div class="overlay-container left icon-wrapper">
-        <button mat-icon-button (click)="previous()">
-          <mat-icon class="transparent icon">chevron_left</mat-icon>
-        </button>
-      </div>
-      <div class="overlay-container right icon-wrapper" (click)="next()">
-        <button mat-icon-button>
-          <mat-icon class="transparent icon">chevron_right</mat-icon>
-        </button>
-      </div>
-    </div>
-    <div
-      class="button-container down-padding"
-      fxLayout="row"
-      fxLayoutAlign="center"
-      fxLayout="row"
-      fxLayoutAlign="space-evenly center"
-    >
-      <button
-        mat-icon-button
-        (click)="goToProfile()"
-        *ngIf="!!currentTitle && !!currentTitle.user"
-      >
-        <mat-icon class="transparent icon">arrow_downward</mat-icon>
-      </button>
-    </div>
-  </div>
-</div> -->
-<!-- watch.component.html -->
 <div class="watch-container" [class.portrait]="isPortrait">
-  <video [class.landscape]="!isPortrait" [class.portrait]="isPortrait" controls autoplay muted defaultMuted playsinline
-    loop #player id="watch-player" (loadedmetadata)="onVideoLoaded(player)"></video>
+  <video
+    #player
+    id="watch-player"
+    controls
+    autoplay
+    muted
+    defaultMuted
+    playsinline
+    loop
+    (loadedmetadata)="onVideoLoaded(player)">
+  </video>
 
+  <!-- Overlay (fills the container) -->
   <div class="overlay">
-    <div class="left">
+    <!-- Top-left title + LIVE chip -->
+    <div class="topbar">
       <mat-chip-set>
         <mat-chip *ngIf="currentItem?.type === 'live'" color="warn" selected>LIVE</mat-chip>
       </mat-chip-set>
       <div class="title">{{ currentItem?.title }}</div>
     </div>
 
-    <div class="controls">
-      <button mat-icon-button (click)="previous()" [disabled]="!hasMany">
-        <mat-icon>skip_previous</mat-icon>
-      </button>
-      <button mat-icon-button (click)="next()" [disabled]="!hasMany">
-        <mat-icon>skip_next</mat-icon>
-      </button>
-      <button mat-icon-button *ngIf="currentItem?.user" (click)="goToProfile()">
+    <!-- Side nav buttons -->
+    <button
+      class="nav prev"
+      mat-icon-button
+      (click)="previous()"
+      [disabled]="!hasMany"
+      aria-label="Previous">
+      <mat-icon>skip_previous</mat-icon>
+    </button>
+
+    <button
+      class="nav next"
+      mat-icon-button
+      (click)="next()"
+      [disabled]="!hasMany"
+      aria-label="Next">
+      <mat-icon>skip_next</mat-icon>
+    </button>
+
+    <!-- Optional: profile button in top-right -->
+    <div class="topright" *ngIf="currentItem?.user">
+      <button mat-icon-button (click)="goToProfile()" aria-label="Profile">
         <mat-icon>person</mat-icon>
       </button>
     </div>
-  </div>
-</div>
 
-<!-- Optional: show the playlist chips -->
-<div class="chips">
-  <mat-chip-listbox>
-    <mat-chip-option *ngFor="let item of playlist; let i = index" [selected]="i === currentIndex" (click)="select(i)">
-      <span *ngIf="item.type === 'live'">●</span> {{ item.title }}
-    </mat-chip-option>
-  </mat-chip-listbox>
+    <!-- Bottom chips (playlist) -->
+    <!-- <div class="bottom-chips" *ngIf="playlist?.length">
+      <mat-chip-listbox>
+        <mat-chip-option
+          *ngFor="let item of playlist; let i = index"
+          [selected]="i === currentIndex"
+          (click)="select(i)">
+          <span *ngIf="item.type === 'live'">●</span> {{ item.title }}
+        </mat-chip-option>
+      </mat-chip-listbox>
+    </div> -->
+  </div>
 </div>

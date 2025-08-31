@@ -116,3 +116,66 @@ video {
     opacity: 0.4;
   }
 }
+
+:host {
+  display: contents;
+}
+
+/* Full-viewport container with video centered */
+.stream-container {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  overflow: hidden;
+
+  display: grid;
+  place-items: center;
+}
+
+#live-publish {
+  width: 100vw;
+  height: 100vh;
+  object-fit: contain; /* change to 'cover' if you prefer edge-to-edge (may crop) */
+  background: #000;
+}
+
+/* Overlay that covers the entire screen while starting up */
+.screen-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.5); /* subtle dim */
+
+  .overlay-card {
+    width: min(92vw, 520px);
+    border-radius: 16px;
+    padding: 20px 22px;
+    text-align: center;
+    color: #fff;
+    background: rgba(20, 20, 20, 0.75);
+    backdrop-filter: blur(6px);
+
+    display: grid;
+    gap: 12px;
+    justify-items: center;
+
+    h2 {
+      margin: 0;
+      font-size: clamp(18px, 2.5vw, 22px);
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+
+    p {
+      margin: 0;
+      opacity: 0.85;
+      font-size: clamp(14px, 2vw, 16px);
+    }
+  }
+}
+
+/* Optional: keep footer bars/notches safe on mobile */
+.screen-overlay { padding-bottom: max(24px, env(safe-area-inset-bottom)); }

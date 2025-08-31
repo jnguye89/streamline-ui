@@ -5,6 +5,7 @@ import {
   ViewChild,
 } from "@angular/core";
 import { FlexLayoutModule } from "@angular/flex-layout";
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
 import { VideoService } from "../../services/video.service";
@@ -31,7 +32,7 @@ import { LiveStream } from "../../models/live-stream.model";
 @Component({
   selector: "app-stream",
   standalone: true,
-  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule],
+  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule],
   providers: [VideoService, DatePipe, WowzaPublishService],
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
