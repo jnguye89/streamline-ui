@@ -112,10 +112,8 @@ export class StreamComponent implements AfterViewInit {
         // Stop local preview & publishing cleanly
         this.wowzaPublishService.stopPublish?.(); // if method exists
         this.detachAndStopVideoTracks();          // always do this
+        this.streamService.stop(s.id).pipe(take(1)).subscribe();
       }),
-      exhaustMap(() =>
-        this.streamService.stop(s.id)
-      ),
       takeUntil(this.destroy$)
     ).subscribe();
   }
