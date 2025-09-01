@@ -149,7 +149,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Playback
   private tryPlayCurrent(force = false) {
-    console.log('try play current')
     if (!this.currentItem || !this.viewReady$.value) return;
     const el = this.playerRef.nativeElement;
 

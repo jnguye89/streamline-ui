@@ -11,6 +11,7 @@ import { MatIconModule } from "@angular/material/icon";
 import { VideoService } from "../../services/video.service";
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
+  exhaustMap,
   filter,
   map,
   Observable,
@@ -19,15 +20,17 @@ import {
   switchMap,
   take,
   takeUntil,
+  tap,
 } from "rxjs";
 import { CommonModule, DatePipe } from "@angular/common";
 import { AuthService } from "@auth0/auth0-angular";
 import { SeoService } from "../../services/seo.service";
 import { WowzaPublishService } from "../../services/wowza-publish.service";
 import { WebRtcState } from "../../models/webrtc-state.model";
-import { Router } from "@angular/router";
+import { NavigationStart, Router } from "@angular/router";
 import { StreamUpdate, StreamService } from "../../services/stream.service";
 import { LiveStream } from "../../models/live-stream.model";
+import { StreamStateService } from "../../services/stream-state.service";
 
 @Component({
   selector: "app-stream",
@@ -43,7 +46,7 @@ export class StreamComponent implements AfterViewInit {
   isReady = false;
   streamId: number | undefined;
   private destroy$ = new Subject<void>();
-  @ViewChild("video") videoElement!: ElementRef<HTMLVideoElement>;
+  @ViewChild('video', { static: true }) videoElement!: ElementRef<HTMLVideoElement>;
 
   constructor(
     private wowzaPublishService: WowzaPublishService,
@@ -51,7 +54,8 @@ export class StreamComponent implements AfterViewInit {
     public auth: AuthService,
     private seo: SeoService,
     private snack: MatSnackBar,
-    private router: Router
+    private router: Router,
+    private streamState: StreamStateService
   ) { }
 
   ngOnInit() {
@@ -74,33 +78,52 @@ export class StreamComponent implements AfterViewInit {
         // Optional: log details to console/telemetry 
         if (err.details) console.error('[WOWZA ERROR]', err);
       });
-    this.streamService.getAvailableStreamOnce()
-      .pipe(
-        switchMap(s => this.getUpdates$(s).pipe(
-          filter(u => u.phase === 'ready'),
-          take(1),
-          map(updates => ({ s, updates }))
-        )
-        ),
-        takeUntil(this.destroy$)).subscribe(({ s, updates }) => {
-          const state: WebRtcState = {
-            sdpUrl: s.wssStreamUrl,
-            applicationName: s.applicationName,
-            streamName: s.streamName,
-            videoElementPublish: this.videoElement.nativeElement
-          }
-          this.wowzaPublishService.init(state);
-          this.isReady = true;
-          this.streamId = s.id;
-        });
+    const stream = this.streamState.getCurrentData();
+    !!stream
+      ? this.setupPublisher(stream)
+      : this.streamService.getAvailableStreamOnce()
+        .pipe(
+          switchMap(s => this.getUpdates$(s).pipe(
+            filter(u => u.phase === 'ready'),
+            take(1),
+            map(updates => ({ s, updates }))
+          )
+          ),
+          takeUntil(this.destroy$)).subscribe(({ s }) => {
+            this.setupPublisher(s);
+          });
+
+  }
+
+  setupPublisher(s: LiveStream) {
+    this.streamState.setData(s);
+    const state: WebRtcState = {
+      sdpUrl: s.wssStreamUrl,
+      applicationName: s.applicationName,
+      streamName: s.streamName,
+      videoElementPublish: this.videoElement.nativeElement
+    }
+    this.wowzaPublishService.init(state);
+    this.isReady = true;
+    this.streamId = s.id;
+    this.router.events.pipe(
+      filter(e => e instanceof NavigationStart),
+      tap(() => {
+        // Stop local preview & publishing cleanly
+        this.wowzaPublishService.stopPublish?.(); // if method exists
+        this.detachAndStopVideoTracks();          // always do this
+      }),
+      exhaustMap(() =>
+        this.streamService.stop(s.id)
+      ),
+      takeUntil(this.destroy$)
+    ).subscribe();
   }
 
   login() {
     this.auth.loginWithRedirect({
       appState: {
-        // -> comes back to us after login
         target: this.router.url,
-        // scope: 'openid profile email offline_access'
       },
     });
   }
@@ -134,6 +157,13 @@ export class StreamComponent implements AfterViewInit {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  private detachAndStopVideoTracks() {
+    const video = this.videoElement?.nativeElement;
+    const ms = video?.srcObject as MediaStream | null;
+    ms?.getTracks().forEach(t => t.stop());
+    if (video) video.srcObject = null;
   }
 
   private setUpSeo() {
