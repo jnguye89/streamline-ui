@@ -4,7 +4,6 @@ import { CallsComponent } from "./components/calls/calls.component";
 import { StreamComponent } from "./components/stream/stream.component";
 import { ListenComponent } from "./components/listen/listen.component";
 import { ProfileComponent } from "./components/profile/profile.component";
-import { LiveComponent } from "./live/live.component";
 import { ConverseComponent } from "./components/converse/converse.component";
 import { ReadComponent } from "./components/read/read.component";
 
@@ -40,10 +39,6 @@ export const routes: Routes = [
   {
     path: "profile",
     component: ProfileComponent,
-  },
-  {
-    path: "live",
-    component: LiveComponent,
   },
   {
     path: "read",

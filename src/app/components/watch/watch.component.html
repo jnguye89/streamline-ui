@@ -1,13 +1,5 @@
 <div class="watch-container" [class.portrait]="isPortrait">
-  <video
-    #player
-    id="watch-player"
-    controls
-    autoplay
-    muted
-    defaultMuted
-    playsinline
-    loop
+  <video #player id="watch-player" controls autoplay muted defaultMuted playsinline loop
     (loadedmetadata)="onVideoLoaded(player)">
   </video>
 
@@ -18,26 +10,20 @@
       <mat-chip-set>
         <mat-chip *ngIf="currentItem?.type === 'live'" color="warn" selected>LIVE</mat-chip>
       </mat-chip-set>
-      <div class="title">{{ currentItem?.title }}</div>
+      <!-- <div class="title">{{ currentItem?.title }}</div> -->
     </div>
 
     <!-- Side nav buttons -->
-    <button
-      class="nav prev"
-      mat-icon-button
-      (click)="previous()"
-      [disabled]="!hasMany"
-      aria-label="Previous">
+    <button class="nav prev" mat-icon-button (click)="previous()" [disabled]="!hasMany" aria-label="Previous">
       <mat-icon>skip_previous</mat-icon>
     </button>
 
-    <button
-      class="nav next"
-      mat-icon-button
-      (click)="next()"
-      [disabled]="!hasMany"
-      aria-label="Next">
+    <button class="nav next" mat-icon-button (click)="next()" [disabled]="!hasMany" aria-label="Next">
       <mat-icon>skip_next</mat-icon>
+    </button>
+
+    <button class="profile" mat-icon-button (click)="goToProfile()" aria-label="Profile">
+      <mat-icon>arrow_downward</mat-icon>
     </button>
 
     <!-- Optional: profile button in top-right -->
@@ -46,17 +32,5 @@
         <mat-icon>person</mat-icon>
       </button>
     </div>
-
-    <!-- Bottom chips (playlist) -->
-    <!-- <div class="bottom-chips" *ngIf="playlist?.length">
-      <mat-chip-listbox>
-        <mat-chip-option
-          *ngFor="let item of playlist; let i = index"
-          [selected]="i === currentIndex"
-          (click)="select(i)">
-          <span *ngIf="item.type === 'live'">●</span> {{ item.title }}
-        </mat-chip-option>
-      </mat-chip-listbox>
-    </div> -->
   </div>
 </div>

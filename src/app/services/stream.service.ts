@@ -85,7 +85,6 @@ export class StreamService {
                         wssUrl: r.wssStreamUrl,
                         applicationName: r.applicationName,
                         streamName: r.streamName
-                        // thumbnail: r.thumbnail
                     }) as PlayItem)
             )
         );
