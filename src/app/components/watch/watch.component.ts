@@ -176,7 +176,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         el.removeAttribute('src');
         el.load();
 
-        el.muted = true;
+        // el.muted = false;
         el.autoplay = true;
         el.src = this.currentItem.src;
         el.play().catch(err => console.warn('VOD play blocked/failed:', err));
@@ -189,8 +189,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   onVideoLoaded(video: HTMLVideoElement) {
     const aspectRatio = video.videoWidth / video.videoHeight;
     this.isPortrait = aspectRatio < 1;
-    video.defaultMuted = true;
-    video.muted = true;
+    video.defaultMuted = false;
+    video.muted = false;
     video.play().catch(() => { });
   }
 
