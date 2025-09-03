@@ -19,7 +19,7 @@ export class ConverseComponent implements OnInit {
 
   constructor(private sanitizer: DomSanitizer, private seo: SeoService) {
     this.safeUrl = this.sanitizer.bypassSecurityTrustResourceUrl(
-      "https://bayareaaitv.com/"
+      "https://conversational-interface-hashem5.replit.app/"
     );
   }
 
