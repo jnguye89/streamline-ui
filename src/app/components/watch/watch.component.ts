@@ -94,6 +94,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         takeUntil(this.destroy$)
       )
       .subscribe(list => {
+        list = this.shuffle(list);
         this.playlist = list;
         this.playlist$.next(list);
         // If nothing selected yet, choose first Live if present, else first VOD (or random VOD if you prefer)
@@ -228,5 +229,15 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (a.type !== b.type) return false;
     if (a.type === 'live') return a.id === b.id// || a.wssUrl === b.wssUrl;
     return a.id === b.id || a.src === (b as any).src;
+  }
+
+
+  private shuffle<T>(input: T[]): T[] {
+    const arr = input.slice();               // don't mutate the original
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
   }
 }
