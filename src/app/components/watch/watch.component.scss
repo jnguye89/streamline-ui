@@ -78,8 +78,8 @@
   width: clamp(44px, 6.5vh, 64px);
   height: clamp(44px, 6.5vh, 64px);
   border-radius: 9999px;
-  backdrop-filter: blur(2px);
-  background: rgba(0, 0, 0, 0.35);
+  // backdrop-filter: blur(2px);
+  // background: rgba(0, 0, 0, 0.35);
   color: white;
 
   /* Improve Material icon sizing */
@@ -91,7 +91,8 @@
   }
 
   &:hover {
-    background: rgba(0, 0, 0, 0.5);
+    background: transparent;
+    color: rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -115,7 +116,7 @@
   height: clamp(44px, 6.5vh, 64px);
   border-radius: 9999px;
   backdrop-filter: blur(2px);
-  background: rgba(0, 0, 0, 0.35);
+  // background: rgba(0, 0, 0, 0.35);
   color: white;
 
   /* Improve Material icon sizing */
@@ -126,8 +127,8 @@
     line-height: 1em;
   }
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.5);
-  }
+  // &:hover {
+  //   background: rgba(0, 0, 0, 0.5);
+  // }
   // bottom: max(8px, env(safe-area-inset-right, 0px));
 }

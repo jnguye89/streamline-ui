@@ -5,7 +5,7 @@ import { StreamComponent } from "./components/stream/stream.component";
 import { ListenComponent } from "./components/listen/listen.component";
 import { ProfileComponent } from "./components/profile/profile.component";
 import { ConverseComponent } from "./components/converse/converse.component";
-import { ReadComponent } from "./components/read/read.component";
+import ReadComponent from "./components/read/read.component";
 
 export const routes: Routes = [
   {
