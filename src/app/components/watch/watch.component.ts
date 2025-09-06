@@ -3,6 +3,7 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  HostListener,
   OnDestroy,
   OnInit,
   ViewChild
@@ -50,6 +51,15 @@ import { StreamService } from '../../services/stream.service';
 })
 export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('player', { static: false }) playerRef!: ElementRef<HTMLVideoElement>;
+  @HostListener('window:keydown', ['$event'])
+  onKeyDown(e: KeyboardEvent) {
+    const t = e.target as HTMLElement | null;
+    const isTyping = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+    if (isTyping) return;
+
+    if (e.key === 'ArrowLeft') { e.preventDefault(); this.previous(); }
+    if (e.key === 'ArrowRight') { e.preventDefault(); this.next(); }
+  }
 
   private destroy$ = new Subject<void>();
 
