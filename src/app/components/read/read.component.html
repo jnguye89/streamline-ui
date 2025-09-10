@@ -2,20 +2,25 @@
   <!-- Top: 3/4 height viewer -->
   <div class="viewer" *ngIf="threads$ | async as threads">
     <ng-container *ngIf="threads?.length; else empty">
-      <mat-card class="thread-card" appearance="outlined">
-        <mat-card-header class="center-align">
-          <mat-card-title class="center-align">{{ threads[currentIndex]?.threadItem }}</mat-card-title>
-        </mat-card-header>
-        <br/>
-        <mat-divider class="divider"></mat-divider>
-        <br/>
-        <mat-card-content class="thread-content">
-          {{ threads[currentIndex]?.user }} <br/>
-          {{ threads[currentIndex]?.createdAt | date }}
-        </mat-card-content>
-      </mat-card>
+      <div class="stage">
+        <ng-container *ngFor="let t of threads; let i = index; trackBy: trackById">
+          <mat-card class="thread-card center-align" appearance="outlined" *ngIf="i === currentIndex"
+            [@slideH]="{ value: direction, params: animParams }">
+            <mat-card-header class="center-align">
+              <mat-card-title>{{ t.threadItem }}</mat-card-title>
+            </mat-card-header>
+            <br /><br />
+            <mat-divider></mat-divider>
+            <br /><br />
+            <mat-card-content class="thread-content center-align">
+              {{ t.user }}<br />
+              {{ t.createdAt | date }}
+            </mat-card-content>
+          </mat-card>
+        </ng-container>
+      </div>
 
-      <!-- Optional nav -->
+      <!-- Nav -->
       <button mat-icon-button class="nav prev" (click)="prev(threads.length)" aria-label="Previous">
         <mat-icon>chevron_left</mat-icon>
       </button>
@@ -25,6 +30,7 @@
       <div class="pager">{{ currentIndex + 1 }} / {{ threads.length }}</div>
     </ng-container>
   </div>
+
 
   <!-- Bottom: 1/4 height composer -->
   <ng-container *ngIf="isAuthenticated$ | async; else loginscreen">

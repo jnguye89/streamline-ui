@@ -14,16 +14,18 @@ mat-hint {
   background-color: black; // or background: ...
   color: white;
 }
+
 .mat-mdc-card-subtitle {
   background-color: black; // or background: ...
   color: white;
 }
+
 /* Fill the dynamic viewport exactly; split 75/25 */
 .container {
   height: 100dvh;
   /* dynamic viewport height (mobile-safe) */
   display: grid;
-  grid-template-rows: 3fr 1fr;
+  grid-template-rows: 2fr 2fr;
   /* 75% / 25% slices of the viewport */
 }
 
@@ -32,7 +34,7 @@ mat-hint {
   position: relative;
   display: grid;
   place-items: center;
-  padding: 1rem;
+  // padding: 1rem;
   overflow: hidden;
   /* no outer scroll */
 }
@@ -42,16 +44,16 @@ mat-hint {
 }
 
 .thread-card {
+  position: absolute;
+  /* allow overlap during enter/leave */
+  left: 0;
+  right: 0;
+  /* center without transform conflicts */
+  margin: 0 auto;
   width: 100%;
   max-width: 80vw;
-  /* <= at most 80% of page width */
-  max-height: calc(75dvh - 2rem);
-  /* keep within its slice */
-  display: flex;
-  flex-direction: column;
+  /* your 80% requirement */
   overflow: hidden;
-  /* clip frame; content scrolls */
-  text-align: center;
 }
 
 .thread-content {

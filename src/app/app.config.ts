@@ -17,9 +17,11 @@ import { OptionalAuthInterceptor } from "./interceptors/auth0.interceptor";
 import { environment } from "../environments/environment";
 import { provideServiceWorker } from "@angular/service-worker";
 import { PostLoginRedirectService } from "./services/post-login-redirect.service";
+import { provideAnimations } from "@angular/platform-browser/animations";
 
 export const appConfig: ApplicationConfig = {
   providers: [
+    provideAnimations(),
     provideRouter(routes),
     provideAnimationsAsync(),
     provideAuth0({
@@ -28,6 +30,7 @@ export const appConfig: ApplicationConfig = {
       authorizationParams: {
         audience: environment.auth0.audience,
         redirect_uri: window.location.origin,
+        scope: 'openid profile email'
       },
     }),
     provideHttpClient(withInterceptorsFromDi()),

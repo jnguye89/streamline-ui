@@ -12,12 +12,25 @@ import { TextFieldModule } from '@angular/cdk/text-field';
 import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@auth0/auth0-angular';
 import { Router } from '@angular/router';
+import { animate, style, transition, trigger } from '@angular/animations';
 
 @Component({
   selector: 'app-read',
   standalone: true,
   imports: [CommonModule, MatCardModule, MatDividerModule, FormsModule, MatInputModule, MatButtonModule, TextFieldModule, MatIconModule],
-  providers: [DatePipe],
+  providers: [DatePipe], animations: [
+    // Slide in/out horizontally; direction controlled via params
+    trigger('slideH', [
+      transition(':enter', [
+        style({ transform: 'translateX({{ enterFrom }}%)', opacity: 0 }),
+        animate('300ms ease-out', style({ transform: 'translateX(0%)', opacity: 1 })),
+      ], { params: { enterFrom: 100 } }), // default: comes from right
+
+      transition(':leave', [
+        animate('300ms ease-out', style({ transform: 'translateX({{ leaveTo }}%)', opacity: 0 })),
+      ], { params: { leaveTo: -100 } }),  // default: leaves to left
+    ]),
+  ],
   templateUrl: './read.component.html',
   styleUrl: './read.component.scss'
 })
@@ -28,6 +41,10 @@ export default class ReadComponent implements OnInit, OnDestroy {
   text = '';
   threads$: Observable<ThreadModel[] | undefined> = of();
   private refresh$ = new Subject<void>();
+  // control direction per click
+  direction: 'forward' | 'backward' = 'forward';
+  animParams = { enterFrom: 100, leaveTo: -100 }; // right -> center, center -> left
+
   constructor(private threadService: ThreadService,
     public auth: AuthService,
     private router: Router) { }
@@ -78,11 +95,15 @@ export default class ReadComponent implements OnInit, OnDestroy {
 
   next(total: number) {
     if (!total) return;
+    this.direction = 'forward';
+    this.animParams = { enterFrom: 100, leaveTo: -100 };
     this.currentIndex = (this.currentIndex + 1) % total;
   }
 
   prev(total: number) {
     if (!total) return;
+    this.direction = 'backward';
+    this.animParams = { enterFrom: -100, leaveTo: 100 }; // come from left, leave to right
     this.currentIndex = (this.currentIndex - 1 + total) % total;
   }
 }
