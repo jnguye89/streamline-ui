@@ -1,19 +1,30 @@
 /* Ensure the page itself doesn't scroll */
-html, body {
+html,
+body {
   height: 100%;
   overflow: hidden;
   color: white;
 }
 
-mat-hint { 
+mat-hint {
   color: white;
 }
 
+.mat-mdc-card {
+  background-color: black; // or background: ...
+  color: white;
+}
+.mat-mdc-card-subtitle {
+  background-color: black; // or background: ...
+  color: white;
+}
 /* Fill the dynamic viewport exactly; split 75/25 */
 .container {
-  height: 100dvh;              /* dynamic viewport height (mobile-safe) */
+  height: 100dvh;
+  /* dynamic viewport height (mobile-safe) */
   display: grid;
-  grid-template-rows: 3fr 1fr; /* 75% / 25% slices of the viewport */
+  grid-template-rows: 3fr 1fr;
+  /* 75% / 25% slices of the viewport */
 }
 
 /* --------- Viewer (top 3/4) --------- */
@@ -22,20 +33,31 @@ mat-hint {
   display: grid;
   place-items: center;
   padding: 1rem;
-  overflow: hidden; /* no outer scroll */
+  overflow: hidden;
+  /* no outer scroll */
+}
+
+.center-align {
+  margin: auto
 }
 
 .thread-card {
   width: 100%;
-  max-width: 80vw;                          /* <= at most 80% of page width */
-  max-height: calc(75dvh - 2rem);           /* keep within its slice */
+  max-width: 80vw;
+  /* <= at most 80% of page width */
+  max-height: calc(75dvh - 2rem);
+  /* keep within its slice */
   display: flex;
   flex-direction: column;
-  overflow: hidden;                          /* clip frame; content scrolls */
+  overflow: hidden;
+  /* clip frame; content scrolls */
+  text-align: center;
 }
 
 .thread-content {
-  overflow: auto;                            /* internal scroll if needed */
+  overflow: auto;
+  /* internal scroll if needed */
+
 }
 
 /* Optional nav buttons */
@@ -44,8 +66,14 @@ mat-hint {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  &.prev { left: 0.5rem; }
-  &.next { right: 0.5rem; }
+
+  &.prev {
+    left: 0.5rem;
+  }
+
+  &.next {
+    right: 0.5rem;
+  }
 }
 
 .pager {
@@ -65,20 +93,26 @@ mat-hint {
   margin: auto;
   flex-direction: column;
   padding: 0.75rem 1rem 1rem;
-  border-top: 1px solid rgba(0,0,0,0.08);
-  overflow: hidden; /* no outer scroll */
-  min-height: 0;    /* allow children to size correctly in flex */
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  /* no outer scroll */
+  min-height: 0;
+  /* allow children to size correctly in flex */
 }
 
 .textarea-box {
-  flex: 1;          /* occupy most of the 1/4 slice */
-  min-height: 0;    /* crucial for inner scroll */
-  overflow: hidden; /* clip inner */
+  flex: 1;
+  /* occupy most of the 1/4 slice */
+  min-height: 0;
+  /* crucial for inner scroll */
+  overflow: hidden;
+  /* clip inner */
 }
 
 .field {
   width: 100%;
-  height: 100%;     /* stretch to fill the box */
+  height: 100%;
+  /* stretch to fill the box */
   display: block;
 }
 
@@ -88,7 +122,8 @@ mat-hint {
   width: 100%;
   box-sizing: border-box;
   overflow: auto;
-  resize: none;     /* prevent pulling it beyond the 1/4 slice */
+  resize: none;
+  /* prevent pulling it beyond the 1/4 slice */
 }
 
 .actions {
@@ -102,5 +137,5 @@ mat-hint {
 .empty {
   display: grid;
   place-items: center;
-  color: rgba(0,0,0,0.5);
+  color: rgba(0, 0, 0, 0.5);
 }

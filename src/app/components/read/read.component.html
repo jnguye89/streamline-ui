@@ -3,12 +3,14 @@
   <div class="viewer" *ngIf="threads$ | async as threads">
     <ng-container *ngIf="threads?.length; else empty">
       <mat-card class="thread-card" appearance="outlined">
-        <mat-card-header>
-          <mat-card-title>{{ threads[currentIndex]?.threadItem }}</mat-card-title>
-          <mat-card-subtitle class="meta">{{ threads[currentIndex]?.user }}</mat-card-subtitle>
+        <mat-card-header class="center-align">
+          <mat-card-title class="center-align">{{ threads[currentIndex]?.threadItem }}</mat-card-title>
         </mat-card-header>
-        <mat-divider></mat-divider>
+        <br/>
+        <mat-divider class="divider"></mat-divider>
+        <br/>
         <mat-card-content class="thread-content">
+          {{ threads[currentIndex]?.user }} <br/>
           {{ threads[currentIndex]?.createdAt | date }}
         </mat-card-content>
       </mat-card>
