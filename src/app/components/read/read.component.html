@@ -25,28 +25,26 @@
   </div>
 
   <!-- Bottom: 1/4 height composer -->
-  <form class="composer" (ngSubmit)="submit()">
-    <div class="textarea-box">
-      <mat-form-field class="field" appearance="outline">
-        <textarea
-          matInput
-          name="text"
-          [(ngModel)]="text"
-          placeholder="Write a thread…"
-          maxlength="255"
-        ></textarea>
-        <mat-hint>{{ (text?.length || 0) }} / 255</mat-hint>
-      </mat-form-field>
-    </div>
+  <ng-container *ngIf="isAuthenticated$ | async; else loginscreen">
+    <form class="composer" (ngSubmit)="submit()">
+      <div class="textarea-box">
+        <mat-form-field class="field" appearance="outline">
+          <textarea matInput name="text" [(ngModel)]="text" placeholder="Write a thread…" maxlength="255"></textarea>
+          <mat-hint>{{ (text?.length || 0) }} / 255</mat-hint>
+        </mat-form-field>
+      </div>
 
-    <div class="actions">
-      <button mat-flat-button color="primary" type="submit" [disabled]="!canSubmit">
-        Submit
-      </button>
-    </div>
-  </form>
-
+      <div class="actions">
+        <button mat-flat-button color="primary" type="submit" [disabled]="!canSubmit">
+          Submit
+        </button>
+      </div>
+    </form>
+  </ng-container>
   <ng-template #empty>
     <div class="empty">No threads yet.</div>
+  </ng-template>
+  <ng-template #loginscreen>
+    <button mat-button (click)="login()">Login to add your own</button>
   </ng-template>
 </div>

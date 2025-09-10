@@ -1,6 +1,6 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
 import { ThreadService } from '../../services/thread.service';
-import { Observable, of, shareReplay, startWith, Subject, switchMap, take } from 'rxjs';
+import { Observable, of, shareReplay, startWith, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { ThreadModel } from '../../models/thread.model';
 import { CommonModule, DatePipe } from '@angular/common';
 import { MatDividerModule } from '@angular/material/divider';
@@ -10,6 +10,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { TextFieldModule } from '@angular/cdk/text-field';
 import { MatIconModule } from '@angular/material/icon';
+import { AuthService } from '@auth0/auth0-angular';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-read',
@@ -19,16 +21,37 @@ import { MatIconModule } from '@angular/material/icon';
   templateUrl: './read.component.html',
   styleUrl: './read.component.scss'
 })
-export default class ReadComponent implements OnInit {
+export default class ReadComponent implements OnInit, OnDestroy {
+  isAuthenticated$ = this.auth.isAuthenticated$;
+  private destroy$ = new Subject<void>();
   currentIndex = 0;
   text = '';
   threads$: Observable<ThreadModel[] | undefined> = of();
   private refresh$ = new Subject<void>();
-  constructor(private threadService: ThreadService) { }
+  constructor(private threadService: ThreadService,
+    public auth: AuthService,
+    private router: Router) { }
 
   trackById = (_: number, t: ThreadModel) => t.id;
 
   ngOnInit() {
+    this.init()
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  login() {
+    this.auth.loginWithRedirect({
+      appState: {
+        target: this.router.url,
+      },
+    });
+  }
+
+  init() {
     this.threads$ = this.refresh$.pipe(
       startWith(void 0),                                 // load once on init
       switchMap(() => this.threadService.getLatestThreads(50)),
