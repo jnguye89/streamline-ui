@@ -1,22 +1,101 @@
-/* Centers the form and makes it ~2× wider than a typical 360–400px field */
-.composer {
-  width: min(800px, 90vw);  /* ~2x width, but responsive */
-  margin: 24px auto;        /* center horizontally */
+/* Ensure the page itself doesn't scroll */
+html, body {
+  height: 100%;
+  overflow: hidden;
 }
 
+/* Fill the dynamic viewport exactly; split 75/25 */
 .container {
-  padding-top: 100px;
-}
-
-/* Make the Material field fill the composer’s width */
-.composer .field {
-  width: 100%;
-}
-
-/* Optional: give the list a nice max width too, matching the form */
-.list {
-  width: min(800px, 90vw);
-  margin: 16px auto 0;
+  height: 100dvh;              /* dynamic viewport height (mobile-safe) */
   display: grid;
-  gap: 12px;
+  grid-template-rows: 3fr 1fr; /* 75% / 25% slices of the viewport */
+}
+
+/* --------- Viewer (top 3/4) --------- */
+.viewer {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  overflow: hidden; /* no outer scroll */
+}
+
+.thread-card {
+  width: 100%;
+  max-width: 80vw;                          /* <= at most 80% of page width */
+  max-height: calc(75dvh - 2rem);           /* keep within its slice */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;                          /* clip frame; content scrolls */
+}
+
+.thread-content {
+  overflow: auto;                            /* internal scroll if needed */
+}
+
+/* Optional nav buttons */
+.nav {
+  color: white;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  &.prev { left: 0.5rem; }
+  &.next { right: 0.5rem; }
+}
+
+.pager {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.7;
+  font-size: 0.85rem;
+}
+
+/* --------- Composer (bottom 1/4) --------- */
+.composer {
+  display: flex;
+  width: 100%;
+  max-width: 80vw;
+  margin: auto;
+  flex-direction: column;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  overflow: hidden; /* no outer scroll */
+  min-height: 0;    /* allow children to size correctly in flex */
+}
+
+.textarea-box {
+  flex: 1;          /* occupy most of the 1/4 slice */
+  min-height: 0;    /* crucial for inner scroll */
+  overflow: hidden; /* clip inner */
+}
+
+.field {
+  width: 100%;
+  height: 100%;     /* stretch to fill the box */
+  display: block;
+}
+
+/* Make the textarea fill the space and scroll internally if long */
+.field textarea {
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: auto;
+  resize: none;     /* prevent pulling it beyond the 1/4 slice */
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+  flex: 0 0 auto;
+}
+
+/* --------- Empty state --------- */
+.empty {
+  display: grid;
+  place-items: center;
+  color: rgba(0,0,0,0.5);
 }

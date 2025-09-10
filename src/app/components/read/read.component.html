@@ -1,37 +1,50 @@
 <div class="container">
-  <form class="composer" (ngSubmit)="submit()">
-    <mat-form-field class="field" appearance="outline">
-      <textarea
-        matInput
-        name="text"
-        [(ngModel)]="text"
-        placeholder="Write a thread…"
-        cdkTextareaAutosize
-        cdkAutosizeMinRows="3"
-        cdkAutosizeMaxRows="8"
-        maxlength="255"
-      ></textarea>
-      <mat-hint>{{ (text?.length || 0) }} / 255</mat-hint>
-    </mat-form-field>
-    <br />
-    <button mat-flat-button color="primary" type="submit" [disabled]="!canSubmit" click="submit()">
-      Submit
-    </button>
-  </form>
-
-  <!-- rest of your template unchanged -->
-  <ng-container *ngIf="threads$ | async as threads; else empty">
-    <div class="list">
-      <mat-card *ngFor="let t of threads; trackBy: trackById" appearance="outlined">
+  <!-- Top: 3/4 height viewer -->
+  <div class="viewer" *ngIf="threads$ | async as threads">
+    <ng-container *ngIf="threads?.length; else empty">
+      <mat-card class="thread-card" appearance="outlined">
         <mat-card-header>
-          <mat-card-title>{{ t.threadItem }}</mat-card-title>
-          <mat-card-subtitle class="meta">{{ t.user }}</mat-card-subtitle>
+          <mat-card-title>{{ threads[currentIndex]?.threadItem }}</mat-card-title>
+          <mat-card-subtitle class="meta">{{ threads[currentIndex]?.user }}</mat-card-subtitle>
         </mat-card-header>
         <mat-divider></mat-divider>
-        <mat-card-content>{{ t.createdAt | date }}</mat-card-content>
+        <mat-card-content class="thread-content">
+          {{ threads[currentIndex]?.createdAt | date }}
+        </mat-card-content>
       </mat-card>
+
+      <!-- Optional nav -->
+      <button mat-icon-button class="nav prev" (click)="prev(threads.length)" aria-label="Previous">
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+      <button mat-icon-button class="nav next" (click)="next(threads.length)" aria-label="Next">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+      <div class="pager">{{ currentIndex + 1 }} / {{ threads.length }}</div>
+    </ng-container>
+  </div>
+
+  <!-- Bottom: 1/4 height composer -->
+  <form class="composer" (ngSubmit)="submit()">
+    <div class="textarea-box">
+      <mat-form-field class="field" appearance="outline">
+        <textarea
+          matInput
+          name="text"
+          [(ngModel)]="text"
+          placeholder="Write a thread…"
+          maxlength="255"
+        ></textarea>
+        <mat-hint>{{ (text?.length || 0) }} / 255</mat-hint>
+      </mat-form-field>
     </div>
-  </ng-container>
+
+    <div class="actions">
+      <button mat-flat-button color="primary" type="submit" [disabled]="!canSubmit">
+        Submit
+      </button>
+    </div>
+  </form>
 
   <ng-template #empty>
     <div class="empty">No threads yet.</div>

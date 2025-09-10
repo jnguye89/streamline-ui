@@ -9,16 +9,18 @@ import { FormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { TextFieldModule } from '@angular/cdk/text-field';
+import { MatIconModule } from '@angular/material/icon';
 
 @Component({
   selector: 'app-read',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatDividerModule, FormsModule, MatInputModule, MatButtonModule, TextFieldModule],
+  imports: [CommonModule, MatCardModule, MatDividerModule, FormsModule, MatInputModule, MatButtonModule, TextFieldModule, MatIconModule],
   providers: [DatePipe],
   templateUrl: './read.component.html',
   styleUrl: './read.component.scss'
 })
 export default class ReadComponent implements OnInit {
+  currentIndex = 0;
   text = '';
   threads$: Observable<ThreadModel[] | undefined> = of();
   private refresh$ = new Subject<void>();
@@ -49,5 +51,15 @@ export default class ReadComponent implements OnInit {
       error: (err) => console.error(err)
     });
     this.text = '';
+  }
+
+  next(total: number) {
+    if (!total) return;
+    this.currentIndex = (this.currentIndex + 1) % total;
+  }
+
+  prev(total: number) {
+    if (!total) return;
+    this.currentIndex = (this.currentIndex - 1 + total) % total;
   }
 }
