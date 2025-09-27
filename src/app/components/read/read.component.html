@@ -7,13 +7,13 @@
           <mat-card class="thread-card center-align" appearance="outlined" *ngIf="i === currentIndex"
             [@slideH]="{ value: direction, params: animParams }">
             <mat-card-header class="center-align">
-              <mat-card-title>{{ t.threadItem }}</mat-card-title>
+              <mat-card-title>{{ t.threadText }}</mat-card-title>
             </mat-card-header>
             <br /><br />
             <mat-divider></mat-divider>
             <br /><br />
             <mat-card-content class="thread-content center-align">
-              {{ t.user }}<br />
+              {{ t.user?.username }}<br />
               {{ t.createdAt | date }}
             </mat-card-content>
           </mat-card>

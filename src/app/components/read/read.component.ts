@@ -82,7 +82,7 @@ export default class ReadComponent implements OnInit, OnDestroy {
     const val = this.text.trim();
     if (!val) return;
     this.threadService.createThread({
-      threadItem: val
+      threadText: val
     }).pipe(take(1)).subscribe({
       next: () => {
         this.text = '';

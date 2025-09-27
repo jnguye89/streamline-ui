@@ -1,6 +1,10 @@
 export interface ThreadModel {
     id?: number,
-    threadItem: string,
-    user?: string,
+    threadText: string,
+    user?: UserModel,
     createdAt?: string;
+}
+
+export interface UserModel {
+    username: string;
 }
