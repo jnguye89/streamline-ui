@@ -1,30 +1,46 @@
-@use '@angular/material' as mat;
+:root {
+  /* Colors */
+  --c-primary: #0e52ff;
+  --c-accent: #03dac6;
+  --c-warn: #b00020;
 
-// 1) Required once
-@include mat.core();
+  --c-surface: #111;
+  --c-bg: #121212;
+  --c-on-surface: #ffffff;
 
-// 2) Define a classic theme
-$my-primary: mat.define-palette(mat.$indigo-palette);
-$my-accent:  mat.define-palette(mat.$pink-palette, A200, A100, A400);
-$my-theme:   mat.define-light-theme((
-  color: (primary: $my-primary, accent: $my-accent),
-  // typography: mat.define-typography-config(...),
-  // density: 0,
-));
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --radius: 0.75rem;
 
-// 3) Apply component themes you use (or all)
-@include mat.card-theme($my-theme);
-// or: @include mat.all-component-themes($my-theme);
+  /* Typography (fluid) */
+  --fs-base: clamp(0.875rem, 0.5vw + 0.75rem, 1rem);
+  --fs-lg: clamp(1rem, 0.6vw + 0.9rem, 1.25rem);
 
-// 4) Per-component overrides (MDC variables in v15/16)
-.mat-mdc-card {
-  /* Elevated card container color */
-  --mdc-elevated-card-container-color: black;
-
-  /* Elevation is a number (shadow level), not a color */
-  @include mat.elevation(8);
+  --app-bar-height: 56px; /* Default app bar height */
 }
 
-/* Optional page chrome */
-html, body { height: 100%; }
-body { margin: 0; background: #000; font-family: Roboto, "Helvetica Neue", sans-serif; }
+/* PWA Standalone Display Styling */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  body {
+    padding-top: var(--app-bar-height);
+    background: var(--c-surface);
+  }
+
+  .tooltip-hint {
+    display: none;
+  }
+}
+
+/* Global body styling */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* For Angular dynamic theme binding (optional) */
+.meta-theme-color {
+  content: var(--c-primary);
+}
