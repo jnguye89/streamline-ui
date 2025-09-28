@@ -1,6 +1,6 @@
 import { Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
 import { ThreadService } from '../../services/thread.service';
-import { Observable, of, shareReplay, startWith, Subject, switchMap, take, takeUntil } from 'rxjs';
+import { map, Observable, of, shareReplay, startWith, Subject, switchMap, take, takeUntil } from 'rxjs';
 import { ThreadModel } from '../../models/thread.model';
 import { CommonModule, DatePipe } from '@angular/common';
 import { MatDividerModule } from '@angular/material/divider';
@@ -72,6 +72,7 @@ export default class ReadComponent implements OnInit, OnDestroy {
     this.threads$ = this.refresh$.pipe(
       startWith(void 0),                                 // load once on init
       switchMap(() => this.threadService.getLatestThreads(50)),
+      map(t => shuffle(t)),
       shareReplay({ bufferSize: 1, refCount: true })     // optional, caches latest
     );
   }
@@ -106,4 +107,13 @@ export default class ReadComponent implements OnInit, OnDestroy {
     this.animParams = { enterFrom: -100, leaveTo: 100 }; // come from left, leave to right
     this.currentIndex = (this.currentIndex - 1 + total) % total;
   }
+}
+
+function shuffle<T>(array: T[]): T[] {
+  const arr = [...array]; // copy so you don’t mutate original
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1)); // random index 0..i
+    [arr[i], arr[j]] = [arr[j], arr[i]]; // swap
+  }
+  return arr;
 }
