@@ -1,5 +1,7 @@
 <div class="main-container">
-  <h1 class="title">Catch the yap: creators, chats, and radio</h1>
+  <div>
+    <h3 class="title">Catch the yap: creators, chats, and radio</h3>
+  </div>
 
   <div class="player-card">
     <div class="station-info">
@@ -7,14 +9,7 @@
       <!-- <p class="genre">{{ currentStation?.genre || "Jazz" }}</p> -->
     </div>
     <div>
-      <audio
-        #audio
-        controls
-        autoplay
-        loop
-        class="audio-element"
-        [src]="currentStation?.audioPath"
-      ></audio>
+      <audio #audio controls autoplay loop class="audio-element" [src]="currentStation?.audioPath"></audio>
     </div>
 
     <div class="controls">
@@ -35,12 +30,7 @@
       <mat-icon>volume_up</mat-icon>
 
       <mat-slider min="0" max="100" step="1">
-        <input
-          matSliderThumb
-          [(ngModel)]="volume"
-          #slider
-          (input)="changeVolume($event)"
-      /></mat-slider>
+        <input matSliderThumb [(ngModel)]="volume" #slider (input)="changeVolume($event)" /></mat-slider>
       <span>{{ volume }}</span>
     </div>
   </div>
