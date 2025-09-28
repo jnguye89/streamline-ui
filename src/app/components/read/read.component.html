@@ -38,7 +38,7 @@
       <div class="textarea-box">
         <mat-form-field class="field" appearance="outline">
           <textarea matInput name="text" [(ngModel)]="text" placeholder="Write a thread…" maxlength="255"></textarea>
-          <mat-hint>{{ (text?.length || 0) }} / 255</mat-hint>
+          <mat-hint>{{ (text.length || 0) }} / 255</mat-hint>
         </mat-form-field>
       </div>
 
