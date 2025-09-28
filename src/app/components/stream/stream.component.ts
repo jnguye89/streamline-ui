@@ -153,6 +153,7 @@ export class StreamComponent implements AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    this.stopWebcam();
     this.destroy$.next();
     this.destroy$.complete();
   }
