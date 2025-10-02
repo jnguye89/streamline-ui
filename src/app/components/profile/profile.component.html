@@ -5,30 +5,22 @@
       <p class="upload-message">Uploading video, please wait...</p>
     </div>
   </div>
+  <h4>Need help?
+    <a href="mailto:him&#64;skriin.com">support&#64;skriin.com</a>
+  </h4>
   <div *ngIf="(isAuthenticated$ | async) && !userId">
     <button mat-raised-button color="primary" (click)="fileInput.click()">
       <mat-icon>upload</mat-icon> Upload Video
     </button>
-    <input
-      type="file"
-      accept="video/*"
-      #fileInput
-      style="display: none"
-      [disabled]="isUploading"
-      (change)="onFileSelected($event)"
-    />
+    <input type="file" accept="video/*" #fileInput style="display: none" [disabled]="isUploading"
+      (change)="onFileSelected($event)" />
   </div>
   <br />
   <h1>Videos</h1>
   <div fxLayout="row wrap" fxLayoutGap="16px" fxLayoutAlign="center">
     <div *ngFor="let video of videos">
       <div class="video-item">
-        <video
-          [src]="video.videoPath"
-          controls
-          loop
-          class="video-player"
-        ></video>
+        <video [src]="video.videoPath" controls loop class="video-player"></video>
       </div>
     </div>
   </div>
