@@ -13,6 +13,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { AuthService } from '@auth0/auth0-angular';
 import { Router } from '@angular/router';
 import { animate, style, transition, trigger } from '@angular/animations';
+import { SeoService } from '../../services/seo.service';
 
 @Component({
   selector: 'app-read',
@@ -45,13 +46,17 @@ export default class ReadComponent implements OnInit, OnDestroy {
   direction: 'forward' | 'backward' = 'forward';
   animParams = { enterFrom: 100, leaveTo: -100 }; // right -> center, center -> left
 
-  constructor(private threadService: ThreadService,
+  constructor(
+    private threadService: ThreadService,
     public auth: AuthService,
-    private router: Router) { }
+    private router: Router,
+    private seo: SeoService) { }
+
 
   trackById = (_: number, t: ThreadModel) => t.id;
 
   ngOnInit() {
+    this.setUpSeo();
     this.init()
   }
 
@@ -106,6 +111,16 @@ export default class ReadComponent implements OnInit, OnDestroy {
     this.direction = 'backward';
     this.animParams = { enterFrom: -100, leaveTo: 100 }; // come from left, leave to right
     this.currentIndex = (this.currentIndex - 1 + total) % total;
+  }
+
+  // Helpers
+  private setUpSeo() {
+    const title = 'Skriin AI TV';
+    const description =
+      'Discover and watch creators, VODs, podcasts and live channels in one curated interface powered by AI recommendations and voice search.';
+    const keywords =
+      'watch streaming content, creator hub tv, ai recommendations, vod player, voice search tv, live channels';
+    this.seo.setTags({ title, description, keywords, path: '/podcast' });
   }
 }
 

@@ -215,7 +215,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Helpers
   private setUpSeo() {
-    const title = 'Watch – Skriin AI TV';
+    const title = 'Skriin AI TV';
     const description =
       'Discover and watch creators, VODs, podcasts and live channels in one curated interface powered by AI recommendations and voice search.';
     const keywords =

@@ -86,7 +86,7 @@ export class CallsComponent implements OnInit {
   }
 
   private setUpSeo() {
-    const title = "Calls - Skriin AI TV";
+    const title = 'Skriin AI TV';
     const description =
       "Place crystal-clear AI-enhanced video and voice calls from any smart-TV. Auto-framing, noise cleanup, instant family conferencing.";
     const keywords =

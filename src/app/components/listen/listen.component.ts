@@ -12,6 +12,7 @@ import { MatFormFieldModule } from "@angular/material/form-field";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { Audio } from "../../models/Audio.model";
 import { FormsModule } from "@angular/forms";
+import { SeoService } from "../../services/seo.service";
 
 @Component({
   selector: "app-listen",
@@ -44,9 +45,10 @@ export class ListenComponent {
   currentIndex = 0;
   currentStation?: Audio;
 
-  constructor(private listenService: ListenService) {}
+  constructor(private listenService: ListenService, private seo: SeoService) { }
 
   ngOnInit() {
+    this.setUpSeo();
     this.listenService
       .getAudio()
       .pipe(takeUntil(this.destroy$))
@@ -114,5 +116,15 @@ export class ListenComponent {
     if (this.audioRef?.nativeElement) {
       this.audioRef.nativeElement.volume = normalized;
     }
+  }
+
+  // Helpers
+  private setUpSeo() {
+    const title = 'Skriin AI TV';
+    const description =
+      'Discover and watch creators, VODs, podcasts and live channels in one curated interface powered by AI recommendations and voice search.';
+    const keywords =
+      'watch streaming content, creator hub tv, ai recommendations, vod player, voice search tv, live channels';
+    this.seo.setTags({ title, description, keywords, path: '/podcast' });
   }
 }
