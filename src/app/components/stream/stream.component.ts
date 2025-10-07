@@ -11,7 +11,6 @@ import { MatIconModule } from "@angular/material/icon";
 import { VideoService } from "../../services/video.service";
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
-  exhaustMap,
   filter,
   map,
   Observable,
@@ -96,6 +95,7 @@ export class StreamComponent implements AfterViewInit {
   }
 
   setupPublisher(s: LiveStream) {
+    console.log('stream', s)
     this.streamState.setData(s);
     const state: WebRtcState = {
       sdpUrl: s.wssStreamUrl,

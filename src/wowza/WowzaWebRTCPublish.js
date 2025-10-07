@@ -139,10 +139,10 @@ const set = async (props) =>
   try
   {
     let s1 = await setState(newState);
-    if (s1.stream == null)
-    {
+    // if (s1.stream == null)
+    // {
       await getUserMedia();
-    }
+    // }
     let s2 = await getDevices();
     if (constraintsChanged && s2.stream != null)
     {
