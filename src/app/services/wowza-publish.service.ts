@@ -1,6 +1,6 @@
 // wowza-webrtc.service.ts
 import { Injectable, NgZone, inject } from '@angular/core';
-import { BehaviorSubject, distinctUntilChanged, map, Subject } from 'rxjs';
+import { BehaviorSubject, distinctUntilChanged, map, Subject, tap } from 'rxjs';
 import { WowzaError } from '../models/wowza-error.model';
 import { WebRtcState } from '../models/webrtc-state.model';
 
@@ -14,6 +14,7 @@ export class WowzaPublishService {
 
     private connectionState$ = new BehaviorSubject<ConnectionState>('disconnected');
     private readonly _isLive$ = this.connectionState$.pipe(
+        tap(s => console.log('islive in service', s)),
         map(s => s === 'connected'),
         distinctUntilChanged()
     );

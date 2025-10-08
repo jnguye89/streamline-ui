@@ -8,7 +8,6 @@ import { FlexLayoutModule } from "@angular/flex-layout";
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
-import { VideoService } from "../../services/video.service";
 import { MatSnackBar } from '@angular/material/snack-bar';
 import {
   filter,
@@ -26,7 +25,7 @@ import { AuthService } from "@auth0/auth0-angular";
 import { SeoService } from "../../services/seo.service";
 import { WowzaPublishService } from "../../services/wowza-publish.service";
 import { WebRtcState } from "../../models/webrtc-state.model";
-import { NavigationStart, Router } from "@angular/router";
+import { Router } from "@angular/router";
 import { StreamUpdate, StreamService } from "../../services/stream.service";
 import { LiveStream } from "../../models/live-stream.model";
 import { StreamStateService } from "../../services/stream-state.service";
@@ -35,7 +34,7 @@ import { StreamStateService } from "../../services/stream-state.service";
   selector: "app-stream",
   standalone: true,
   imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule],
-  providers: [VideoService, DatePipe, WowzaPublishService],
+  providers: [DatePipe],
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
@@ -46,6 +45,8 @@ export class StreamComponent implements AfterViewInit {
   streamId: number | undefined;
   private destroy$ = new Subject<void>();
   @ViewChild('video', { static: true }) videoElement!: ElementRef<HTMLVideoElement>;
+
+  beforeRouteLeave = async () => this.stopWebcam();
 
   constructor(
     private wowzaPublishService: WowzaPublishService,
@@ -106,16 +107,16 @@ export class StreamComponent implements AfterViewInit {
     this.wowzaPublishService.init(state);
     this.isReady = true;
     this.streamId = s.id;
-    this.router.events.pipe(
-      filter(e => e instanceof NavigationStart),
-      tap(() => {
-        // Stop local preview & publishing cleanly
-        this.wowzaPublishService.stopPublish?.(); // if method exists
-        this.detachAndStopVideoTracks();          // always do this
-        this.streamService.stop(s.id).pipe(take(1)).subscribe();
-      }),
-      takeUntil(this.destroy$)
-    ).subscribe();
+    // this.router.events.pipe(
+    //   filter(e => e instanceof NavigationStart),
+    //   tap(() => {
+    //     // Stop local preview & publishing cleanly
+    //     // this.wowzaPublishService.stopPublish?.(); // if method exists
+    //     // this.detachAndStopVideoTracks();          // always do this
+    //     // this.streamService.stop(s.id).pipe(take(1)).subscribe();
+    //   }),
+    //   takeUntil(this.destroy$)
+    // ).subscribe();
   }
 
   login() {
@@ -145,8 +146,9 @@ export class StreamComponent implements AfterViewInit {
     this.streamService.start(this.streamId!);
   }
 
-  stopWebcam() {
+  stopWebcam(isNav = true) {
     this.wowzaPublishService.stopPublish();
+    if (isNav) this.detachAndStopVideoTracks();          // always do this
     this.streamService.stop(this.streamId!).pipe(
       takeUntil(this.destroy$))
       .subscribe();

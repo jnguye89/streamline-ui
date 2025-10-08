@@ -7,6 +7,7 @@ import { ProfileComponent } from "./components/profile/profile.component";
 import { ConverseComponent } from "./components/converse/converse.component";
 import ReadComponent from "./components/read/read.component";
 import { PodcastComponent } from "./components/podcast/podcast.component";
+import { StreamExitGuard } from "./guards/stream-exist.guard";
 
 export const routes: Routes = [
   {
@@ -36,6 +37,7 @@ export const routes: Routes = [
   {
     path: "stream",
     component: StreamComponent,
+    canDeactivate: [StreamExitGuard]
   },
   {
     path: "listen",
