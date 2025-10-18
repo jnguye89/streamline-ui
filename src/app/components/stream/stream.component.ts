@@ -79,12 +79,9 @@ export class StreamComponent implements AfterViewInit {
           horizontalPosition: 'right',
           verticalPosition: 'top',
         });
-        // Optional: log details to console/telemetry 
         if (err.details) console.error('[WOWZA ERROR]', err);
       });
-    // const stream = this.streamState.getCurrentData();
-    // !!stream
-    //   ? this.setupPublisher(stream)
+      
     this.streamService.getAvailableStreamOnce()
       .pipe(
         switchMap(s => this.getUpdates$(s).pipe(
@@ -145,7 +142,7 @@ export class StreamComponent implements AfterViewInit {
     if (!isNav) {
       const ref = this.dialog.open(ConfirmEndStreamDialog, {
         width: '420px',
-        data: { title: 'End stream?', body: `You're live. End the stream before leaving?` }
+        data: { title: 'End stream?', body: `Click stay to start continue.` }
       });
       ref.afterClosed().pipe(take(1)).subscribe(v => v ? this.stopAndNavigate() : this.init());
     }
@@ -154,8 +151,8 @@ export class StreamComponent implements AfterViewInit {
   stopAndNavigate() {
     this.streamService.stop(this.streamId!).pipe(
       takeUntil(this.destroy$))
-      .subscribe();
-    this.router.navigateByUrl('/profile')
+      .subscribe(_ =>
+        this.router.navigateByUrl('/profile'));
   }
 
   ngOnDestroy(): void {
