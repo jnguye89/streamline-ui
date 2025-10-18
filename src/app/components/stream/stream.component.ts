@@ -2,6 +2,7 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  inject,
   ViewChild,
 } from "@angular/core";
 import { FlexLayoutModule } from "@angular/flex-layout";
@@ -29,6 +30,8 @@ import { Router } from "@angular/router";
 import { StreamUpdate, StreamService } from "../../services/stream.service";
 import { LiveStream } from "../../models/live-stream.model";
 import { StreamStateService } from "../../services/stream-state.service";
+import { MatDialog } from "@angular/material/dialog";
+import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 
 @Component({
   selector: "app-stream",
@@ -39,6 +42,7 @@ import { StreamStateService } from "../../services/stream-state.service";
   styleUrl: "./stream.component.scss",
 })
 export class StreamComponent implements AfterViewInit {
+  private dialog = inject(MatDialog);
   isAuthenticated$ = this.auth.isAuthenticated$;
   isLive$ = this.wowzaPublishService.isLive$;
   isReady = false;
@@ -78,25 +82,23 @@ export class StreamComponent implements AfterViewInit {
         // Optional: log details to console/telemetry 
         if (err.details) console.error('[WOWZA ERROR]', err);
       });
-    const stream = this.streamState.getCurrentData();
-    !!stream
-      ? this.setupPublisher(stream)
-      : this.streamService.getAvailableStreamOnce()
-        .pipe(
-          switchMap(s => this.getUpdates$(s).pipe(
-            filter(u => u.phase === 'ready'),
-            take(1),
-            map(updates => ({ s, updates }))
-          )
-          ),
-          takeUntil(this.destroy$)).subscribe(({ s }) => {
-            this.setupPublisher(s);
-          });
-
+    // const stream = this.streamState.getCurrentData();
+    // !!stream
+    //   ? this.setupPublisher(stream)
+    this.streamService.getAvailableStreamOnce()
+      .pipe(
+        switchMap(s => this.getUpdates$(s).pipe(
+          filter(u => u.phase === 'ready'),
+          take(1),
+          map(updates => ({ s, updates }))
+        )
+        ),
+        takeUntil(this.destroy$)).subscribe(({ s }) => {
+          this.setupPublisher(s);
+        });
   }
 
   setupPublisher(s: LiveStream) {
-    console.log('stream', s)
     this.streamState.setData(s);
     const state: WebRtcState = {
       sdpUrl: s.wssStreamUrl,
@@ -107,16 +109,6 @@ export class StreamComponent implements AfterViewInit {
     this.wowzaPublishService.init(state);
     this.isReady = true;
     this.streamId = s.id;
-    // this.router.events.pipe(
-    //   filter(e => e instanceof NavigationStart),
-    //   tap(() => {
-    //     // Stop local preview & publishing cleanly
-    //     // this.wowzaPublishService.stopPublish?.(); // if method exists
-    //     // this.detachAndStopVideoTracks();          // always do this
-    //     // this.streamService.stop(s.id).pipe(take(1)).subscribe();
-    //   }),
-    //   takeUntil(this.destroy$)
-    // ).subscribe();
   }
 
   login() {
@@ -149,9 +141,21 @@ export class StreamComponent implements AfterViewInit {
   stopWebcam(isNav = true) {
     this.wowzaPublishService.stopPublish();
     if (isNav) this.detachAndStopVideoTracks();          // always do this
+
+    if (!isNav) {
+      const ref = this.dialog.open(ConfirmEndStreamDialog, {
+        width: '420px',
+        data: { title: 'End stream?', body: `You're live. End the stream before leaving?` }
+      });
+      ref.afterClosed().pipe(take(1)).subscribe(v => v ? this.stopAndNavigate() : this.init());
+    }
+  }
+
+  stopAndNavigate() {
     this.streamService.stop(this.streamId!).pipe(
       takeUntil(this.destroy$))
       .subscribe();
+    this.router.navigateByUrl('/profile')
   }
 
   ngOnDestroy(): void {

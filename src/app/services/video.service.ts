@@ -13,12 +13,6 @@ export class VideoService {
 
   constructor(private http: HttpClient) {}
 
-  uploadVideo(video: File): Observable<any> {
-    const formData = new FormData();
-    formData.append("file", video);
-    return this.http.post(`${this.apiUrl}/video`, formData);
-  }
-
   getUserVideos(id: string): Observable<Video[]> {
     return this.http.get<any[]>(`${this.apiUrl}/video/user/${id}`);
   }
@@ -53,7 +47,6 @@ export class VideoService {
       },
       body: file,
     });
-    console.log(uploadUrl);
 
     return await firstValueFrom(
       this.http.post<{ user: string; videoPath: string }>(
