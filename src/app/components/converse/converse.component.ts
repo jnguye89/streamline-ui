@@ -28,7 +28,7 @@ export class ConverseComponent implements OnInit {
   }
 
   private setUpSeo() {
-    const title = 'Skriin AI TV';
+    const title = 'skriin AI TV';
     const description =
       "Natural-language chat with on-screen AI. Ask anything, control playback, search shows or get trivia while you watch.";
     const keywords =

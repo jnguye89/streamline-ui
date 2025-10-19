@@ -27,7 +27,7 @@ export class ListenService implements OnInit {
   }
 
   private setUpSeo() {
-    const title = "Listen – Skriin AI TV";
+    const title = "Listen – skriin AI TV";
     const description =
       "Browse, queue and cast podcasts, radio and ambient mixes with AI suggestions and 3-D spatial audio upmix.";
     const keywords =

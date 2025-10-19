@@ -142,7 +142,7 @@ export class StreamComponent implements AfterViewInit {
     if (!isNav) {
       const ref = this.dialog.open(ConfirmEndStreamDialog, {
         width: '420px',
-        data: { title: 'End stream?', body: `Click stay to start continue.` }
+        data: { title: 'End stream?', body: `Click stay to start another live stream.` }
       });
       ref.afterClosed().pipe(take(1)).subscribe(v => v ? this.stopAndNavigate() : this.init());
     }
@@ -169,9 +169,9 @@ export class StreamComponent implements AfterViewInit {
   }
 
   private setUpSeo() {
-    const title = 'Skriin AI TV';
+    const title = 'skriin AI TV';
     const description =
-      "One-click streaming hub: push gameplay, camera or desktop to Twitch, YouTube & Skriin Cloud. AI overlays, chat integration, 0.6 s latency.";
+      "One-click streaming hub: push gameplay, camera or desktop to Twitch, YouTube & skriin Cloud. AI overlays, chat integration, 0.6 s latency.";
     const keywords =
       "live game streaming, smart tv streamer, ai overlays, low latency broadcast, twitch youtube stream";
 

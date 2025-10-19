@@ -6,7 +6,7 @@ import { Router } from '@angular/router';
   standalone: true,
   template: `
     <div class="h-screen flex flex-col items-center justify-center">
-      <h1 class="text-2xl mb-4">Skriin</h1>
+      <h1 class="text-2xl mb-4">skriin</h1>
       <!-- <button class="px-6 py-3 rounded bg-green-600 text-white"
               (click)="enter()">Enter</button> -->
     </div>
