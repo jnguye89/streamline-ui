@@ -169,7 +169,7 @@ export class StreamComponent implements AfterViewInit {
   }
 
   private setUpSeo() {
-    const title = 'skriin AI TV';
+    const title = 'skriin AI TV | stream (beta)';
     const description =
       "One-click streaming hub: push gameplay, camera or desktop to Twitch, YouTube & skriin Cloud. AI overlays, chat integration, 0.6 s latency.";
     const keywords =
