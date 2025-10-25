@@ -87,6 +87,7 @@ export class CallsComponent implements OnInit, OnDestroy {
 
     this.rtm.incomingInvite$.subscribe(async ({ from, channel, media }) => {
       // Open your modal: “{from} is calling…”
+      console.log(from);
       const accepted = await this.openIncomingModal(from, media); // returns true/false
 
       if (accepted) {
