@@ -1,12 +1,19 @@
 import { CommonModule } from "@angular/common";
-import { Component, ElementRef, OnInit, ViewChild } from "@angular/core";
-import { AuthService } from "@auth0/auth0-angular";
-import { Router } from "@angular/router";
-import { combineLatest, filter, Observable, switchMap, take } from "rxjs";
+import { Component, inject, OnDestroy, OnInit } from "@angular/core";
+import { AuthService, User } from "@auth0/auth0-angular";
 import { VoximplantService } from "../../services/voximplant.service";
 import { FormsModule } from "@angular/forms";
-import { UserIntegration } from "../../models/user-integration.model";
 import { SeoService } from "../../services/seo.service";
+import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
+import { RtmService } from "../../services/agora/rtm.service";
+import { filter, firstValueFrom, Observable, of, Subject, take, takeUntil, tap } from "rxjs";
+import { Router } from "@angular/router";
+import { Auth0User } from "../../models/auth0-user.model";
+import { UserService } from "../../services/user.service";
+import { AgoraService } from "../../services/agora/agora.service";
+import { RtcService } from "../../services/agora/rtc.service";
+import { MatDialog } from "@angular/material/dialog";
+import { AcceptCallModal } from "./accept-call.components";
 
 @Component({
   selector: "app-calls",
@@ -16,74 +23,114 @@ import { SeoService } from "../../services/seo.service";
   templateUrl: "./calls.component.html",
   styleUrl: "./calls.component.scss",
 })
-export class CallsComponent implements OnInit {
-  // targetUser: string = "receiver@app.account.voximplant.com";
-  isAuthenticated$: Observable<boolean> = this.auth.isAuthenticated$;
-  // @ViewChild("remoteAudio", { static: true })
-  // remoteAudioRef!: ElementRef<HTMLAudioElement>;
-  // @ViewChild("localAudio", { static: true })
-  // localAudioRef!: ElementRef<HTMLAudioElement>;
+export class CallsComponent implements OnInit, OnDestroy {
+  private dialog = inject(MatDialog);
+  isAuthenticated$ = this.auth.isAuthenticated$;
+  private destroy$ = new Subject<void>();
+  private userId: string | undefined;
+  users$: Observable<Auth0User[]> = of();
+  user$: Observable<User | null | undefined> = of();
 
   constructor(
+    private orchestrator: CallOrchestratorService,
+    private rtm: RtmService,
+    private seo: SeoService,
     private auth: AuthService,
-    private router: Router,
-    private voximplantService: VoximplantService,
-    private seo: SeoService
-  ) {}
+    private userService: UserService,
+    private tokenApi: AgoraService,
+    private rtc: RtcService,
+    private router: Router) { }
+
+  selected: Record<string, boolean> = {};
+
+  online(uid: string) {
+    return this.rtm.onlineMap$.value.get(uid) === 'online';
+  }
+
+  async callSelected() {
+    // grab the latest users once
+    const users = await firstValueFrom(this.users$);
+
+    const invitees = (users ?? [])
+      .filter(u => !!this.selected?.[u.auth0UserId])
+      .map(u => u.auth0UserId);
+
+    if (invitees.length === 0 || !this.userId) return;
+
+    try {
+      await this.orchestrator.startCall(this.userId, invitees);
+    } catch (e) {
+      console.error('startCall failed', e);
+    }
+  }
+
+  async hangup() { await this.orchestrator.hangup(); }
 
   async ngOnInit() {
+    this.isAuthenticated$.pipe(
+      takeUntil(this.destroy$)).subscribe(isAuthenticated => {
+        isAuthenticated ? this.init() : this.login();
+      });
+  }
+
+  init() {
     this.setUpSeo();
-    // combineLatest([this.auth.isAuthenticated$, this.auth.isLoading$])
-    //   .pipe(
-    //     filter(([_, isLoading]) => !isLoading),
-    //     take(1),
-    //     switchMap(([isAuthenticated]) => {
-    //       if (!isAuthenticated) {
-    //         this.auth.loginWithRedirect({
-    //           appState: {
-    //             // -> comes back to us after login
-    //             target: this.router.url,
-    //           },
-    //         });
-    //         // Return an empty observable since we're redirecting
-    //         return [];
-    //       } else {
-    //         // Return the observable for the user integration
-    //         navigator.mediaDevices
-    //           .getUserMedia({ audio: true })
-    //           .then(() => console.log("🎤 Mic access granted"))
-    //           .catch((err) => console.error("❌ Mic access DENIED", err));
-    //         return this.getVoxUser();
-    //       }
-    //     })
-    //   )
-    //   .subscribe((userIntegration: UserIntegration) => {
-    //     if (userIntegration) {
-    //       this.voximplantService.login(userIntegration.integrationUsername);
-    //     }
-    //   });
+    this.user$ = this.auth.user$;
+    this.auth.user$.pipe(
+      filter(r => !!r?.sub),
+      take(1))
+      .subscribe(u => {
+        this.userId = u?.sub;
+        this.orchestrator.initForUser(this.userId!);     // login to RTM / presence}
+        this.users$ = this.userService.getUsers();
+      });
 
-    // this.voximplantService.listen(this.remoteAudioRef);
+    this.rtm.incomingInvite$.subscribe(async ({ from, channel, media }) => {
+      // Open your modal: “{from} is calling…”
+      const accepted = await this.openIncomingModal(from, media); // returns true/false
+
+      if (accepted) {
+        const { appId, rtcToken } = await firstValueFrom(
+          this.tokenApi.createTokens(this.userId!, channel)
+        );
+        await this.rtm.sendAccept(from, channel);
+        await this.rtc.join(appId, channel, this.userId!, rtcToken, media === 'video');
+      } else {
+        await this.rtm.sendDecline(from, channel, 'user-declined');
+      }
+    });
+
+    // (optional) receive CANCEL from caller if they hang up before you answer
+    this.rtm.callSignals$.subscribe(sig => {
+      if (sig.type === 'CALL_CANCEL') {
+        // close the modal if visible
+      }
+    });
   }
 
-  logout() {
-    this.auth.logout();
+  login() {
+    this.auth.loginWithRedirect({
+      appState: {
+        target: this.router.url,
+      },
+    });
   }
 
-  // private getVoxUser(): Observable<UserIntegration> {
-  //   return this.voximplantService.getVoxImplantUser();
-  // }
+  async openIncomingModal(from: string, media: 'audio' | 'video'): Promise<boolean> {
+    const ref = this.dialog.open(AcceptCallModal, {
+      data: { from, media },
+      disableClose: false, // allow Esc/backdrop if you want
+    });
 
-  // startCall(): void {
-  //   this.voximplantService.callUser(
-  //     "6872d2d67c39260acfc71cd9",
-  //     this.remoteAudioRef
-  //   );
-  // }
+    // Convert Observable -> Promise for async/await usage
+    const result = await firstValueFrom(ref.afterClosed()); // result could be true/false/undefined
+    return !!result; // coerce undefined (backdrop) to false
+  }
 
-  // endCall(): void {
-  //   // this.voximplantService.hangup();
-  // }
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
   private setUpSeo() {
     const title = 'skriin AI TV';

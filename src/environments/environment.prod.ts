@@ -8,5 +8,6 @@ export const environment = {
       "https://api.skriin.com/",
   },
   ivsIngestEndpoint: 'rtmps://3b7d4b5b28f6.global-contribute.live-video.net:443/app',
-  ivsStreamKey: 'sk_us-west-2_o7Qj4w0Hymqs_v7RiHpdGHgb54zph1fjZAd0aDzRICb'
+  ivsStreamKey: 'sk_us-west-2_o7Qj4w0Hymqs_v7RiHpdGHgb54zph1fjZAd0aDzRICb',
+  AgoraAppId: '09f3d1aa5ac64ffe95165c9a0a2b27e0'
 };
