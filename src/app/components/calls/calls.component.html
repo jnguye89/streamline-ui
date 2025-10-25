@@ -1,15 +1,20 @@
-<div class="main-container" *ngIf="isAuthenticated$ | async">
-  <!-- <div> -->
-  <br />
-  <br />
-  <br />
-  <br />
-  <audio #remoteAudio autoplay></audio>
-  <audio #localAudio autoplay muted></audio>
+<div class="calls">
+  <div class="left">
+    <h3>Users</h3>
+    <div *ngFor="let u of (users$ | async)">
+      <label *ngIf="u.auth0UserId != (user$ | async)?.sub">
+        <input type="checkbox" [(ngModel)]="selected[u.auth0UserId]" />
+        <span [class.online]="online(u.auth0UserId)">{{u.username}}</span>
+      </label>
+    </div>
+    <button (click)="callSelected()">Call</button>
+  </div>
 
-  <!-- <input [(ngModel)]="targetUser" placeholder="Target SIP address" /> -->
-  <!-- <button (click)="startCall()">Call</button> -->
-  <!-- <button (click)="endCall()">Hang Up</button> -->
-  <!-- <button (click)="logout()">logout</button> -->
-  <!-- </div> -->
+  <div class="right">
+    <div id="local-player" class="tile"></div>
+    <div id="remote-container">
+      <!-- remote tiles will be played into elements like #remote-<uid> by RtcService -->
+    </div>
+    <button (click)="hangup()">Hang up</button>
+  </div>
 </div>
