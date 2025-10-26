@@ -1,4 +1,4 @@
-// src/app/services/rtc.service.ts
+// rtc.service.ts
 import { Injectable } from '@angular/core';
 import AgoraRTC, {
     IAgoraRTCClient,
@@ -8,71 +8,110 @@ import AgoraRTC, {
     UID,
 } from 'agora-rtc-sdk-ng';
 
-/**
- * Handles all WebRTC audio/video lifecycle:
- *  - join / leave channel
- *  - publish / unpublish local tracks
- *  - subscribe to remote tracks
- */
 @Injectable({ providedIn: 'root' })
 export class RtcService {
     private client: IAgoraRTCClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
     private localAudio?: ILocalAudioTrack;
     private localVideo?: ILocalVideoTrack;
 
-    /** Fired when a remote user publishes media */
     onUserJoined?: (user: IAgoraRTCRemoteUser) => void;
-    /** Fired when a remote user leaves / unpublishes */
     onUserLeft?: (uid: UID) => void;
 
     constructor() {
-        // --- remote user lifecycle ---
+        // Subscribe when new publications happen AFTER you're already in
         this.client.on('user-published', async (user, mediaType) => {
-            await this.client.subscribe(user, mediaType);
+            console.log('media type 23', mediaType);
+            console.debug('[RTC] user-published', user.uid, mediaType);
+            await this.subscribeAndRender(user, mediaType);
+            this.onUserJoined?.(user);
+        });
 
-            if (mediaType === 'video' && user.videoTrack) {
-                // dynamically create a container for remote video
-                const elId = `remote-${user.uid}`;
+        this.client.on('user-unpublished', (user, mediaType) => {
+            console.log('media type 30', mediaType);
+            console.debug('[RTC] user-unpublished', user.uid, mediaType);
+            // Optional: if video unpublished, you can remove their tile
+            const el = document.getElementById(`remote-${user.uid}`);
+            if (el && mediaType === 'video') el.remove();
+            this.onUserLeft?.(user.uid);
+        });
+
+        this.client.on('user-left', (user) => {
+            console.debug('[RTC] user-left', user.uid);
+            const el = document.getElementById(`remote-${user.uid}`);
+            if (el) el.remove();
+            this.onUserLeft?.(user.uid);
+        });
+    }
+
+    private ensureRemoteTile(uid: UID) {
+        const id = `remote-${uid}`;
+        let el = document.getElementById(id);
+        if (!el) {
+            el = document.createElement('div');
+            el.id = id;
+            el.classList.add('remote-tile');
+            // Make sure this exists in your page template:
+            document.getElementById('remote-container')?.appendChild(el);
+        }
+        return id;
+    }
+
+    private async subscribeAndRender(user: IAgoraRTCRemoteUser, mediaType?: 'audio' | 'video' | 'datachannel') {
+        // If mediaType provided (from event), subscribe to that one; otherwise subscribe to both that exist.
+        if (mediaType) {
+            await this.client.subscribe(user, mediaType);
+        } else {
+            if (user.audioTrack) await this.client.subscribe(user, 'audio');
+            if (user.videoTrack) await this.client.subscribe(user, 'video');
+        }
+
+        if (user.videoTrack) {
+            const elId = this.ensureRemoteTile(user.uid);
+            user.videoTrack.play(elId);
+        }
+        if (user.audioTrack) {
+            user.audioTrack.play(); // audio doesn’t need a container
+        }
+    }
+
+    async join(appId: string, channel: string, uid: UID, token: string, withVideo = true) {
+        await this.client.join(appId, channel, token, uid);
+
+        this.localAudio = await AgoraRTC.createMicrophoneAudioTrack();
+        if (withVideo) this.localVideo = await AgoraRTC.createCameraVideoTrack();
+
+        const tracks = [this.localAudio, this.localVideo].filter(Boolean) as (ILocalAudioTrack | ILocalVideoTrack)[];
+        if (tracks.length) await this.client.publish(tracks);
+
+        if (this.localVideo) {
+            const el = document.getElementById('local-player');
+            if (el) this.localVideo.play(el);
+        }
+
+        console.log('local player loaded');
+        console.log('client players: ', this.client.remoteUsers);
+        // 👇 ADD THIS: subscribe to users who were already published before you arrived
+        for (const u of this.client.remoteUsers) {
+            // subscribe to both if available
+            console.log('u.videoTrack', u.videoTrack)
+            if (u.videoTrack) {
+            console.log('inside if u.videoTrack', u.videoTrack)
+                await this.client.subscribe(u, 'video');
+                const elId = `remote-${u.uid}`;
+                console.log('elId', elId);
                 if (!document.getElementById(elId)) {
+                    console.log('creating div');
                     const div = document.createElement('div');
                     div.id = elId;
                     div.classList.add('remote-tile');
                     document.getElementById('remote-container')?.appendChild(div);
                 }
-                user.videoTrack.play(elId);
+                u.videoTrack.play(elId);
             }
-            if (mediaType === 'audio' && user.audioTrack) user.audioTrack.play();
-
-            this.onUserJoined?.(user);
-        });
-
-        this.client.on('user-unpublished', (user) => this.onUserLeft?.(user.uid));
-        this.client.on('user-left', (user) => this.onUserLeft?.(user.uid));
-    }
-
-    /**
-     * Join an RTC channel and publish local tracks.
-     * @param appId   Agora App ID
-     * @param channel Channel name
-     * @param uid     Your user ID (string or number)
-     * @param token   Token generated by your backend
-     * @param withVideo Whether to publish video (true=video+audio, false=audio-only)
-     */
-    async join(appId: string, channel: string, uid: UID, token: string, withVideo = true) {
-        // join channel
-        await this.client.join(appId, channel, token, uid);
-        // create local tracks
-        this.localAudio = await AgoraRTC.createMicrophoneAudioTrack();
-        if (withVideo) this.localVideo = await AgoraRTC.createCameraVideoTrack();
-
-        // publish tracks
-        const tracks = [this.localAudio, this.localVideo].filter(Boolean) as (ILocalAudioTrack | ILocalVideoTrack)[];
-        if (tracks.length) await this.client.publish(tracks);
-
-        // render local preview
-        if (this.localVideo) {
-            const el = document.getElementById('local-player');
-            if (el) this.localVideo.play(el);
+            if (u.audioTrack) {
+                await this.client.subscribe(u, 'audio');
+                u.audioTrack.play();
+            }
         }
 
         console.log(`✅ Joined channel ${channel} as ${uid}`);

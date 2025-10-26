@@ -14,3 +14,65 @@
     color: white;
     padding-top: 50px;
 }
+
+/* Ensure the right pane and container actually have size */
+.calls {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 16px;
+    min-height: 60vh; // give the whole area height
+}
+
+.right {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 50vh;
+    /* key */
+}
+
+/* Remote tiles laid out in a responsive row */
+#remote-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-content: flex-start;
+    min-height: 200px;
+    /* key */
+}
+
+/* the container you pass to .play() (e.g., #remote-<uid>) */
+.remote-tile {
+  position: relative;         /* creates containing block */
+  width: min(420px, 42vw);
+  aspect-ratio: 16/9;
+  background: #000;
+  overflow: hidden;
+}
+
+/* Agora wrapper div inside the tile should fill */
+.remote-tile > div {
+  position: absolute !important;
+  inset: 0 !important;
+}
+
+/* The injected <video> must fill and sit above */
+.agora_video_player {
+  position: absolute !important;  /* inline wins unless we use !important */
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  z-index: 2 !important;          /* in case overlays exist */
+}
+
+
+/* Local preview too */
+#local-player.tile {
+    width: 280px;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+}

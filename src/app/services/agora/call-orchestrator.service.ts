@@ -29,13 +29,12 @@ export class CallOrchestratorService {
      * Start a call with selected users
      */
     async startCall(callerUid: string, invitees: string[], channel = `call_${crypto.randomUUID()}`, media: 'audio'|'video' = 'video') {
-        console.log('call orchestrator, media: ', media);
         const { appId, rtcToken } = await firstValueFrom(
             this.tokenApi.createTokens(callerUid, channel)
         );
 
         await this.rtm.sendInvite(invitees, channel, media);   // <— ring them
-        await this.rtc.join(appId, channel, callerUid, rtcToken, true);//media === 'video');
+        await this.rtc.join(appId, channel, callerUid, rtcToken, media === 'video');
         return { channel };
     }
 

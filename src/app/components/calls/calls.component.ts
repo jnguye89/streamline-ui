@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, inject, OnDestroy, OnInit } from "@angular/core";
+import { Component, inject, OnDestroy, OnInit, ViewEncapsulation } from "@angular/core";
 import { AuthService, User } from "@auth0/auth0-angular";
 import { VoximplantService } from "../../services/voximplant.service";
 import { FormsModule } from "@angular/forms";
@@ -21,6 +21,7 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 @Component({
   selector: "app-calls",
   standalone: true,
+  encapsulation: ViewEncapsulation.None,
   imports: [CommonModule, FormsModule, MatButtonModule, MatSlideToggleModule],
   providers: [VoximplantService],
   templateUrl: "./calls.component.html",
@@ -108,7 +109,7 @@ export class CallsComponent implements OnInit, OnDestroy {
     // (optional) receive CANCEL from caller if they hang up before you answer
     this.rtm.callSignals$.subscribe(async sig => {
       const user = await firstValueFrom(this.userService.getAuth0User(sig.from));
-      let message = '';
+      let message;
       if (sig.type === 'CALL_CANCEL') {
         // close the modal if visible
         message = `Call cancelled by ${user.username}`;
@@ -118,12 +119,14 @@ export class CallsComponent implements OnInit, OnDestroy {
         message = `Call declined by ${user.username}`;
       }
 
-      // close the modal if visible
-      this.snack.open(message, 'Dismiss', {
-        duration: 6000,
-        horizontalPosition: 'right',
-        verticalPosition: 'top',
-      });
+      if (!!message) {
+        // close the modal if visible
+        this.snack.open(message, 'Dismiss', {
+          duration: 6000,
+          horizontalPosition: 'right',
+          verticalPosition: 'top',
+        });
+      }
     });
   }
 

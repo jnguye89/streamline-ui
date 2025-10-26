@@ -23,7 +23,7 @@ export class RtmService {
 
   async login(appId: string, uid: string, token: string) {
     this.me = uid;
-    this.client = new AgoraRTM.RTM(appId, uid);
+    this.client = new AgoraRTM.RTM(appId, uid, { presenceTimeout: 30 });
     await this.client.login({ token });
 
     // 1) Presence lobby
