@@ -14,22 +14,25 @@ import { AgoraService } from "../../services/agora/agora.service";
 import { RtcService } from "../../services/agora/rtc.service";
 import { MatDialog } from "@angular/material/dialog";
 import { AcceptCallModal } from "./accept-call.components";
+import { MatButtonModule } from "@angular/material/button";
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 
 @Component({
   selector: "app-calls",
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatSlideToggleModule],
   providers: [VoximplantService],
   templateUrl: "./calls.component.html",
   styleUrl: "./calls.component.scss",
 })
 export class CallsComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
-  isAuthenticated$ = this.auth.isAuthenticated$;
   private destroy$ = new Subject<void>();
   private userId: string | undefined;
+  isAuthenticated$ = this.auth.isAuthenticated$;
   users$: Observable<Auth0User[]> = of();
   user$: Observable<User | null | undefined> = of();
+  isVideo = true;
 
   constructor(
     private orchestrator: CallOrchestratorService,
@@ -87,15 +90,14 @@ export class CallsComponent implements OnInit, OnDestroy {
 
     this.rtm.incomingInvite$.subscribe(async ({ from, channel, media }) => {
       // Open your modal: “{from} is calling…”
-      console.log(from);
       const accepted = await this.openIncomingModal(from, media); // returns true/false
 
       if (accepted) {
         const { appId, rtcToken } = await firstValueFrom(
           this.tokenApi.createTokens(this.userId!, channel)
         );
-        await this.rtm.sendAccept(from, channel);
-        await this.rtc.join(appId, channel, this.userId!, rtcToken, media === 'video');
+        await this.rtm.sendAccept(from, channel, this.isVideo);
+        await this.rtc.join(appId, channel, this.userId!, rtcToken, this.isVideo);
       } else {
         await this.rtm.sendDecline(from, channel, 'user-declined');
       }

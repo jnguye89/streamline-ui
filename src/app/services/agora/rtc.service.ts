@@ -61,7 +61,7 @@ export class RtcService {
     async join(appId: string, channel: string, uid: UID, token: string, withVideo = true) {
         // join channel
         await this.client.join(appId, channel, token, uid);
-
+        debugger;
         // create local tracks
         this.localAudio = await AgoraRTC.createMicrophoneAudioTrack();
         if (withVideo) this.localVideo = await AgoraRTC.createCameraVideoTrack();

@@ -7,7 +7,10 @@
         <span [class.online]="online(u.auth0UserId)">{{u.username}}</span>
       </label>
     </div>
-    <button (click)="callSelected()">Call</button>
+    <div>
+      <mat-slide-toggle [(ngModel)]="isVideo">Video call?</mat-slide-toggle>
+    </div>
+    <button mat-raised-button (click)="callSelected()">Call</button>
   </div>
 
   <div class="right">
@@ -15,6 +18,6 @@
     <div id="remote-container">
       <!-- remote tiles will be played into elements like #remote-<uid> by RtcService -->
     </div>
-    <button (click)="hangup()">Hang up</button>
+    <button mat-raised-button (click)="hangup()">Hang up</button>
   </div>
 </div>

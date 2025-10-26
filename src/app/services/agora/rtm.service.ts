@@ -7,7 +7,7 @@ type PresenceStatus = 'online' | 'offline';
 type InvitePayload =
   | { type: 'CALL_INVITE'; channel: string; from: string; media: 'audio' | 'video' }
   | { type: 'CALL_CANCEL'; channel: string; from: string }
-  | { type: 'CALL_ACCEPT'; channel: string; from: string }
+  | { type: 'CALL_ACCEPT'; channel: string; from: string, media: 'audio' | 'videl' }
   | { type: 'CALL_DECLINE'; channel: string; from: string; reason?: string };
 
 @Injectable({ providedIn: 'root' })
@@ -76,9 +76,9 @@ export class RtmService {
     await Promise.all(invitees.map(id => this.client!.publish(`user:${id}`, payload)));
   }
 
-  async sendAccept(to: string, channel: string) {
+  async sendAccept(to: string, channel: string, isVideo: boolean) {
     if (!this.client) return;
-    const payload = JSON.stringify({ type: 'CALL_ACCEPT', channel, from: this.me } as InvitePayload);
+    const payload = JSON.stringify({ type: 'CALL_ACCEPT', channel, from: this.me, media: isVideo ? 'video' : 'audio' } as InvitePayload);
     await this.client.publish(`user:${to}`, payload);
   }
 
