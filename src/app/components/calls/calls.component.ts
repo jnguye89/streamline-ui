@@ -16,6 +16,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { AcceptCallModal } from "./accept-call.components";
 import { MatButtonModule } from "@angular/material/button";
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatSnackBar } from "@angular/material/snack-bar";
 
 @Component({
   selector: "app-calls",
@@ -42,6 +43,7 @@ export class CallsComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private tokenApi: AgoraService,
     private rtc: RtcService,
+    private snack: MatSnackBar,
     private router: Router) { }
 
   selected: Record<string, boolean> = {};
@@ -104,10 +106,24 @@ export class CallsComponent implements OnInit, OnDestroy {
     });
 
     // (optional) receive CANCEL from caller if they hang up before you answer
-    this.rtm.callSignals$.subscribe(sig => {
+    this.rtm.callSignals$.subscribe(async sig => {
+      const user = await firstValueFrom(this.userService.getAuth0User(sig.from));
+      let message = '';
       if (sig.type === 'CALL_CANCEL') {
         // close the modal if visible
+        message = `Call cancelled by ${user.username}`;
       }
+      if (sig.type === 'CALL_DECLINE') {
+        // close the modal if visible
+        message = `Call declined by ${user.username}`;
+      }
+
+      // close the modal if visible
+      this.snack.open(message, 'Dismiss', {
+        duration: 6000,
+        horizontalPosition: 'right',
+        verticalPosition: 'top',
+      });
     });
   }
 
@@ -120,8 +136,9 @@ export class CallsComponent implements OnInit, OnDestroy {
   }
 
   async openIncomingModal(from: string, media: 'audio' | 'video'): Promise<boolean> {
+    const user = await firstValueFrom(this.userService.getAuth0User(from));
     const ref = this.dialog.open(AcceptCallModal, {
-      data: { from, media },
+      data: { from: user.username, media },
       disableClose: false, // allow Esc/backdrop if you want
     });
 

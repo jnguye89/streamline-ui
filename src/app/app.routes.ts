@@ -32,7 +32,16 @@ export const routes: Routes = [
   },
   {
     path: "call",
-    component: CallsComponent,
+    // Lazy-load a standalone component
+    loadComponent: () =>
+      import('./components/calls/calls.component').then(m => m.CallsComponent),
+    // Optional: scope providers to this lazy route so they stay out of initial bundle
+    providers: [
+      // e.g. your call-specific services
+      // CallService,
+      // RtcService,
+      // RtmService,
+    ],
   },
   {
     path: "stream",

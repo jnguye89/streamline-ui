@@ -8,9 +8,13 @@ import { environment } from "../../environments/environment";
     providedIn: 'root'
 })
 export class UserService {
-    constructor(private http: HttpClient) {}
+    constructor(private http: HttpClient) { }
 
     getUsers(): Observable<Auth0User[]> {
         return this.http.get<Auth0User[]>(`${environment.baseUrl}/user`)
+    }
+
+    getAuth0User(authId: string): Observable<Auth0User> {
+        return this.http.get<Auth0User>(`${environment.baseUrl}/user/auth0/${authId}`);
     }
 }

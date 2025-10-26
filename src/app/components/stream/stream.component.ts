@@ -19,7 +19,6 @@ import {
   switchMap,
   take,
   takeUntil,
-  tap,
 } from "rxjs";
 import { CommonModule, DatePipe } from "@angular/common";
 import { AuthService } from "@auth0/auth0-angular";
