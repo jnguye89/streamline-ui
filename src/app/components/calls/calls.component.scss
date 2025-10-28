@@ -16,8 +16,8 @@
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 12px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   padding: 12px;
 }
@@ -25,13 +25,17 @@
 .left__header {
   display: grid;
   gap: 8px;
-  h3 { margin: 0; font-weight: 600; }
+
+  h3 {
+    margin: 0;
+    font-weight: 600;
+  }
 }
 
 .left__search {
   width: 100%;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.25);
   color: white;
   border-radius: 8px;
   padding: 8px 10px;
@@ -57,8 +61,14 @@
   cursor: pointer;
   user-select: none;
   transition: background 120ms ease;
-  &:hover { background: rgba(255,255,255,0.06); }
-  &.self { opacity: 0.6; }
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  &.self {
+    opacity: 0.6;
+  }
 }
 
 .user input[type="checkbox"] {
@@ -66,11 +76,13 @@
 }
 
 .user__avatar {
-  width: 32px; height: 32px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  display: grid; place-items: center;
+  display: grid;
+  place-items: center;
   background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   font-weight: 600;
 }
 
@@ -81,9 +93,15 @@
 }
 
 .user__presence {
-  width: 10px; height: 10px; border-radius: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
   background: #9e9e9e;
-  &.online { background: #4caf50; box-shadow: 0 0 0 2px rgba(76,175,80,0.25); }
+
+  &.online {
+    background: #4caf50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
+  }
 }
 
 .left__footer {
@@ -92,7 +110,7 @@
   justify-content: space-between;
   gap: 12px;
   padding-top: 8px;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* ---- Right panel (stage) ---- */
@@ -107,7 +125,7 @@
 #stage {
   position: relative;
   background: #0c0c0c;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
   padding: 12px;
   overflow: hidden;
@@ -122,21 +140,55 @@
   min-height: 240px;
 }
 
-/* Remote tile that Agora plays into (you already create #remote-<uid>) */
+/* Remote stage as a responsive grid */
+#remote-container {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  /* default/fallback for 3+ */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+/* Tiles keep a sane height */
 .remote-tile {
   position: relative;
+  aspect-ratio: 16 / 9;
   background: #000;
   border-radius: 12px;
   overflow: hidden;
-  aspect-ratio: 16 / 9;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Ensure Agora wrapper + video fill the tile even with inline styles */
-.remote-tile > div {
+/* 1 remote → take the whole width */
+#remote-container:not(:has(.remote-tile:nth-child(2))) {
+  grid-template-columns: 1fr;
+}
+
+/* 2 remotes → 50/50 split */
+#remote-container:has(.remote-tile:nth-child(2)):not(:has(.remote-tile:nth-child(3))) {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* 3 remotes → two on top, third spans full width below (nice stage layout) */
+#remote-container:has(.remote-tile:nth-child(3)):not(:has(.remote-tile:nth-child(4))) {
+  grid-template-columns: 1fr 1fr;
+}
+
+#remote-container:has(.remote-tile:nth-child(3)):not(:has(.remote-tile:nth-child(4))) .remote-tile:last-child {
+  grid-column: 1 / -1;
+}
+
+/* 4 remotes → 2x2 grid */
+#remote-container:has(.remote-tile:nth-child(4)) {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Ensure Agora wrapper & video fill each tile (keeps your previous fix) */
+.remote-tile>div {
   position: absolute !important;
   inset: 0 !important;
 }
+
 .agora_video_player {
   position: absolute !important;
   inset: 0 !important;
@@ -155,14 +207,14 @@
   aspect-ratio: 16 / 9;
   background: #000;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
   overflow: hidden;
   z-index: 5;
 }
 
 /* The local player's inner wrapper will also be absolutely positioned by Agora */
-#local-player.tile > div {
+#local-player.tile>div {
   position: absolute !important;
   inset: 0 !important;
 }
@@ -175,14 +227,27 @@
 
 /* Small screens */
 @media (max-width: 900px) {
-  .calls { grid-template-columns: 1fr; }
-  .left { order: 2; }
-  .right { order: 1; }
-  .tile.pip { width: 180px; }
+  .calls {
+    grid-template-columns: 1fr;
+  }
+
+  .left {
+    order: 2;
+  }
+
+  .right {
+    order: 1;
+  }
+
+  .tile.pip {
+    width: 180px;
+  }
 }
 
 /* Optional: quick status color */
-.online { color: #4caf50; }
+.online {
+  color: #4caf50;
+}
 
 /* Legacy .tile style (not used by remotes anymore) */
 .tile {
