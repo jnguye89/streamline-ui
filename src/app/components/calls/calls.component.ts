@@ -64,7 +64,7 @@ export class CallsComponent implements OnInit, OnDestroy {
     if (invitees.length === 0 || !this.userId) return;
 
     try {
-      await this.orchestrator.startCall(this.userId, invitees);
+      await this.orchestrator.startCall(this.userId, invitees, undefined, this.isVideo ? 'video' : 'audio');
     } catch (e) {
       console.error('startCall failed', e);
     }
@@ -99,8 +99,8 @@ export class CallsComponent implements OnInit, OnDestroy {
         const { appId, rtcToken } = await firstValueFrom(
           this.tokenApi.createTokens(this.userId!, channel)
         );
-        await this.rtm.sendAccept(from, channel, this.isVideo);
-        await this.rtc.join(appId, channel, this.userId!, rtcToken, this.isVideo);
+        await this.rtm.sendAccept(from, channel, media == 'video');
+        await this.rtc.join(appId, channel, this.userId!, rtcToken, media == 'video');
       } else {
         await this.rtm.sendDecline(from, channel, 'user-declined');
       }

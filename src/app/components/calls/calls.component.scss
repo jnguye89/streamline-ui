@@ -5,7 +5,7 @@
   color: white;
   padding: 16px;
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 250px 1fr;
   gap: 16px;
   min-height: 100vh;
   box-sizing: border-box;
@@ -29,6 +29,7 @@
   h3 {
     margin: 0;
     font-weight: 600;
+    padding-left: 20px;
   }
 }
 
@@ -213,11 +214,16 @@
   z-index: 5;
 }
 
-/* The local player's inner wrapper will also be absolutely positioned by Agora */
-#local-player.tile>div {
-  position: absolute !important;
-  inset: 0 !important;
+// display none for now - hides my own camera
+#local-player {
+  display: none;
 }
+
+/* The local player's inner wrapper will also be absolutely positioned by Agora */
+// #local-player.tile>div {
+//   position: absolute !important;
+//   inset: 0 !important;
+// }
 
 .controls {
   display: flex;

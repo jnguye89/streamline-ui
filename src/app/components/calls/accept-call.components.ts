@@ -5,12 +5,12 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from "@angular/materia
 
 // accept-call.modal.ts (pseudo)
 @Component({
-    selector: 'app-accept-call-modal',
-    standalone: true,
-    imports: [MatDialogModule, MatButtonModule, CommonModule],
-    template: `
+  selector: 'app-accept-call-modal',
+  standalone: true,
+  imports: [MatDialogModule, MatButtonModule, CommonModule],
+  template: `
     <h2 mat-dialog-title>{{data.from}} is calling…</h2>
-    <mat-dialog-content>Join {{media === 'video' ? 'video' : 'audio'}} call?</mat-dialog-content>
+    <mat-dialog-content>Join {{data.media === 'video' ? 'video' : 'audio'}} call?</mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button (click)="decline()">Decline</button>
       <button mat-raised-button color="primary" (click)="accept()">Accept</button>
@@ -18,9 +18,7 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from "@angular/materia
   `
 })
 export class AcceptCallModal {
-    // from!: string;
-    media: 'audio' | 'video' = 'video';
-    constructor(private ref: MatDialogRef<AcceptCallModal>, @Inject(MAT_DIALOG_DATA) public data: { from: string }) { }
-    accept() { this.ref.close(true); }
-    decline() { this.ref.close(false); }
+  constructor(private ref: MatDialogRef<AcceptCallModal>, @Inject(MAT_DIALOG_DATA) public data: { from: string, media: string }) { }
+  accept() { this.ref.close(true); }
+  decline() { this.ref.close(false); }
 }
