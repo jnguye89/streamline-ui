@@ -8,10 +8,11 @@ import {
 import { VideoService } from "../../services/video.service";
 import { MatIconModule } from "@angular/material/icon";
 import { FlexLayoutModule } from "@angular/flex-layout";
-import { concatMap, first, Subject, takeUntil, tap } from "rxjs";
-import { CommonModule, isPlatformBrowser } from "@angular/common";
+import { concatMap, first, Subject, tap } from "rxjs";
+import { CommonModule } from "@angular/common";
 import { AuthService } from "@auth0/auth0-angular";
 import { ActivatedRoute, Router } from "@angular/router";
+import { NavigationService } from "../../services/navigation.service";
 
 @Component({
   selector: "app-profile",
@@ -27,16 +28,21 @@ export class ProfileComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   videos: any[] = [];
   isUploading = false; // <-- Added
+  previousUrl: string | undefined;
+  showPreviousButton: boolean = false;
 
   constructor(
     private videoService: VideoService,
     public auth: AuthService,
     private route: ActivatedRoute,
-    private router: Router
-  ) {}
+    private router: Router,
+    private navService: NavigationService
+  ) { }
 
   ngOnInit(): void {
     this.userId = this.route.snapshot.paramMap.get("id");
+    this.previousUrl = this.navService.back();
+    this.showPreviousButton = this.previousUrl?.indexOf('profile') == -1;
     if (!!this.userId) {
       this.videoService
         .getUserVideos(this.userId)
@@ -71,6 +77,11 @@ export class ProfileComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete;
+  }
+
+  goToWatch() {
+    if (!!this.previousUrl)
+      this.router.navigateByUrl(this.previousUrl);
   }
 
   onFileSelected(event: Event) {
