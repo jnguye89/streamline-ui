@@ -31,6 +31,10 @@ export const routes: Routes = [
     component: WatchComponent,
   },
   {
+    path: "watch/:id",
+    component: WatchComponent,
+  },
+  {
     path: "call",
     // Lazy-load a standalone component
     loadComponent: () =>

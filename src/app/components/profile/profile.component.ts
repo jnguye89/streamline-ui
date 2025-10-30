@@ -1,9 +1,7 @@
 import {
   Component,
-  Inject,
   OnDestroy,
   OnInit,
-  PLATFORM_ID,
 } from "@angular/core";
 import { VideoService } from "../../services/video.service";
 import { MatIconModule } from "@angular/material/icon";
@@ -12,7 +10,7 @@ import { concatMap, first, Subject, tap } from "rxjs";
 import { CommonModule } from "@angular/common";
 import { AuthService } from "@auth0/auth0-angular";
 import { ActivatedRoute, Router } from "@angular/router";
-import { NavigationService } from "../../services/navigation.service";
+import { PlayerStateService } from "../../state/player-state.service";
 
 @Component({
   selector: "app-profile",
@@ -28,7 +26,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   videos: any[] = [];
   isUploading = false; // <-- Added
-  previousUrl: string | undefined;
   showPreviousButton: boolean = false;
 
   constructor(
@@ -36,13 +33,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
     public auth: AuthService,
     private route: ActivatedRoute,
     private router: Router,
-    private navService: NavigationService
+    private store: PlayerStateService
   ) { }
 
   ngOnInit(): void {
     this.userId = this.route.snapshot.paramMap.get("id");
-    this.previousUrl = this.navService.back();
-    this.showPreviousButton = this.previousUrl?.indexOf('profile') == -1;
+    this.showPreviousButton = !!this.store.snapshot;
     if (!!this.userId) {
       this.videoService
         .getUserVideos(this.userId)
@@ -80,8 +76,9 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   goToWatch() {
-    if (!!this.previousUrl)
-      this.router.navigateByUrl(this.previousUrl);
+    const url = `/watch/${this.store.snapshot?.id}`;
+    this.store.clear();
+    this.router.navigate([url]);
   }
 
   onFileSelected(event: Event) {

@@ -14,7 +14,7 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatButtonModule } from '@angular/material/button';
 import { FlexLayoutModule } from '@angular/flex-layout';
 import { MatChipsModule } from '@angular/material/chips';
-import { Router, RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import {
   BehaviorSubject,
   Subject,
@@ -32,6 +32,7 @@ import { WowzaPlayService } from '../../services/wowza-play.service';
 import { PlayItem } from '../../models/play-item.model';
 import { Video } from '../../models/video.model';
 import { StreamService } from '../../services/stream.service';
+import { PlayerStateService } from '../../state/player-state.service';
 
 @Component({
   selector: 'app-watch',
@@ -76,10 +77,12 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   constructor(
     private videoService: VideoService,
+    private route: ActivatedRoute,
     private streamService: StreamService,
     private wowza: WowzaPlayService,
     private router: Router,
-    private seo: SeoService
+    private seo: SeoService,
+    private store: PlayerStateService
   ) { }
 
   ngOnInit() {
@@ -108,7 +111,17 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         this.playlist = list;
         this.playlist$.next(list);
         // If nothing selected yet, choose first Live if present, else first VOD (or random VOD if you prefer)
-        if (!this.currentItem) {
+
+        const videoId = this.route.snapshot.paramMap.get("id");
+        console.log(list)
+        console.log(videoId)
+        if (!!videoId) {
+          this.currentItem = list.find(x => x.id == videoId) ?? null;
+        console.log(this.currentIndex)
+          this.store.clear();
+          this.tryPlayCurrent();
+        }
+        else if (!this.currentItem) {
           const firstLiveIndex = list.findIndex(i => i.type === 'live');
           this.currentIndex = firstLiveIndex >= 0 ? firstLiveIndex : 0;
           this.currentItem = list[this.currentIndex] ?? null;
@@ -163,6 +176,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.currentItem || !this.viewReady$.value) return;
     const el = this.playerRef.nativeElement;
 
+    // if (!!this.store.snapshot) { } else 
     if (this.currentItem.type === 'live') {
       try {
         el.pause();
@@ -210,6 +224,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       (this.currentItem as any)?.user ??
       (this.playlist[this.currentIndex] as any)?.user ??
       '';
+    this.store.set(this.playlist[this.currentIndex])
     if (user) this.router.navigate(['/profile', user]);
   }
 
