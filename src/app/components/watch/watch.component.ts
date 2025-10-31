@@ -19,6 +19,7 @@ import {
   BehaviorSubject,
   Subject,
   combineLatest,
+  distinctUntilChanged,
   map,
   shareReplay,
   switchMap,
@@ -33,6 +34,9 @@ import { PlayItem } from '../../models/play-item.model';
 import { Video } from '../../models/video.model';
 import { StreamService } from '../../services/stream.service';
 import { PlayerStateService } from '../../state/player-state.service';
+
+// Helper: compare arrays by (type,id)
+const idsKey = (arr: PlayItem[]) => arr.map(x => `${x.type}:${x.id}`).join('|');
 
 @Component({
   selector: 'app-watch',
@@ -50,6 +54,7 @@ import { PlayerStateService } from '../../state/player-state.service';
   templateUrl: './watch.component.html',
   styleUrl: './watch.component.scss'
 })
+
 export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('player', { static: false }) playerRef!: ElementRef<HTMLVideoElement>;
   @HostListener('window:keydown', ['$event'])
@@ -72,7 +77,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   get hasMany() { return this.playlist.length > 1; }
 
   // Internal streams
-  private playlist$ = new BehaviorSubject<PlayItem[]>([]);
+  // private playlist$ = new BehaviorSubject<PlayItem[]>([]);
   private viewReady$ = new BehaviorSubject<boolean>(false);
 
   constructor(
@@ -88,52 +93,59 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   ngOnInit() {
     this.setUpSeo();
 
-    // Get VODs once and keep cached
+    // 1) VOD: fetch once, shuffle once, cache
     const vod$ = this.videoService.getVideos().pipe(
       map(videos => videos.map(v => this.mapVod(v))),
+      map(vods => this.shuffle(vods)),                         // <-- shuffle ONCE
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
-    // Poll live list every 15s (adjust as needed)
+    // 2) LIVE: poll, sort deterministically, suppress repeats
     const live$ = timer(0, 15000).pipe(
       switchMap(() => this.streamService.getLiveStreams()),
+      map(lives => lives.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))),// stable order
+      distinctUntilChanged((a, b) => idsKey(a) === idsKey(b)),               // only when changed
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
-    // Merge (Live first, then VOD)
-    combineLatest([live$, vod$])
-      .pipe(
-        map(([lives, vods]) => [...lives, ...vods]),
-        takeUntil(this.destroy$)
-      )
-      .subscribe(list => {
-        list = this.shuffle(list);
-        this.playlist = list;
-        this.playlist$.next(list);
-        // If nothing selected yet, choose first Live if present, else first VOD (or random VOD if you prefer)
+    // 3) Merge without reshuffling; only emit when the merged ids actually change
+    const playlist$ = combineLatest([live$, vod$]).pipe(
+      map(([lives, vods]) => [...lives, ...vods]),
+      distinctUntilChanged((a, b) => idsKey(a) === idsKey(b))
+    );
 
-        const videoId = this.route.snapshot.paramMap.get("id");
-        console.log(list)
-        console.log(videoId)
-        if (!!videoId) {
-          this.currentItem = list.find(x => x.id == videoId) ?? null;
-        console.log(this.currentIndex)
-          this.store.clear();
-          this.tryPlayCurrent();
-        }
-        else if (!this.currentItem) {
-          const firstLiveIndex = list.findIndex(i => i.type === 'live');
-          this.currentIndex = firstLiveIndex >= 0 ? firstLiveIndex : 0;
-          this.currentItem = list[this.currentIndex] ?? null;
-          this.tryPlayCurrent();
-        } else {
-          // If the current item disappeared (e.g., live ended), advance to next
-          const stillThereIndex = this.playlist.findIndex(i => this.isSame(i, this.currentItem!));
-          if (stillThereIndex === -1) {
+    playlist$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(list => {
+        // Preserve current selection if possible
+        const currentId = this.currentItem?.id;
+        const currentType = this.currentItem?.type;
+
+        this.playlist = list;
+         console.log(this.playlist);
+
+        if (currentId && currentType) {
+          const idx = this.playlist.findIndex(x => x.id === currentId && x.type === currentType);
+          if (idx >= 0) {
+            this.currentIndex = idx;
+            this.currentItem = this.playlist[idx];
+            return; // keep playing current
+          } else {
+            // current item disappeared (e.g., live ended) → advance
             this.next();
+            return;
           }
         }
+
+        // First init
+        if (!this.currentItem) {
+          const firstLiveIndex = this.playlist.findIndex(i => i.type === 'live');
+          this.currentIndex = firstLiveIndex >= 0 ? firstLiveIndex : 0;
+          this.currentItem = this.playlist[this.currentIndex] ?? null;
+          this.tryPlayCurrent();
+        }
       });
+
   }
 
   ngAfterViewInit(): void {
@@ -154,25 +166,25 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.playlist.length) return;
     this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
     this.currentItem = this.playlist[this.currentIndex];
-    this.tryPlayCurrent(true);
+    this.tryPlayCurrent();
   }
 
   previous() {
     if (!this.playlist.length) return;
     this.currentIndex = (this.currentIndex - 1 + this.playlist.length) % this.playlist.length;
     this.currentItem = this.playlist[this.currentIndex];
-    this.tryPlayCurrent(true);
+    this.tryPlayCurrent();
   }
 
   select(i: number) {
     if (i < 0 || i >= this.playlist.length) return;
     this.currentIndex = i;
     this.currentItem = this.playlist[i];
-    this.tryPlayCurrent(true);
+    this.tryPlayCurrent();
   }
 
   // Playback
-  private tryPlayCurrent(force = false) {
+  private tryPlayCurrent() {
     if (!this.currentItem || !this.viewReady$.value) return;
     const el = this.playerRef.nativeElement;
 
