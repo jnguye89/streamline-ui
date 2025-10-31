@@ -122,7 +122,17 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         const currentType = this.currentItem?.type;
 
         this.playlist = list;
-         console.log(this.playlist);
+
+        const videoId = this.route.snapshot.paramMap.get("id");
+        
+        if (!!videoId) {
+          const selectedIndex = this.playlist.map(p => `${p.id}`).indexOf(videoId);
+          if (!!selectedIndex) {
+            this.currentIndex = selectedIndex;
+            this.currentItem = this.playlist[this.currentIndex];
+            this.tryPlayCurrent();
+          }
+        }
 
         if (currentId && currentType) {
           const idx = this.playlist.findIndex(x => x.id === currentId && x.type === currentType);
@@ -188,7 +198,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.currentItem || !this.viewReady$.value) return;
     const el = this.playerRef.nativeElement;
 
-    // if (!!this.store.snapshot) { } else 
     if (this.currentItem.type === 'live') {
       try {
         el.pause();
