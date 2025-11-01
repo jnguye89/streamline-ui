@@ -6,7 +6,7 @@ import { FormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
 import { RtmService } from "../../services/agora/rtm.service";
-import { filter, firstValueFrom, Observable, of, Subject, take, takeUntil, tap } from "rxjs";
+import { filter, firstValueFrom, map, Observable, of, Subject, take, takeUntil, tap } from "rxjs";
 import { Router } from "@angular/router";
 import { Auth0User } from "../../models/auth0-user.model";
 import { UserService } from "../../services/user.service";
@@ -81,14 +81,26 @@ export class CallsComponent implements OnInit, OnDestroy {
 
   init() {
     this.setUpSeo();
-    this.user$ = this.auth.user$;
-    this.auth.user$.pipe(
+    this.user$ = this.auth.user$.pipe(
+      map(u => {
+        const user = { ...u };
+        user.sub = user.sub?.replace(/\D/g, '');
+        return user;
+      })
+    );
+    this.user$.pipe(
       filter(r => !!r?.sub),
       take(1))
       .subscribe(u => {
         this.userId = u?.sub;
         this.orchestrator.initForUser(this.userId!);     // login to RTM / presence}
-        this.users$ = this.userService.getUsers();
+        this.users$ = this.userService.getUsers().pipe(
+          map(u => u.map(uu => {
+            const user = { ...uu };
+            user.auth0UserId = user.auth0UserId.replace(/\D/g, '');
+            return user;
+          }))
+        );
       });
 
     this.rtm.incomingInvite$.subscribe(async ({ from, channel, media }) => {
