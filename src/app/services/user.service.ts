@@ -17,4 +17,8 @@ export class UserService {
     getAuth0User(authId: string): Observable<Auth0User> {
         return this.http.get<Auth0User>(`${environment.baseUrl}/user/auth0/${authId}`);
     }
+
+    getAgoraUser(agoraId: string): Observable<Auth0User> {
+        return this.http.get<Auth0User>(`${environment.baseUrl}/user/agora/${agoraId}`);
+    }
 }

@@ -16,7 +16,7 @@ export class CallOrchestratorService {
     /**
      * User signs in → get tokens and log into RTM for presence/invites
      */
-    async initForUser(uid: string) {
+    async initForUser(uid: number) {
         // Use a dummy channel for token minting or mint RTM-only token endpoint
         const channel = 'presence';
         const { appId, rtmToken } = await firstValueFrom(
@@ -28,20 +28,21 @@ export class CallOrchestratorService {
     /**
      * Start a call with selected users
      */
-    async startCall(callerUid: string, invitees: string[], channel = `call_${crypto.randomUUID()}`, media: 'audio'|'video' = 'video') {
+    async startCall(callerUid: number, invitees: number[], channel: string, media: 'audio' | 'video' = 'video') {
         const { appId, rtcToken } = await firstValueFrom(
             this.tokenApi.createTokens(callerUid, channel)
         );
 
-        await this.rtm.sendInvite(invitees, channel, media);   // <— ring them
+        await this.rtm.sendInvite(invitees.map(i => `${i}`), channel, media);   // <— ring them
         await this.rtc.join(appId, channel, callerUid, rtcToken, media === 'video');
+        // await this.rtc.publish
         return { channel };
     }
 
     /**
      * Accept an incoming invite
      */
-    async acceptInvite(myUid: string, channel: string, video = false) {
+    async acceptInvite(myUid: number, channel: string, video = false) {
         const { appId, rtcToken } = await firstValueFrom(
             this.tokenApi.createTokens(myUid, channel)
         );

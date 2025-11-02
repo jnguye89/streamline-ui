@@ -40,7 +40,7 @@ export class AgoraService {
         return this.client
     }
 
-    createTokens(uid: string, channel: string): Observable<AgoraTokenResponse> {
+    createTokens(uid: number, channel: string): Observable<AgoraTokenResponse> {
         return this.http.post<AgoraTokenResponse>(
             `${environment.baseUrl}/call/agora/token`,
             { uid, channel }

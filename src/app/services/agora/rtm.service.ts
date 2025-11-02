@@ -14,16 +14,16 @@ type InvitePayload =
 export class RtmService {
   private client?: InstanceType<typeof AgoraRTM.RTM>;
   private lobby = 'skriin-lobby';
-  private me!: string;
+  private me!: number;
   private userChannel!: string;
 
   onlineMap$ = new BehaviorSubject<Map<string, PresenceStatus>>(new Map());
   incomingInvite$ = new Subject<{ from: string; channel: string; media: 'audio' | 'video' }>();
   callSignals$ = new Subject<InvitePayload>(); // accept/decline/cancel updates
 
-  async login(appId: string, uid: string, token: string) {
+  async login(appId: string, uid: number, token: string) {
     this.me = uid;
-    this.client = new AgoraRTM.RTM(appId, uid, { presenceTimeout: 30 });
+    this.client = new AgoraRTM.RTM(appId, `${uid}`, { presenceTimeout: 30 });
     await this.client.login({ token });
 
     // 1) Presence lobby
@@ -72,25 +72,25 @@ export class RtmService {
   /** Send invites to each callee’s personal channel */
   async sendInvite(invitees: string[], channel: string, media: 'audio' | 'video' = 'video') {
     if (!this.client) return;
-    const payload = JSON.stringify({ type: 'CALL_INVITE', channel, from: this.me, media } as InvitePayload);
+    const payload = JSON.stringify({ type: 'CALL_INVITE', channel, from: `${this.me}`, media } as InvitePayload);
     await Promise.all(invitees.map(id => this.client!.publish(`user:${id}`, payload)));
   }
 
   async sendAccept(to: string, channel: string, isVideo: boolean) {
     if (!this.client) return;
-    const payload = JSON.stringify({ type: 'CALL_ACCEPT', channel, from: this.me, media: isVideo ? 'video' : 'audio' } as InvitePayload);
+    const payload = JSON.stringify({ type: 'CALL_ACCEPT', channel, from: `${this.me}`, media: isVideo ? 'video' : 'audio' } as InvitePayload);
     await this.client.publish(`user:${to}`, payload);
   }
 
   async sendDecline(to: string, channel: string, reason?: string) {
     if (!this.client) return;
-    const payload = JSON.stringify({ type: 'CALL_DECLINE', channel, from: this.me, reason } as InvitePayload);
+    const payload = JSON.stringify({ type: 'CALL_DECLINE', channel, from: `${this.me}`, reason } as InvitePayload);
     await this.client.publish(`user:${to}`, payload);
   }
 
   async sendCancel(to: string, channel: string) {
     if (!this.client) return;
-    const payload = JSON.stringify({ type: 'CALL_CANCEL', channel, from: this.me } as InvitePayload);
+    const payload = JSON.stringify({ type: 'CALL_CANCEL', channel, from: `${this.me}` } as InvitePayload);
     await this.client.publish(`user:${to}`, payload);
   }
 }

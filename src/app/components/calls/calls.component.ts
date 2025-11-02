@@ -6,8 +6,8 @@ import { FormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
 import { RtmService } from "../../services/agora/rtm.service";
-import { filter, firstValueFrom, map, Observable, of, Subject, take, takeUntil, tap } from "rxjs";
-import { Router } from "@angular/router";
+import { concatMap, filter, firstValueFrom, map, Observable, of, Subject, take, takeUntil, tap } from "rxjs";
+import { ActivatedRoute, Router } from "@angular/router";
 import { Auth0User } from "../../models/auth0-user.model";
 import { UserService } from "../../services/user.service";
 import { AgoraService } from "../../services/agora/agora.service";
@@ -17,6 +17,7 @@ import { AcceptCallModal } from "./accept-call.components";
 import { MatButtonModule } from "@angular/material/button";
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from "@angular/material/snack-bar";
+import { PodcastService } from "../../services/podcast.service";
 
 @Component({
   selector: "app-calls",
@@ -30,11 +31,14 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 export class CallsComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private destroy$ = new Subject<void>();
-  private userId: string | undefined;
+  private userId: number | undefined;
   isAuthenticated$ = this.auth.isAuthenticated$;
   users$: Observable<Auth0User[]> = of();
   user$: Observable<User | null | undefined> = of();
   isVideo = true;
+  isPodcast = false;
+  isRecording = false;
+  channelName = '';
 
   constructor(
     private orchestrator: CallOrchestratorService,
@@ -45,12 +49,14 @@ export class CallsComponent implements OnInit, OnDestroy {
     private tokenApi: AgoraService,
     private rtc: RtcService,
     private snack: MatSnackBar,
-    private router: Router) { }
+    private router: Router,
+    private route: ActivatedRoute,
+    private podcastService: PodcastService) { }
 
   selected: Record<string, boolean> = {};
 
-  online(uid: string) {
-    return this.rtm.onlineMap$.value.get(uid) === 'online';
+  online(uid: number) {
+    return this.rtm.onlineMap$.value.get(`${uid}`) === 'online';
   }
 
   async callSelected() {
@@ -58,13 +64,16 @@ export class CallsComponent implements OnInit, OnDestroy {
     const users = await firstValueFrom(this.users$);
 
     const invitees = (users ?? [])
-      .filter(u => !!this.selected?.[u.auth0UserId])
-      .map(u => u.auth0UserId);
+      .filter(u => !!this.selected?.[u.agoraUserId])
+      .map(u => u.agoraUserId);
 
     if (invitees.length === 0 || !this.userId) return;
 
     try {
-      await this.orchestrator.startCall(this.userId, invitees, undefined, this.isVideo ? 'video' : 'audio');
+      console.log('setting channel name');
+      this.channelName = `${this.isPodcast ? 'podcast' : 'call'}_${crypto.randomUUID()}`;
+      console.log('channel name: ', this.channelName);
+      await this.orchestrator.startCall(this.userId, invitees, this.channelName, this.isVideo ? 'video' : 'audio');
     } catch (e) {
       console.error('startCall failed', e);
     }
@@ -79,28 +88,42 @@ export class CallsComponent implements OnInit, OnDestroy {
       });
   }
 
+  async startRecording() {
+    await this.podcastService.start(this.channelName);
+    this.isRecording = true;
+  }
+
+  async stopRecording() {
+    await this.podcastService.stop(this.channelName);
+    this.isRecording = false;
+  }
+
   init() {
+    this.isPodcast = this.route.snapshot.url.map(u => u.path).indexOf('podcast') != -1;
     this.setUpSeo();
-    this.user$ = this.auth.user$.pipe(
-      map(u => {
-        const user = { ...u };
-        user.sub = user.sub?.replace(/\D/g, '');
-        return user;
-      })
-    );
+    this.user$ = this.auth.user$;
+    // .pipe(
+    // map(u => {
+    //   const user = { ...u };
+    //   user.sub = user.sub?.replace(/\D/g, '');
+    //   return user;
+    // })
+    // );
     this.user$.pipe(
       filter(r => !!r?.sub),
+      concatMap(u => this.userService.getAuth0User(u?.sub!)),
       take(1))
       .subscribe(u => {
-        this.userId = u?.sub;
+        this.userId = u.agoraUserId;
         this.orchestrator.initForUser(this.userId!);     // login to RTM / presence}
-        this.users$ = this.userService.getUsers().pipe(
-          map(u => u.map(uu => {
-            const user = { ...uu };
-            user.auth0UserId = user.auth0UserId.replace(/\D/g, '');
-            return user;
-          }))
-        );
+        this.users$ = this.userService.getUsers()
+        // .pipe(
+        //   map(u => u.map(uu => {
+        //     const user = { ...uu };
+        //     user.auth0UserId = user.auth0UserId.replace(/\D/g, '');
+        //     return user;
+        //   }))
+        // );
       });
 
     this.rtm.incomingInvite$.subscribe(async ({ from, channel, media }) => {
@@ -120,7 +143,7 @@ export class CallsComponent implements OnInit, OnDestroy {
 
     // (optional) receive CANCEL from caller if they hang up before you answer
     this.rtm.callSignals$.subscribe(async sig => {
-      const user = await firstValueFrom(this.userService.getAuth0User(sig.from));
+      const user = await firstValueFrom(this.userService.getAgoraUser(sig.from));
       let message;
       if (sig.type === 'CALL_CANCEL') {
         // close the modal if visible
@@ -151,7 +174,7 @@ export class CallsComponent implements OnInit, OnDestroy {
   }
 
   async openIncomingModal(from: string, media: 'audio' | 'video'): Promise<boolean> {
-    const user = await firstValueFrom(this.userService.getAuth0User(from));
+    const user = await firstValueFrom(this.userService.getAgoraUser(from));
     const ref = this.dialog.open(AcceptCallModal, {
       data: { from: user.username, media },
       disableClose: false, // allow Esc/backdrop if you want

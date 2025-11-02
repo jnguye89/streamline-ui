@@ -9,6 +9,8 @@ import AgoraRTC, {
 } from 'agora-rtc-sdk-ng';
 import { BehaviorSubject } from 'rxjs';
 
+AgoraRTC.setLogLevel(0);
+
 @Injectable({ providedIn: 'root' })
 export class RtcService {
     private client: IAgoraRTCClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
@@ -29,6 +31,7 @@ export class RtcService {
     onUserLeft?: (uid: UID) => void;
 
     constructor() {
+        // this.client
         // Subscribe when new publications happen AFTER you're already in
         this.client.on('user-published', async (user, mediaType) => {
             await this.subscribeAndRender(user, mediaType);
