@@ -6,7 +6,7 @@ import { FormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
 import { RtmService } from "../../services/agora/rtm.service";
-import { concatMap, filter, firstValueFrom, map, Observable, of, Subject, take, takeUntil, tap } from "rxjs";
+import { concatMap, filter, firstValueFrom, map, Observable, of, single, Subject, take, takeUntil, tap } from "rxjs";
 import { ActivatedRoute, Router } from "@angular/router";
 import { Auth0User } from "../../models/auth0-user.model";
 import { UserService } from "../../services/user.service";
@@ -42,7 +42,7 @@ export class CallsComponent implements OnInit, OnDestroy {
 
   constructor(
     private orchestrator: CallOrchestratorService,
-    private rtm: RtmService,
+    public rtm: RtmService,
     private seo: SeoService,
     private auth: AuthService,
     private userService: UserService,
@@ -53,10 +53,32 @@ export class CallsComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private podcastService: PodcastService) { }
 
-  selected: Record<string, boolean> = {};
+  selected: Record<number, boolean> = {};
 
   online(uid: number) {
     return this.rtm.onlineMap$.value.get(`${uid}`) === 'online';
+  }
+
+  get selectedCount() {
+    return Object.values(this.selected).filter(v => v).length;
+  }
+
+  get isConnected() {
+    return this.rtc.isConnected();
+  }
+
+  canSelect(id: number): boolean {
+    const isSelected = this.selected[id];
+    // allow if it's currently selected (so you can uncheck),
+    // or if we haven't hit the limit yet
+    return isSelected || this.selectedCount < 4;
+  }
+
+  toggleSelection(id: number) {
+    // only toggle if it's allowed
+    if (this.canSelect(id)) {
+      this.selected[id] = !this.selected[id];
+    }
   }
 
   async callSelected() {
@@ -70,9 +92,7 @@ export class CallsComponent implements OnInit, OnDestroy {
     if (invitees.length === 0 || !this.userId) return;
 
     try {
-      console.log('setting channel name');
       this.channelName = `${this.isPodcast ? 'podcast' : 'call'}_${crypto.randomUUID()}`;
-      console.log('channel name: ', this.channelName);
       await this.orchestrator.startCall(this.userId, invitees, this.channelName, this.isVideo ? 'video' : 'audio');
     } catch (e) {
       console.error('startCall failed', e);
@@ -128,6 +148,7 @@ export class CallsComponent implements OnInit, OnDestroy {
 
     this.rtm.incomingInvite$.subscribe(async ({ from, channel, media }) => {
       // Open your modal: “{from} is calling…”
+      this.channelName = channel;
       const accepted = await this.openIncomingModal(from, media); // returns true/false
 
       if (accepted) {

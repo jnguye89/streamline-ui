@@ -9,7 +9,7 @@
     <div class="left__list">
       <label class="user" *ngFor="let u of (users$ | async)" [class.self]="u.auth0UserId == (user$ | async)?.sub">
         <input type="checkbox" [(ngModel)]="selected[u.agoraUserId]"
-          [disabled]="u.auth0UserId == (user$ | async)?.sub" />
+          [disabled]="u.auth0UserId == (user$ | async)?.sub || (!canSelect(u.agoraUserId) && !selected[u.agoraUserId])" />
         <span class="user__avatar" aria-hidden="true">{{ u.username?.[0] || 'U' }}</span>
         <span class="user__name">{{ u.username }}</span>
         <span class="user__presence" [class.online]="online(u.agoraUserId)"></span>
@@ -34,8 +34,11 @@
     </div>
 
     <div class="controls">
-      <button mat-raised-button color="warn" (click)="startRecording()" *ngIf="isPodcast && !isRecording">Start Recording</button>
-      <button mat-raised-button color="warn" (click)="stopRecording()" *ngIf="isPodcast && isRecording">Stop Recording</button>
+      <button mat-raised-button color="warn" (click)="startRecording()"
+        *ngIf="isPodcast && !isRecording && isConnected">Start
+        Recording</button>
+      <button mat-raised-button color="warn" (click)="stopRecording()" *ngIf="isPodcast && isRecording">Stop
+        Recording</button>
       <button mat-raised-button color="warn" (click)="hangup()">End</button>
     </div>
   </section>

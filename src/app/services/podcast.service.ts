@@ -9,7 +9,6 @@ export class PodcastService {
     constructor(private http: HttpClient) { }
 
     async start(channelName: string) {
-        console.log('channel name in servce: ',channelName);
         const url = `${this.baseUrl}/call/podcast/start`;
         const payload = {
             channelName
@@ -19,7 +18,6 @@ export class PodcastService {
     }
 
     async stop(channelName: string) {
-        console.log(channelName);
         const url = `${this.baseUrl}/call/podcast/stop`;
         const payload = {
             channelName

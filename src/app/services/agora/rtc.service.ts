@@ -37,7 +37,7 @@ export class RtcService {
             await this.subscribeAndRender(user, mediaType);
             this.onUserJoined?.(user);
         });
-
+        
         this.client.on('user-unpublished', (user, mediaType) => {
             // Optional: if video unpublished, you can remove their tile
             const el = document.getElementById(`remote-${user.uid}`);
@@ -151,6 +151,10 @@ export class RtcService {
         }
 
         console.log(`✅ Joined channel ${channel} as ${uid}`);
+    }
+
+    isConnected() {
+        return this.client.connectionState === 'CONNECTED';
     }
 
     async leave() {
