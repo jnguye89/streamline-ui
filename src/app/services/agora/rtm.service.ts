@@ -35,6 +35,8 @@ export class RtmService {
     // (snap?.occupants ?? []).forEach((u: string) => map.set(u, 'online'));
     this.onlineMap$.next(map);
 
+    this.logAllEvents(this.client);
+
     this.client.addEventListener('presence', (evt: any) => {
       if (evt.channelName !== this.lobby) return;
       const m = new Map(this.onlineMap$.value);
@@ -61,6 +63,17 @@ export class RtmService {
       } catch { /* ignore parse errors */ }
     });
   }
+
+  logAllEvents(client: any) {
+    const orig = client.addEventListener.bind(client);
+    client.addEventListener = (event: string, cb: any) => {
+      orig(event, (evt: any) => {
+        console.log(`[DEBUG EVENT] ${event}`, evt);
+        cb(evt);
+      });
+    };
+  }
+
 
   async logout() {
     try { await this.client?.logout(); } finally {
