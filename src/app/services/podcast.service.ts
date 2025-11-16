@@ -9,6 +9,7 @@ export class PodcastService {
     constructor(private http: HttpClient) { }
 
     async start(channelName: string) {
+        console.log('start recording, channel name: ', channelName);
         const url = `${this.baseUrl}/call/podcast/start`;
         const payload = {
             channelName

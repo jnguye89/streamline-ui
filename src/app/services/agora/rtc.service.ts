@@ -8,6 +8,7 @@ import AgoraRTC, {
     UID,
 } from 'agora-rtc-sdk-ng';
 import { BehaviorSubject } from 'rxjs';
+import { RecordingSocketService } from '../socket/recording.service';
 
 AgoraRTC.setLogLevel(0);
 
@@ -30,14 +31,14 @@ export class RtcService {
     onUserJoined?: (user: IAgoraRTCRemoteUser) => void;
     onUserLeft?: (uid: UID) => void;
 
-    constructor() {
+    constructor(private socket: RecordingSocketService) {
         // this.client
         // Subscribe when new publications happen AFTER you're already in
         this.client.on('user-published', async (user, mediaType) => {
             await this.subscribeAndRender(user, mediaType);
             this.onUserJoined?.(user);
         });
-        
+
         this.client.on('user-unpublished', (user, mediaType) => {
             // Optional: if video unpublished, you can remove their tile
             const el = document.getElementById(`remote-${user.uid}`);
@@ -113,13 +114,14 @@ export class RtcService {
     }
 
     async join(appId: string, channel: string, uid: UID, token: string, withVideo = true) {
+        await this.socket.joinRoom(channel);
         await this.client.join(appId, channel, token, uid);
 
         this.localAudio = await AgoraRTC.createMicrophoneAudioTrack();
         if (withVideo) this.localVideo = await AgoraRTC.createCameraVideoTrack();
 
         const tracks = [this.localAudio, this.localVideo].filter(Boolean) as (ILocalAudioTrack | ILocalVideoTrack)[];
-        if (tracks.length) await this.client.publish(tracks);
+        if (tracks.length) { await this.client.publish(tracks); console.log('published'); }
 
         if (this.localVideo) {
             const el = document.getElementById('local-player');

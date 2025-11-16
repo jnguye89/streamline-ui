@@ -1,10 +1,271 @@
-@import './../../../styles/styles.scss';
+@import 'tokens';
 
-.podcast-container {
-    height: 100vh;
-    width: 100vw;
-    color: var(--c-on-surface);
-    display: flex;
-    justify-content: center;
-    align-items: center;
+/* ---- Base layout ---- */
+.calls {
+  color: white;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 16px;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* ---- Left panel (roster) ---- */
+.left {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.left__header {
+  display: grid;
+  gap: 8px;
+
+  h3 {
+    margin: 0;
+    font-weight: 600;
+    padding-left: 20px;
+  }
+}
+
+.left__search {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.25);
+  color: white;
+  border-radius: 8px;
+  padding: 8px 10px;
+  outline: none;
+}
+
+.left__list {
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+/* User row */
+.user {
+  --row-pad: 8px;
+  display: grid;
+  grid-template-columns: 20px 32px 1fr 10px;
+  align-items: center;
+  gap: 10px;
+  padding: var(--row-pad);
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  &.self {
+    opacity: 0.6;
+  }
+}
+
+.user input[type="checkbox"] {
+  margin: 0;
+}
+
+.user__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-weight: 600;
+}
+
+.user__name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user__presence {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9e9e9e;
+
+  &.online {
+    background: #4caf50;
+    box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.25);
+  }
+}
+
+.left__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ---- Right panel (stage) ---- */
+.right {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 12px;
+  min-height: 60vh;
+}
+
+/* Stage area */
+#stage {
+  position: relative;
+  background: #0c0c0c;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 12px;
+  overflow: hidden;
+}
+
+/* Responsive grid for remote videos */
+.stage__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 2fr));
+  gap: 12px;
+  align-content: start;
+  min-height: 240px;
+}
+
+/* Remote stage as a responsive grid */
+#remote-container {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  /* default/fallback for 3+ */
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+/* Tiles keep a sane height */
+.remote-tile {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 1 remote → take the whole width */
+#remote-container:not(:has(.remote-tile:nth-child(2))) {
+  grid-template-columns: 1fr;
+}
+
+/* 2 remotes → 50/50 split */
+#remote-container:has(.remote-tile:nth-child(2)):not(:has(.remote-tile:nth-child(3))) {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* 3 remotes → two on top, third spans full width below (nice stage layout) */
+#remote-container:has(.remote-tile:nth-child(3)):not(:has(.remote-tile:nth-child(4))) {
+  grid-template-columns: 1fr 1fr;
+}
+
+#remote-container:has(.remote-tile:nth-child(3)):not(:has(.remote-tile:nth-child(4))) .remote-tile:last-child {
+  grid-column: 1 / -1;
+}
+
+/* 4 remotes → 2x2 grid */
+#remote-container:has(.remote-tile:nth-child(4)) {
+  grid-template-columns: 1fr 1fr;
+}
+
+/* Ensure Agora wrapper & video fill each tile (keeps your previous fix) */
+.remote-tile>div {
+  position: absolute !important;
+  inset: 0 !important;
+}
+
+.agora_video_player {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  z-index: 2 !important;
+}
+
+/* Local preview as picture-in-picture (draggable look) */
+.tile.pip {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  width: 240px;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  z-index: 5;
+}
+
+// display none for now - hides my own camera
+#local-player {
+  display: none;
+}
+
+/* The local player's inner wrapper will also be absolutely positioned by Agora */
+// #local-player.tile>div {
+//   position: absolute !important;
+//   inset: 0 !important;
+// }
+
+.controls {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+/* Small screens */
+@media (max-width: 900px) {
+  .calls {
+    grid-template-columns: 1fr;
+  }
+
+  .left {
+    order: 2;
+  }
+
+  .right {
+    order: 1;
+  }
+
+  .tile.pip {
+    width: 180px;
+  }
+}
+
+/* Optional: quick status color */
+.online {
+  color: #4caf50;
+}
+
+/* Legacy .tile style (not used by remotes anymore) */
+.tile {
+  width: 320px;
+  height: 180px;
+  background: #000;
+}
+
+.snack-error {
+  background: white !important; 
+  color: #d32f2f !important;// Material Red 700
+  font-weight: 600;
+  border-radius: 6px !important;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
 }

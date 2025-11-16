@@ -24,7 +24,7 @@ export const routes: Routes = [
     path: "podcast",
     // Lazy-load a standalone component
     loadComponent: () =>
-      import('./components/calls/calls.component').then(m => m.CallsComponent),
+      import('./components/podcast/podcast.component').then(m => m.PodcastComponent),
     // Optional: scope providers to this lazy route so they stay out of initial bundle
     providers: [
       // e.g. your call-specific services
