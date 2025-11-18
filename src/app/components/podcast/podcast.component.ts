@@ -222,8 +222,21 @@ export class PodcastComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    (async () => {
+      try {
+        if (this.isRecording) {
+          await this.stopRecording();
+        }
+        if (this.isConnected) {
+          await this.hangup();
+        }
+      } catch (err) {
+        console.error('Error during cleanup in ngOnDestroy', err);
+      } finally {
+        this.destroy$.next();
+        this.destroy$.complete();
+      }
+    })();
   }
 
   private setUpSeo() {

@@ -120,20 +120,39 @@ export class RtcService {
         this.localAudio = await AgoraRTC.createMicrophoneAudioTrack();
         if (withVideo) this.localVideo = await AgoraRTC.createCameraVideoTrack();
 
-        const tracks = [this.localAudio, this.localVideo].filter(Boolean) as (ILocalAudioTrack | ILocalVideoTrack)[];
-        if (tracks.length) { await this.client.publish(tracks); console.log('published'); }
-
-        if (this.localVideo) {
-            const el = document.getElementById('local-player');
-            if (el) this.localVideo.play(el);
+        const tracks = [this.localAudio, this.localVideo].filter(
+            Boolean
+        ) as (ILocalAudioTrack | ILocalVideoTrack)[];
+        if (tracks.length) {
+            await this.client.publish(tracks);
+            console.log('published');
         }
 
-        // 👇 ADD THIS: subscribe to users who were already published before you arrived
+        // 🔹 LOCAL VIDEO AS A NORMAL TILE
+        if (this.localVideo) {
+            const container = document.getElementById('remote-container');
+            if (container) {
+                const elId = `remote-${uid}`; // same pattern as remotes
+
+                let tile = document.getElementById(elId) as HTMLDivElement | null;
+                if (!tile) {
+                    tile = document.createElement('div');
+                    tile.id = elId;
+                    tile.classList.add('remote-tile'); // 👈 same class as remote videos
+                    container.appendChild(tile);
+                }
+
+                // You can pass the element or the element id string; both work
+                this.localVideo.play(tile);
+                // or: this.localVideo.play(elId);
+            }
+        }
+
+        // 👇 subscribe to users who were already published before you arrived
         for (const u of this.client.remoteUsers) {
-            // subscribe to both if available
-            console.log('u.videoTrack', u.videoTrack)
+            console.log('u.videoTrack', u.videoTrack);
             if (u.videoTrack) {
-                console.log('inside if u.videoTrack', u.videoTrack)
+                console.log('inside if u.videoTrack', u.videoTrack);
                 await this.client.subscribe(u, 'video');
                 const elId = `remote-${u.uid}`;
                 console.log('elId', elId);
@@ -154,6 +173,7 @@ export class RtcService {
 
         console.log(`✅ Joined channel ${channel} as ${uid}`);
     }
+
 
     isConnected() {
         return this.client.connectionState === 'CONNECTED';

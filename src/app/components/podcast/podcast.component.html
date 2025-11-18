@@ -39,7 +39,7 @@
         Recording</button>
       <button mat-raised-button color="warn" (click)="stopRecording()" *ngIf="isPodcast && isRecording">Stop
         Recording</button>
-      <button mat-raised-button color="warn" (click)="hangup()">End</button>
+      <button *ngIf="isConnected" mat-raised-button color="warn" (click)="hangup()">End</button>
     </div>
   </section>
 </div>

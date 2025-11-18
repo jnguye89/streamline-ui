@@ -36,8 +36,6 @@ export class CallsComponent implements OnInit, OnDestroy {
   users$: Observable<Auth0User[]> = of();
   user$: Observable<User | null | undefined> = of();
   isVideo = true;
-  isPodcast = false;
-  isRecording = false;
   channelName = '';
 
   constructor(
@@ -92,7 +90,7 @@ export class CallsComponent implements OnInit, OnDestroy {
     if (invitees.length === 0 || !this.userId) return;
 
     try {
-      this.channelName = `${this.isPodcast ? 'podcast' : 'call'}_${crypto.randomUUID()}`;
+      this.channelName = `call_${crypto.randomUUID()}`;
       await this.orchestrator.startCall(this.userId, invitees, this.channelName, this.isVideo ? 'video' : 'audio');
     } catch (e) {
       console.error('startCall failed', e);
@@ -108,18 +106,7 @@ export class CallsComponent implements OnInit, OnDestroy {
       });
   }
 
-  async startRecording() {
-    await this.podcastService.start(this.channelName);
-    this.isRecording = true;
-  }
-
-  async stopRecording() {
-    await this.podcastService.stop(this.channelName);
-    this.isRecording = false;
-  }
-
   init() {
-    this.isPodcast = this.route.snapshot.url.map(u => u.path).indexOf('podcast') != -1;
     this.setUpSeo();
     this.user$ = this.auth.user$;
     // .pipe(
@@ -207,8 +194,18 @@ export class CallsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    this.destroy$.next();
-    this.destroy$.complete();
+    (async () => {
+      try {
+        if (this.isConnected) {
+          await this.hangup();
+        }
+      } catch (err) {
+        console.error('Error during cleanup in ngOnDestroy', err);
+      } finally {
+        this.destroy$.next();
+        this.destroy$.complete();
+      }
+    })();
   }
 
   private setUpSeo() {

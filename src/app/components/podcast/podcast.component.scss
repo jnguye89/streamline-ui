@@ -215,15 +215,15 @@
 }
 
 // display none for now - hides my own camera
-#local-player {
-  display: none;
-}
+// #local-player {
+//   display: none;
+// }
 
 /* The local player's inner wrapper will also be absolutely positioned by Agora */
-// #local-player.tile>div {
-//   position: absolute !important;
-//   inset: 0 !important;
-// }
+#local-player.tile>div {
+  position: absolute !important;
+  inset: 0 !important;
+}
 
 .controls {
   display: flex;
