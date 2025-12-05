@@ -17,7 +17,7 @@
     </div>
 
     <footer class="left__footer">
-      <mat-slide-toggle [(ngModel)]="isVideo" [disabled]="isPodcast">Video call?</mat-slide-toggle>
+      <mat-slide-toggle [(ngModel)]="isVideo">Video call?</mat-slide-toggle>
       <button mat-raised-button color="primary" (click)="callSelected()">Call</button>
     </footer>
   </aside>
@@ -34,10 +34,6 @@
     </div>
 
     <div class="controls">
-      <button mat-raised-button color="warn" (click)="startRecording()" *ngIf="isConnected">Start
-        Recording</button>
-      <button mat-raised-button color="warn" (click)="stopRecording()" *ngIf="">Stop
-        Recording</button>
       <button *ngIf="isConnected" mat-raised-button color="warn" (click)="hangup()">End</button>
     </div>
   </section>

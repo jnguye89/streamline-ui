@@ -3,23 +3,47 @@
 /* ---- Base layout ---- */
 .calls {
   color: white;
-  padding: 16px;
   display: grid;
-  grid-template-columns: 250px 1fr;
-  gap: 16px;
-  min-height: 100vh;
+  grid-template-columns: 260px 1fr; // expanded
+  height: 100vh;
+  background: #000;
   box-sizing: border-box;
+  overflow: hidden;
+  transition: grid-template-columns 200ms ease;
 }
 
-/* ---- Left panel (roster) ---- */
+/* Collapsed: narrow rail + slide-left effect */
+.calls.calls--collapsed {
+  grid-template-columns: 56px 1fr;
+}
+
+/* Left panel */
 .left {
+  position: relative;
+  background: #050505;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.left__wrapper {
+  display: flex;
+  width: 260px; // full sidebar width
+  height: 100%;
+  transition: transform 200ms ease;
+}
+
+/* Main content */
+.left__inner {
+  flex: 1 1 auto;
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 12px;
+  padding: 16px 12px;
+  box-sizing: border-box;
+}
+
+.calls.calls--collapsed .left__wrapper {
+  transform: translateX(-204px);
 }
 
 .left__header {
@@ -49,6 +73,33 @@
   gap: 6px;
   padding-right: 4px;
 }
+
+/* always-visible handle on the right edge */
+/* Handle strip stays put */
+.left__peek {
+  flex: 0 0 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 5, 5, 0.95);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+}
+
+.calls:not(.calls--collapsed) .left__peek {
+  background: transparent;
+}
+
+.left__toggle {
+  background: none;
+  border: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
 
 /* User row */
 .user {
@@ -116,11 +167,58 @@
 
 /* ---- Right panel (stage) ---- */
 .right {
-  display: grid;
-  grid-template-rows: 1fr auto;
-  gap: 12px;
-  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 32px 32px;
+  min-height: 0;
 }
+
+/* Hero when there is no active call */
+.podcast-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.podcast-hero__center {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.podcast-hero__icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin: 0 auto 24px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.podcast-hero__icon mat-icon {
+  font-size: 36px;
+}
+
+.podcast-hero__lines {
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+
+  p {
+    margin: 0;
+  }
+}
+
+.podcast-hero__cta {
+  margin-top: 40px;
+  display: flex;
+  justify-content: center;
+}
+
 
 /* Stage area */
 #stage {
@@ -238,15 +336,13 @@
   }
 
   .left {
-    order: 2;
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 10;
   }
 
   .right {
-    order: 1;
-  }
-
-  .tile.pip {
-    width: 180px;
+    padding: 16px;
   }
 }
 
@@ -263,8 +359,8 @@
 }
 
 .snack-error {
-  background: white !important; 
-  color: #d32f2f !important;// Material Red 700
+  background: white !important;
+  color: #d32f2f !important; // Material Red 700
   font-weight: 600;
   border-radius: 6px !important;
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);

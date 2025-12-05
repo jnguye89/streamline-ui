@@ -19,12 +19,14 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { PodcastService } from "../../services/podcast.service";
 import { RecordingSocketService } from "../../services/socket/recording.service";
+import { MatIconModule } from "@angular/material/icon";
 
 @Component({
   selector: "app-podcast",
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatSlideToggleModule],
+  imports: [CommonModule, FormsModule, MatButtonModule, MatSlideToggleModule,
+    MatIconModule],
   providers: [VoximplantService],
   templateUrl: "./podcast.component.html",
   styleUrl: "./podcast.component.scss",
@@ -33,6 +35,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private destroy$ = new Subject<void>();
   private userId: number | undefined;
+  sidebarCollapsed = false; // start open, will collapse on mouse leave
   isAuthenticated$ = this.auth.isAuthenticated$;
   users$: Observable<Auth0User[]> = of();
   user$: Observable<User | null | undefined> = of();
@@ -68,6 +71,18 @@ export class PodcastComponent implements OnInit, OnDestroy {
 
   get isConnected() {
     return this.rtc.isConnected();
+  }
+  
+  onSidebarEnter() {
+    this.sidebarCollapsed = false;
+  }
+
+  onSidebarLeave() {
+    this.sidebarCollapsed = true;
+  }
+
+  toggleSidebar() {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
   }
 
   canSelect(id: number): boolean {

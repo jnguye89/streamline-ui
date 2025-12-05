@@ -1,45 +1,94 @@
-<div class="calls">
-  <!-- LEFT: roster + controls -->
-  <aside class="left">
-    <header class="left__header">
-      <h3>People</h3>
-      <input class="left__search" type="search" placeholder="Search users…" />
-    </header>
+<div class="calls" [ngClass]="{ 'calls--collapsed': sidebarCollapsed }">
+  <aside class="left"
+         (mouseenter)="onSidebarEnter()"
+         (mouseleave)="onSidebarLeave()">
 
-    <div class="left__list">
-      <label class="user" *ngFor="let u of (users$ | async)" [class.self]="u.auth0UserId == (user$ | async)?.sub">
-        <input type="checkbox" [(ngModel)]="selected[u.agoraUserId]"
-          [disabled]="u.auth0UserId == (user$ | async)?.sub || (!canSelect(u.agoraUserId) && !selected[u.agoraUserId])" />
-        <span class="user__avatar" aria-hidden="true">{{ u.username?.[0] || 'U' }}</span>
-        <span class="user__name">{{ u.username }}</span>
-        <span class="user__presence" [class.online]="online(u.agoraUserId)"></span>
-      </label>
-    </div>
+    <div class="left__wrapper">
+      <!-- Main sidebar content -->
+      <div class="left__inner">
+        <header class="left__header">
+          <h3>People</h3>
+          <input class="left__search" type="search" placeholder="Search users…" />
+        </header>
 
-    <footer class="left__footer">
-      <mat-slide-toggle [(ngModel)]="isVideo" [disabled]="isPodcast">Video call?</mat-slide-toggle>
-      <button mat-raised-button color="primary" (click)="callSelected()">Call</button>
-    </footer>
-  </aside>
+        <div class="left__list">
+          <label class="user"
+                 *ngFor="let u of (users$ | async)"
+                 [class.self]="u.auth0UserId == (user$ | async)?.sub">
+            <input type="checkbox"
+                   [(ngModel)]="selected[u.agoraUserId]"
+                   [disabled]="u.auth0UserId == (user$ | async)?.sub || (!canSelect(u.agoraUserId) && !selected[u.agoraUserId])" />
+            <span class="user__avatar" aria-hidden="true">{{ u.username?.[0] || 'U' }}</span>
+            <span class="user__name">{{ u.username }}</span>
+            <span class="user__presence" [class.online]="online(u.agoraUserId)"></span>
+          </label>
+        </div>
 
-  <!-- RIGHT: stage -->
-  <section class="right">
-    <div id="stage">
-      <div id="remote-container" class="stage__grid">
-        <!-- remote tiles rendered here by RtcService (#remote-<uid>) -->
+        <footer class="left__footer">
+          <mat-slide-toggle [(ngModel)]="isVideo" [disabled]="isPodcast">Video call?</mat-slide-toggle>
+          <button mat-raised-button color="primary" (click)="callSelected()">Call</button>
+        </footer>
       </div>
 
-      <!-- Local preview: PIP overlay -->
-      <div id="local-player" class="pip tile" title="You"></div>
+      <!-- Arrow handle, travels with panel -->
+      <div class="left__peek" (click)="toggleSidebar()">
+        <button class="left__toggle" type="button">
+          <mat-icon *ngIf="sidebarCollapsed">chevron_right</mat-icon>
+          <mat-icon *ngIf="!sidebarCollapsed">chevron_left</mat-icon>
+        </button>
+      </div>
+    </div>
+  </aside>
+  <!-- RIGHT: stage / hero -->
+  <section class="right">
+    <!-- Empty state (no active call) -->
+    <div class="podcast-hero" *ngIf="!isConnected; else activeCall">
+      <div class="podcast-hero__center">
+        <div class="podcast-hero__icon">
+          <mat-icon>mic_off</mat-icon>
+        </div>
+
+        <div class="podcast-hero__lines">
+          <p>let the world hear you</p>
+          <p>start a podcast! alone or with friends</p>
+          <p>go live right away or save and upload it later</p>
+          <p>get started now!</p>
+          <p>you can always edit later</p>
+        </div>
+      </div>
+
+      <!-- <div class="podcast-hero__cta">
+        <button mat-raised-button color="primary" (click)="callSelected()">
+          Pod-Cast!
+        </button>
+      </div> -->
     </div>
 
-    <div class="controls">
-      <button mat-raised-button color="warn" (click)="startRecording()"
-        *ngIf="isPodcast && !isRecording && isConnected">Start
-        Recording</button>
-      <button mat-raised-button color="warn" (click)="stopRecording()" *ngIf="isPodcast && isRecording">Stop
-        Recording</button>
-      <button *ngIf="isConnected" mat-raised-button color="warn" (click)="hangup()">End</button>
-    </div>
+    <!-- Active call layout -->
+    <ng-template #activeCall>
+      <div id="stage">
+        <div id="remote-container" class="stage__grid">
+          <!-- remote tiles rendered here by RtcService (#remote-<uid>) -->
+        </div>
+
+        <!-- Local preview (if you still want PiP when in a call) -->
+        <!-- <div id="local-player" class="pip tile" title="You"></div> -->
+      </div>
+
+      <div class="controls">
+        <button mat-raised-button color="warn" (click)="startRecording()"
+          *ngIf="isPodcast && !isRecording && isConnected">
+          Pod-Cast!
+        </button>
+        <button mat-raised-button color="warn" (click)="stopRecording()" *ngIf="isPodcast && isRecording">
+          Stop Pod-Casting
+        </button>
+        <button *ngIf="isConnected" mat-raised-button color="warn" (click)="hangup()">
+          End
+        </button>
+      </div>
+    </ng-template>
   </section>
 </div>
+
+<!-- </div> -->
