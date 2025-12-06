@@ -6,15 +6,15 @@
         <ng-container *ngFor="let t of threads; let i = index; trackBy: trackById">
           <mat-card class="thread-card center-align" appearance="outlined" *ngIf="i === currentIndex"
             [@slideH]="{ value: direction, params: animParams }">
-            <mat-card-header class="center-align">
+            <!-- <mat-card-header class="center-align">
               <mat-card-title>{{ t.threadText }}</mat-card-title>
-            </mat-card-header>
-            <br /><br />
-            <mat-divider></mat-divider>
-            <br /><br />
-            <mat-card-content class="thread-content center-align">
-              {{ t.user?.username }}<br />
-              {{ t.createdAt | date }}
+            </mat-card-header> -->
+            <!-- <br /><br />
+            <br /><br /> -->
+            <mat-card-content class="center-align">
+              <!-- {{ t.user?.username }}<br /> -->
+              <div class="thread-content">{{ t.threadText }}</div>
+              <div id="footer">{{ t.createdAt | date }}</div>
             </mat-card-content>
           </mat-card>
         </ng-container>
@@ -22,7 +22,7 @@
 
       <!-- Nav -->
       <button mat-icon-button class="nav prev" (click)="prev(threads.length)" aria-label="Previous">
-        <mat-icon>chevron_left</mat-icon>
+        <mat-icon (click)="prev(threads.length)">chevron_left</mat-icon>
       </button>
       <button mat-icon-button class="nav next" (click)="next(threads.length)" aria-label="Next">
         <mat-icon>chevron_right</mat-icon>
@@ -31,14 +31,15 @@
     </ng-container>
   </div>
 
-
+  <!-- <mat-divider></mat-divider> -->
   <!-- Bottom: 1/4 height composer -->
   <ng-container *ngIf="isAuthenticated$ | async; else loginscreen">
     <form class="composer" (ngSubmit)="submit()">
       <div class="textarea-box">
         <mat-form-field class="field" appearance="outline">
-          <textarea matInput name="text" [(ngModel)]="text" placeholder="Write a thread…" maxlength="255"></textarea>
-          <mat-hint>{{ (text.length || 0) }} / 255</mat-hint>
+          <textarea matInput name="text" [(ngModel)]="text" placeholder="Let the world hear you..."
+            maxlength="5000"></textarea>
+          <mat-hint>{{ (text.length || 0) }} / 5000</mat-hint>
         </mat-form-field>
       </div>
 

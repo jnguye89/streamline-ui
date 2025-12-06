@@ -5,7 +5,6 @@ body {
   overflow: hidden;
   color: white;
 }
-
 mat-hint {
   color: white;
 }
@@ -20,9 +19,14 @@ mat-hint {
   color: white;
 }
 
+.mat-mdc-card-content {
+  font-family: Georgia, 'Times New Roman', Times, serif;
+}
+
 /* Fill the dynamic viewport exactly; split 75/25 */
 .container {
-  height: 100dvh;
+  margin-top: 50px;
+  height: 100vh;
   /* dynamic viewport height (mobile-safe) */
   display: grid;
   grid-template-rows: 2fr 2fr;
@@ -33,14 +37,21 @@ mat-hint {
 .viewer {
   position: relative;
   display: grid;
-  place-items: center;
+  // place-items: center;
   // padding: 1rem;
-  overflow: hidden;
+
+  height: 65vh;
   /* no outer scroll */
 }
 
-.center-align {
-  margin: auto
+.stage {
+  display: flex;
+  align-items: center;
+}
+
+#footer {
+  text-align: center;
+  padding-top: 20px;
 }
 
 .thread-card {
@@ -57,17 +68,31 @@ mat-hint {
 }
 
 .thread-content {
-  overflow: auto;
+  // overflow: auto;
+  max-height: 75vh;
+  font-size: 1rem;
+  line-height: 1.8rem;
+  white-space: pre-line;
+  /* Let long words/wide text wrap */
+  word-wrap: break-word;
+
+  /* Scrolling behavior */
+  overflow-y: auto;       /* vertical scroll when content exceeds max-height */
   /* internal scroll if needed */
 
 }
 
 /* Optional nav buttons */
+
+mat-icon {
+  font-size: 2rem;
+}
+
 .nav {
   color: white;
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  // transform: translateY(-50%);
 
   &.prev {
     left: 0.5rem;

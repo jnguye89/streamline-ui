@@ -16,6 +16,7 @@ export class ThreadService {
     }
 
     createThread(thread: ThreadModel): Observable<ThreadModel> {
+        console.log(thread);
         return this.http.post<ThreadModel>(`${this.apiUrl}/thread`, thread)
     }
 }
