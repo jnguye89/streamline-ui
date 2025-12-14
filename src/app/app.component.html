@@ -1,39 +1,20 @@
-<div
-  class="buttons header-container"
-  fxLayout="row"
-  fxLayoutAlign="space-between center"
-  style="width: 100%"
->
+<div class="buttons header-container" fxLayout="row" fxLayoutAlign="space-between center" style="width: 100%">
   <div class="icon-wrapper">
     <!-- <a routerLink="/profile"> -->
-    <mat-icon (click)="handleProfileClick()" class="transparent icon"
-      >person</mat-icon
-    >
+    <mat-icon (click)="handleProfileClick()" class="transparent icon">person</mat-icon>
     <!-- </a> -->
   </div>
   <div>
-    <button
-      mat-button
-      button
-      class="transparent button large-button"
-      [routerLink]="['/call']"
-    >
+    <button mat-button button class="transparent button large-button" [routerLink]="['/podcast']">
+      podcast
+    </button>
+    <button mat-button button class="transparent button large-button" [routerLink]="['/call']">
       call
     </button>
-    <button
-      mat-button
-      button
-      class="transparent button large-button"
-      [routerLink]="['/stream']"
-    >
+    <button mat-button button class="transparent button large-button" [routerLink]="['/stream']">
       stream
     </button>
-    <button
-      mat-button
-      button
-      class="transparent button large-button"
-      [routerLink]="['/watch']"
-    >
+    <button mat-button button class="transparent button large-button" [routerLink]="['/watch']">
       watch
     </button>
     <!-- <button
@@ -44,37 +25,14 @@
     >
       live
     </button> -->
-    <button
-      mat-button
-      button
-      class="transparent button large-button"
-      [routerLink]="['/yap']"
-    >
+    <button mat-button button class="transparent button large-button" [routerLink]="['/yap']">
       yap
     </button>
-    <button
-      mat-button
-      button
-      class="transparent button large-button"
-      [routerLink]="['/listen']"
-    >
+    <button mat-button button class="transparent button large-button" [routerLink]="['/listen']">
       listen
     </button>
-    <button
-      mat-button
-      button
-      class="transparent button large-button"
-      [routerLink]="['/read']"
-    >
+    <button mat-button button class="transparent button large-button" [routerLink]="['/read']">
       read
-    </button>
-    <button
-      mat-button
-      button
-      class="transparent button large-button"
-      [routerLink]="['/podcast']"
-    >
-      podcast (beta)
     </button>
   </div>
   <div class="icon-wrapper">
