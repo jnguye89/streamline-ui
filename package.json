@@ -26,6 +26,7 @@
     "@angular/service-worker": "^17.1.0",
     "@angular/ssr": "^17.1.0",
     "@auth0/auth0-angular": "^2.2.3",
+    "agora-rtc-sdk": "^3.6.11",
     "agora-rtm-sdk": "^2.2.2",
     "amazon-ivs-player": "^1.40.0",
     "amazon-ivs-web-broadcast": "^1.24.0",

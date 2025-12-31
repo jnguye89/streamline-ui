@@ -60,6 +60,38 @@ export class RtcService {
         });
     }
 
+
+    async watchStream(appId: string, channelName: string, token: string, uid: number) {
+        // Audience = receive only
+        await this.client.setClientRole("audience");
+        await this.client.join(appId, channelName, token, uid);
+
+        this.client.on("user-published", async (user, mediaType) => {
+            await this.client.subscribe(user, mediaType);
+
+            if (mediaType === "video") {
+                user.videoTrack?.play("remote-player");
+            }
+            if (mediaType === "audio") {
+                user.audioTrack?.play(); // audio doesn’t need a container
+            }
+        });
+
+        this.client.on("user-unpublished", (user, mediaType) => {
+            if (mediaType === "video") {
+                // optional: clear your UI
+                const el = document.getElementById("remote-player");
+                if (el) el.innerHTML = "";
+            }
+        });
+    }
+
+    async stopWatching() {
+        if (!this.client) return;
+        this.client.removeAllListeners();
+        await this.client.leave();
+    }
+
     private ensureRemoteTile(uid: UID) {
         const id = `remote-${uid}`;
         let el = document.getElementById(id);

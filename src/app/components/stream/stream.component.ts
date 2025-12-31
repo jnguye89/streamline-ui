@@ -9,28 +9,25 @@ import { FlexLayoutModule } from "@angular/flex-layout";
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
-import { MatSnackBar } from '@angular/material/snack-bar';
 import {
+  concatMap,
   filter,
-  map,
+  firstValueFrom,
   Observable,
   of,
   Subject,
-  switchMap,
   take,
   takeUntil,
 } from "rxjs";
 import { CommonModule, DatePipe } from "@angular/common";
-import { AuthService } from "@auth0/auth0-angular";
+import { AuthService, User } from "@auth0/auth0-angular";
 import { SeoService } from "../../services/seo.service";
-import { WowzaPublishService } from "../../services/wowza-publish.service";
-import { WebRtcState } from "../../models/webrtc-state.model";
 import { Router } from "@angular/router";
-import { StreamUpdate, StreamService } from "../../services/stream.service";
-import { LiveStream } from "../../models/live-stream.model";
-import { StreamStateService } from "../../services/stream-state.service";
+import { StreamService } from "../../services/stream.service";
 import { MatDialog } from "@angular/material/dialog";
 import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
+import { RtcStreamService } from "../../services/agora/rtc-stream.service";
+import { UserService } from "../../services/user.service";
 
 @Component({
   selector: "app-stream",
@@ -42,23 +39,25 @@ import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 })
 export class StreamComponent implements AfterViewInit {
   private dialog = inject(MatDialog);
+  private userId: number | undefined;
   isAuthenticated$ = this.auth.isAuthenticated$;
-  isLive$ = this.wowzaPublishService.isLive$;
+  isLive$ = this.rtcStreamService.isLive$;
   isReady = false;
   streamId: number | undefined;
+  user$: Observable<User | null | undefined> = of();
+  channelName: string | undefined;
   private destroy$ = new Subject<void>();
   @ViewChild('video', { static: true }) videoElement!: ElementRef<HTMLVideoElement>;
 
   beforeRouteLeave = async () => this.stopWebcam();
 
   constructor(
-    private wowzaPublishService: WowzaPublishService,
     private streamService: StreamService,
     public auth: AuthService,
     private seo: SeoService,
-    private snack: MatSnackBar,
     private router: Router,
-    private streamState: StreamStateService
+    private rtcStreamService: RtcStreamService,
+    private userService: UserService,
   ) { }
 
   ngOnInit() {
@@ -68,43 +67,20 @@ export class StreamComponent implements AfterViewInit {
       });
   }
 
-  init() {
-    this.wowzaPublishService.errors$
-      .pipe(
-        takeUntil(this.destroy$))
-      .subscribe(err => {
-        this.snack.open(err.message, 'Dismiss', {
-          duration: 6000,
-          horizontalPosition: 'right',
-          verticalPosition: 'top',
-        });
-        if (err.details) console.error('[WOWZA ERROR]', err);
+  async init() {
+    this.user$ = this.auth.user$;
+    this.user$.pipe(
+      filter(r => !!r?.sub),
+      concatMap(u => this.userService.getAuth0User(u?.sub!)),
+      take(1))
+      .subscribe(u => {
+        this.userId = u.agoraUserId;
       });
-      
-    this.streamService.getAvailableStreamOnce()
-      .pipe(
-        switchMap(s => this.getUpdates$(s).pipe(
-          filter(u => u.phase === 'ready'),
-          take(1),
-          map(updates => ({ s, updates }))
-        )
-        ),
-        takeUntil(this.destroy$)).subscribe(({ s }) => {
-          this.setupPublisher(s);
-        });
-  }
-
-  setupPublisher(s: LiveStream) {
-    this.streamState.setData(s);
-    const state: WebRtcState = {
-      sdpUrl: s.wssStreamUrl,
-      applicationName: s.applicationName,
-      streamName: s.streamName,
-      videoElementPublish: this.videoElement.nativeElement
-    }
-    this.wowzaPublishService.init(state);
+    this.channelName = `host-${Math.random().toString(36).substring(2, 15)}`;
+    const token = await firstValueFrom(this.streamService.ensureReady(this.channelName));
+    // console.log('token', token.rtcToken)
+    this.rtcStreamService.join(token.appId, this.channelName, token.rtcToken, this.userId!);
     this.isReady = true;
-    this.streamId = s.id;
   }
 
   login() {
@@ -119,40 +95,32 @@ export class StreamComponent implements AfterViewInit {
     this.setUpSeo();
   }
 
-  getUpdates$(s: LiveStream): Observable<StreamUpdate> {
-    if (s.phase == 'ready') {
-      return of({
-        id: s.id,
-        phase: s.phase
-      })
-    }
-    return this.streamService.updates$(s.id);
+  async resumeWebcam() {
+    await this.rtcStreamService.startPublish();
+    await this.streamService.start(this.channelName!);
   }
 
-  resumeWebcam() {
-    this.wowzaPublishService.startPublish();
-    this.streamService.start(this.streamId!);
+  async stopWebcam() {
+    await this.rtcStreamService.stopPublish();
+    await this.streamService.stop(this.channelName!);
+    // this.wowzaPublishService.stopPublish();
+    // if (isNav) this.detachAndStopVideoTracks();          // always do this
+
+    // if (!isNav) {
+    //   const ref = this.dialog.open(ConfirmEndStreamDialog, {
+    //     width: '420px',
+    //     data: { title: 'End stream?', body: `Click stay to start another live stream.` }
+    //   });
+    //   ref.afterClosed().pipe(take(1)).subscribe(v => v ? this.router.navigateByUrl('/profile') : this.init());
+    // }
   }
 
-  stopWebcam(isNav = true) {
-    this.wowzaPublishService.stopPublish();
-    if (isNav) this.detachAndStopVideoTracks();          // always do this
-
-    if (!isNav) {
-      const ref = this.dialog.open(ConfirmEndStreamDialog, {
-        width: '420px',
-        data: { title: 'End stream?', body: `Click stay to start another live stream.` }
-      });
-      ref.afterClosed().pipe(take(1)).subscribe(v => v ? this.stopAndNavigate() : this.init());
-    }
-  }
-
-  stopAndNavigate() {
-    this.streamService.stop(this.streamId!).pipe(
-      takeUntil(this.destroy$))
-      .subscribe(_ =>
-        this.router.navigateByUrl('/profile'));
-  }
+  // stopAndNavigate() {
+  //   this.streamService.stop(this.streamId!).pipe(
+  //     takeUntil(this.destroy$))
+  //     .subscribe(_ =>
+  //       this.router.navigateByUrl('/profile'));
+  // }
 
   ngOnDestroy(): void {
     this.stopWebcam();

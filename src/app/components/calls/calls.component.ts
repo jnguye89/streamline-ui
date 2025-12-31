@@ -6,8 +6,7 @@ import { FormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
 import { RtmService } from "../../services/agora/rtm.service";
-import { concatMap, filter, firstValueFrom, map, Observable, of, single, Subject, take, takeUntil, tap } from "rxjs";
-import { ActivatedRoute, Router } from "@angular/router";
+import { concatMap, filter, firstValueFrom, Observable, of, Subject, take, takeUntil } from "rxjs";
 import { Auth0User } from "../../models/auth0-user.model";
 import { UserService } from "../../services/user.service";
 import { AgoraService } from "../../services/agora/agora.service";
@@ -17,7 +16,7 @@ import { AcceptCallModal } from "./accept-call.components";
 import { MatButtonModule } from "@angular/material/button";
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { PodcastService } from "../../services/podcast.service";
+import { Router } from "@angular/router";
 
 @Component({
   selector: "app-calls",
@@ -47,9 +46,7 @@ export class CallsComponent implements OnInit, OnDestroy {
     private tokenApi: AgoraService,
     private rtc: RtcService,
     private snack: MatSnackBar,
-    private router: Router,
-    private route: ActivatedRoute,
-    private podcastService: PodcastService) { }
+    private router: Router) { }
 
   selected: Record<number, boolean> = {};
 

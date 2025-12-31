@@ -20,6 +20,7 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { PodcastService } from "../../services/podcast.service";
 import { RecordingSocketService } from "../../services/socket/recording.service";
 import { MatIconModule } from "@angular/material/icon";
+import { StreamService } from "../../services/stream.service";
 
 @Component({
   selector: "app-podcast",
@@ -57,6 +58,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
     private router: Router,
     private route: ActivatedRoute,
     private podcastService: PodcastService,
+    private streamservice: StreamService,
     private socket: RecordingSocketService) { }
 
   selected: Record<number, boolean> = {};
@@ -72,7 +74,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
   get isConnected() {
     return this.rtc.isConnected();
   }
-  
+
   onSidebarEnter() {
     this.sidebarCollapsed = false;
   }
@@ -112,6 +114,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
       console.log('call selected: ', this.channelName);
       await this.socket.connect();
       await this.orchestrator.startCall(this.userId, invitees, this.channelName, this.isVideo ? 'video' : 'audio');
+      await firstValueFrom(this.streamservice.ensureReady(this.channelName));
     } catch (e) {
       console.error('startCall failed', e);
     }
@@ -151,12 +154,14 @@ export class PodcastComponent implements OnInit, OnDestroy {
   async startRecording() {
     await this.podcastService.start(this.channelName);
     await this.socket.startRecording(this.channelName);
+    await this.streamservice.start(this.channelName);
     this.isRecording = true;
   }
 
   async stopRecording() {
     await this.podcastService.stop(this.channelName);
     await this.socket.stopRecording(this.channelName);
+    await this.streamservice.stop(this.channelName);
     this.isRecording = false;
   }
 

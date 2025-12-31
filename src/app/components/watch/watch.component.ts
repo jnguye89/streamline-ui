@@ -21,9 +21,11 @@ import {
   combineLatest,
   distinctUntilChanged,
   map,
+  of,
   shareReplay,
   switchMap,
   takeUntil,
+  tap,
   timer
 } from 'rxjs';
 
@@ -34,6 +36,8 @@ import { PlayItem } from '../../models/play-item.model';
 import { Video } from '../../models/video.model';
 import { StreamService } from '../../services/stream.service';
 import { PlayerStateService } from '../../state/player-state.service';
+import { AgoraWatchService } from '../../services/agora/agora-watch.service';
+import { LiveStream } from '../../models/live-stream.model';
 
 // Helper: compare arrays by (type,id)
 const idsKey = (arr: PlayItem[]) => arr.map(x => `${x.type}:${x.id}`).join('|');
@@ -57,6 +61,7 @@ const idsKey = (arr: PlayItem[]) => arr.map(x => `${x.type}:${x.id}`).join('|');
 
 export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('player', { static: false }) playerRef!: ElementRef<HTMLVideoElement>;
+  @ViewChild('agoraContainer', { static: false }) agoraContainerRef!: ElementRef<HTMLElement>;
   @HostListener('window:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent) {
     const t = e.target as HTMLElement | null;
@@ -71,9 +76,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // UI state
   isPortrait = false;
-  playlist: PlayItem[] = [];
+  playlist: (PlayItem | LiveStream)[] = [];
   currentIndex = 0;
-  currentItem: PlayItem | null = null;
+  currentItem: PlayItem | LiveStream | null = null;
   get hasMany() { return this.playlist.length > 1; }
 
   // Internal streams
@@ -87,7 +92,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private wowza: WowzaPlayService,
     private router: Router,
     private seo: SeoService,
-    private store: PlayerStateService
+    private store: PlayerStateService,
+    private agoraWatch: AgoraWatchService
   ) { }
 
   ngOnInit() {
@@ -103,15 +109,18 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // 2) LIVE: poll, sort deterministically, suppress repeats
     const live$ = timer(0, 15000).pipe(
       switchMap(() => this.streamService.getLiveStreams()),
+      tap(lives => console.log('Fetched live streams:', lives)),
       map(lives => lives.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))),// stable order
-      distinctUntilChanged((a, b) => idsKey(a) === idsKey(b)),               // only when changed
+      // distinctUntilChanged((a, b) => idsKey(a) === idsKey(b)),               // only when changed
       shareReplay({ bufferSize: 1, refCount: true })
     );
+    // const live$ = of([]);
 
     // 3) Merge without reshuffling; only emit when the merged ids actually change
     const playlist$ = combineLatest([live$, vod$]).pipe(
+      // map(([lives, vods]) => [...vods]),
       map(([lives, vods]) => [...lives, ...vods]),
-      distinctUntilChanged((a, b) => idsKey(a) === idsKey(b))
+      // distinctUntilChanged((a, b) => idsKey(a) === idsKey(b))
     );
 
     playlist$
@@ -124,13 +133,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         this.playlist = list;
 
         const videoId = this.route.snapshot.paramMap.get("id");
-        
+
         if (!!videoId) {
           const selectedIndex = this.playlist.map(p => `${p.id}`).indexOf(videoId);
           if (!!selectedIndex) {
             this.currentIndex = selectedIndex;
             this.currentItem = this.playlist[this.currentIndex];
-            this.tryPlayCurrent();
+            void this.tryPlayCurrent();
           }
         }
 
@@ -152,7 +161,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
           const firstLiveIndex = this.playlist.findIndex(i => i.type === 'live');
           this.currentIndex = firstLiveIndex >= 0 ? firstLiveIndex : 0;
           this.currentItem = this.playlist[this.currentIndex] ?? null;
-          this.tryPlayCurrent();
+          void this.tryPlayCurrent();
         }
       });
 
@@ -160,13 +169,14 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit(): void {
     this.viewReady$.next(true);
-    this.tryPlayCurrent();
+    void this.tryPlayCurrent();
   }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
-    this.wowza.stop();
+
+    void this.agoraWatch.stop(); // ✅ stop Agora
     const v = this.playerRef?.nativeElement;
     if (v) { v.src = ''; v.load(); }
   }
@@ -176,59 +186,70 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.playlist.length) return;
     this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
     this.currentItem = this.playlist[this.currentIndex];
-    this.tryPlayCurrent();
+    void this.tryPlayCurrent();
   }
 
   previous() {
     if (!this.playlist.length) return;
     this.currentIndex = (this.currentIndex - 1 + this.playlist.length) % this.playlist.length;
     this.currentItem = this.playlist[this.currentIndex];
-    this.tryPlayCurrent();
+    void this.tryPlayCurrent();
   }
 
   select(i: number) {
     if (i < 0 || i >= this.playlist.length) return;
     this.currentIndex = i;
     this.currentItem = this.playlist[i];
-    this.tryPlayCurrent();
+    void this.tryPlayCurrent();
   }
 
-  // Playback
-  private tryPlayCurrent() {
+  // Make this async (and call it with void)
+  private async tryPlayCurrent() {
     if (!this.currentItem || !this.viewReady$.value) return;
-    const el = this.playerRef.nativeElement;
+
+    // stop any previous live session when switching items
+    await this.agoraWatch.stop();
+
+    const el = this.playerRef?.nativeElement;
 
     if (this.currentItem.type === 'live') {
-      try {
-        el.pause();
-        // If we were on VOD, clear file src
-        el.removeAttribute('src');
-        // If we were on WebRTC before, ensure srcObject is cleared too
-        (el as any).srcObject = null;
-        el.load();
-      } catch { }
-
-      // lazy-init Wowza and play
-      this.wowza.ensureInit(el, this.currentItem.wssUrl, this.currentItem.applicationName, this.currentItem.streamName);        // <--- new helper (below)
-      this.wowza.playFromUrl(this.currentItem.wssUrl);
-    } else {
-      // stop live path safely (no-ops if not active)
-      this.wowza.stop();
-
-      // play VOD
-      try {
-        // IMPORTANT: clear any WebRTC leftovers
-        (el as any).srcObject = null;
-        el.removeAttribute('src');
-        el.load();
-
-        // el.muted = false;
-        el.autoplay = true;
-        el.src = this.currentItem.src;
-        el.play().catch(err => console.warn('VOD play blocked/failed:', err));
-      } catch (e) {
-        console.warn('Failed to start VOD:', e);
+      var curr = this.currentItem as LiveStream;
+      // stop VOD element (if exists)
+      if (el) {
+        try {
+          el.pause();
+          (el as any).srcObject = null;
+          el.removeAttribute('src');
+          el.load();
+        } catch { }
       }
+
+      // Join Agora as audience and render into container
+      const streamId = Number(this.currentItem.id); // your API id: 59
+      const container = this.agoraContainerRef?.nativeElement;
+      if (!container || Number.isNaN(streamId)) return;
+
+      try {
+        await this.agoraWatch.watch(curr.channelName, container);
+      } catch (e) {
+        console.warn('Failed to watch live stream:', e);
+      }
+      return;
+    }
+
+    // VOD path
+    if (!el) return;
+
+    try {
+      (el as any).srcObject = null;
+      el.removeAttribute('src');
+      el.load();
+
+      el.autoplay = true;
+      el.src = (this.currentItem as any).src;
+      await el.play();
+    } catch (e) {
+      console.warn('Failed to start VOD:', e);
     }
   }
 
@@ -248,6 +269,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.store.set(this.playlist[this.currentIndex])
     if (user) this.router.navigate(['/profile', user]);
   }
+
 
   // Helpers
   private setUpSeo() {

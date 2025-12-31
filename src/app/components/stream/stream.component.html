@@ -1,4 +1,4 @@
-<video #video autoplay playsinline muted></video>
+<video #video autoplay playsinline muted id="local-player"></video>
 <!-- Setup overlay: visible until isReady === true -->
 <div class="screen-overlay" *ngIf="!isReady" aria-live="polite" role="status">
   <div class="overlay-card">
@@ -16,7 +16,7 @@
     <button class="play icon" (click)="resumeWebcam()" [disabled]="(isLive$ | async) || !isReady">
       <mat-icon class="transparent">play_arrow</mat-icon>
     </button>
-    <button class="stop icon" (click)="stopWebcam(false)" [disabled]="!(isLive$ | async)">
+    <button class="stop icon" (click)="stopWebcam()" [disabled]="!(isLive$ | async)">
       <mat-icon class="transparent">stop</mat-icon>
     </button>
   </div>

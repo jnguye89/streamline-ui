@@ -17,6 +17,7 @@ export class CallOrchestratorService {
      * User signs in → get tokens and log into RTM for presence/invites
      */
     async initForUser(uid: number) {
+        console.log('CallOrchestrator: init for user ', uid);
         // Use a dummy channel for token minting or mint RTM-only token endpoint
         const channel = 'presence';
         const { appId, rtmToken } = await firstValueFrom(

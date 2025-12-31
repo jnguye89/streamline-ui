@@ -4,6 +4,12 @@
   /* let .watch-container claim the viewport */
 }
 
+.agora-container {
+  width: 100%;
+  height: 100%;
+  background: black;
+}
+
 /* Full-viewport container */
 .watch-container {
   position: fixed;
