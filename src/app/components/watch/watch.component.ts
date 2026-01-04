@@ -19,9 +19,7 @@ import {
   BehaviorSubject,
   Subject,
   combineLatest,
-  distinctUntilChanged,
   map,
-  of,
   shareReplay,
   switchMap,
   takeUntil,
@@ -31,13 +29,13 @@ import {
 
 import { VideoService } from '../../services/video.service';
 import { SeoService } from '../../services/seo.service';
-import { WowzaPlayService } from '../../services/wowza-play.service';
 import { PlayItem } from '../../models/play-item.model';
 import { Video } from '../../models/video.model';
 import { StreamService } from '../../services/stream.service';
 import { PlayerStateService } from '../../state/player-state.service';
 import { AgoraWatchService } from '../../services/agora/agora-watch.service';
 import { LiveStream } from '../../models/live-stream.model';
+import { RecordingSocketService } from '../../services/socket/recording.service';
 
 // Helper: compare arrays by (type,id)
 const idsKey = (arr: PlayItem[]) => arr.map(x => `${x.type}:${x.id}`).join('|');
@@ -89,15 +87,20 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private videoService: VideoService,
     private route: ActivatedRoute,
     private streamService: StreamService,
-    private wowza: WowzaPlayService,
     private router: Router,
     private seo: SeoService,
     private store: PlayerStateService,
-    private agoraWatch: AgoraWatchService
+    private agoraWatch: AgoraWatchService,
+    private socket: RecordingSocketService
   ) { }
 
   ngOnInit() {
     this.setUpSeo();
+    this.socket.connect();
+
+    this.socket.recordingStopped$.pipe(takeUntil(this.destroy$)).subscribe(e => {
+      this.next();
+    })
 
     // 1) VOD: fetch once, shuffle once, cache
     const vod$ = this.videoService.getVideos().pipe(
@@ -183,6 +186,10 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Navigation
   next() {
+    var curr = this.currentItem as LiveStream;
+    if (curr?.type === 'live') {
+      this.socket.leaveRoom(curr.channelName);
+    }
     if (!this.playlist.length) return;
     this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
     this.currentItem = this.playlist[this.currentIndex];
@@ -234,6 +241,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       } catch (e) {
         console.warn('Failed to watch live stream:', e);
       }
+      this.socket.joinRoom(curr.channelName);
       return;
     }
 
