@@ -152,14 +152,14 @@ export class PodcastComponent implements OnInit, OnDestroy {
   }
 
   async startRecording() {
-    await this.podcastService.start(this.channelName);
+    // await this.podcastService.start(this.channelName);
     await this.socket.startRecording(this.channelName);
     await this.streamservice.start(this.channelName);
     this.isRecording = true;
   }
 
   async stopRecording() {
-    await this.podcastService.stop(this.channelName);
+    // await this.podcastService.stop(this.channelName);
     await this.socket.stopRecording(this.channelName);
     await this.streamservice.stop(this.channelName);
     this.isRecording = false;

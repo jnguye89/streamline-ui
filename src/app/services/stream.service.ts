@@ -2,8 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable, NgZone } from "@angular/core";
 import { environment } from "../../environments/environment";
 import { LiveStream } from "../models/live-stream.model";
-import { catchError, defer, EMPTY, exhaustMap, firstValueFrom, map, Observable, shareReplay, Subject, takeUntil, timer } from "rxjs";
-import { PlayItem } from "../models/play-item.model";
+import { exhaustMap, firstValueFrom, map, Observable, Subject, takeUntil, timer } from "rxjs";
 import { AgoraTokenResponse } from "../models/agora/agora.model";
 
 export type StreamUpdate = { id: number; phase: string; wowzaState?: string; errorMessage?: string; };
