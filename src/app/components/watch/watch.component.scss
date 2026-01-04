@@ -138,3 +138,22 @@
   // }
   // bottom: max(8px, env(safe-area-inset-right, 0px));
 }
+
+.agora-container {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  background: #000;
+
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-auto-rows: minmax(180px, 1fr);
+}
+
+.remote-tile {
+  width: 100%;
+  height: 100%;
+  background: #111;
+  border-radius: 12px;
+  overflow: hidden;
+}

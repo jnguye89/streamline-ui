@@ -17,6 +17,7 @@ export class AgoraWatchService {
     }
 
     async watch(channelName: string, containerEl: HTMLElement) {
+        this.clearContainer();
         // Always leave any previous channel before joining a new one
         var random = Math.floor(Math.random() * 100000);
         await this.stop();
@@ -108,13 +109,14 @@ export class AgoraWatchService {
         if (!this.containerEl) throw new Error('Missing containerEl');
 
         const id = `remote-${uid}`;
-        let el = document.getElementById(id);
+        let el = document.getElementById(id) as HTMLDivElement | null;
         if (!el) {
             el = document.createElement('div');
             el.id = id;
-            el.style.width = '100%';
-            el.style.height = '100%';
-            this.containerEl.innerHTML = ''; // if you only want ONE broadcaster view
+            el.classList.add('remote-tile');
+
+            // Optional: if you want 2x2-ish layout, don’t force 100% height on each tile.
+            // Let CSS grid control sizing.
             this.containerEl.appendChild(el);
         }
         return el;
