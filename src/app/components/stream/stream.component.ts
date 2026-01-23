@@ -28,6 +28,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 import { RtcStreamService } from "../../services/agora/rtc-stream.service";
 import { UserService } from "../../services/user.service";
+import { CanComponentDeactivate } from "../../guards/stream-exist.guard";
 
 @Component({
   selector: "app-stream",
@@ -37,7 +38,7 @@ import { UserService } from "../../services/user.service";
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
-export class StreamComponent implements AfterViewInit {
+export class StreamComponent implements AfterViewInit, CanComponentDeactivate {
   private dialog = inject(MatDialog);
   private userId: number | undefined;
   isAuthenticated$ = this.auth.isAuthenticated$;
@@ -65,6 +66,23 @@ export class StreamComponent implements AfterViewInit {
       takeUntil(this.destroy$)).subscribe(isAuthenticated => {
         isAuthenticated ? this.init() : this.login();
       });
+  }
+
+  async canDeactivate(): Promise<boolean> {
+    // if (!this.hasUnsavedChanges) return true;
+
+    const ref = this.dialog.open(ConfirmEndStreamDialog, {
+      disableClose: true,
+      data: { title: 'End stream?', body: `Are you sure you want to end your live stream and leave?` }
+    });
+
+    const isClose = await firstValueFrom(ref.afterClosed());
+
+    if (isClose) {
+      await this.stopWebcam();
+    }
+
+    return isClose;
   }
 
   async init() {

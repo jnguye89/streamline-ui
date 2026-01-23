@@ -8,38 +8,14 @@ import { WowzaPublishService } from '../services/wowza-publish.service';
 import { ConfirmEndStreamDialog } from '../components/dialogs/confirm-stream.dialog';
 
 // Your StreamComponent type
-export interface StreamAware {
-    beforeRouteLeave?: () => Promise<void> | void; // optional hook on the component
+export interface CanComponentDeactivate {
+    canDeactivate: () => boolean | Promise<boolean> | import('rxjs').Observable<boolean>;
 }
 
 @Injectable({ providedIn: 'root' })
-export class StreamExitGuard implements CanDeactivate<StreamAware> {
-    private dialog = inject(MatDialog);
-    private wowzaService = inject(WowzaPublishService);
-
-    canDeactivate(component: StreamAware): Observable<boolean> | boolean {
-        return this.wowzaService.isLive$.pipe(
-            take(1),
-            switchMap(isLive => {
-                if (!isLive) return of(true);
-
-                const ref = this.dialog.open(ConfirmEndStreamDialog, {
-                    width: '420px',
-                    data: { title: 'End stream?', body: 'You’re live. End the stream before leaving?' }
-                });
-
-                return ref.afterClosed().pipe(
-                    switchMap(confirm => {
-                        if (!confirm) return of(false);
-                        // Prefer component hook if present; otherwise call service
-                        const stop$ = component.beforeRouteLeave
-                            ? defer(() => Promise.resolve(component.beforeRouteLeave!()))
-                            : defer(() => Promise.resolve(this.wowzaService.stopPublish()));
-                        return stop$.pipe(mapTo(true));
-                    })
-                );
-            })
-        )
+export class StreamExitGuard implements CanDeactivate<CanComponentDeactivate> {
+    canDeactivate(component: CanComponentDeactivate): boolean | Observable<boolean> | Promise<boolean> {
+        return component.canDeactivate ? component.canDeactivate() : true;
     }
 }
 
