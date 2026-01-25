@@ -48,6 +48,15 @@
   background: #000;
 }
 
+#watch-player,
+.agora-container {
+  z-index: 0;
+}
+
+.overlay {
+  z-index: 10;
+}
+
 /* Overlay stays on top */
 .overlay {
   position: absolute;
@@ -80,6 +89,12 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+}
+
+.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Optional top-right profile button */
