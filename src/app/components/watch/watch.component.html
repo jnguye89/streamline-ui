@@ -2,8 +2,8 @@
   <!-- <video #player id="watch-player" controls autoplay playsinline loop (loadedmetadata)="onVideoLoaded(player)">
   </video> -->
   <!-- VOD player -->
-  <video #player [hidden]="currentItem?.type === 'live'" (loadedmetadata)="onVideoLoaded(player)" playsinline
-    controls></video>
+  <video #player [hidden]="currentItem?.type === 'live'" id="watch-player"  (loadedmetadata)="onVideoLoaded(player)"
+    playsinline controls></video>
 
   <div #agoraContainer [hidden]="currentItem?.type !== 'live'" class="agora-container"></div>
 

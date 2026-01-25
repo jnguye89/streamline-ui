@@ -1,44 +1,51 @@
-/* Make sure the route can occupy the whole viewport */
 :host {
   display: contents;
-  /* let .watch-container claim the viewport */
 }
 
-.agora-container {
-  width: 100%;
-  height: 100%;
-  background: black;
-}
-
-/* Full-viewport container */
 .watch-container {
   position: fixed;
   inset: 0;
-  /* top:0 right:0 bottom:0 left:0 */
   background: #000;
-  /* letterbox bars */
   overflow: hidden;
-
-  display: grid;
-  place-items: center;
-  /* center the video element */
 }
 
-/* Video fills viewport but maintains aspect ratio.
-   'contain' shows full frame (no cropping). Use 'cover' if you prefer edge-to-edge with possible crop. */
+/* VOD video fills the viewport while preserving aspect ratio */
 #watch-player {
-  width: 100vw;
-  height: 100vh;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
+  /* <-- this is exactly “max height OR max width” */
   background: #000;
 }
 
-/* Overlay layer spans the container for controls */
+/* LIVE container fills the viewport */
+.agora-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+/* Agora injects its own <video> element(s). Force them to behave like VOD. */
+:host ::ng-deep .agora-container video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  background: #000;
+}
+
+/* Overlay stays on top */
 .overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  /* default: clicks pass through */
+}
+
+.overlay * {
+  pointer-events: auto;
 }
 
 /* Top-left title + live chip */
@@ -137,17 +144,6 @@
   //   background: rgba(0, 0, 0, 0.5);
   // }
   // bottom: max(8px, env(safe-area-inset-right, 0px));
-}
-
-.agora-container {
-  display: grid;
-  gap: 8px;
-  width: 100%;
-  height: 100%;
-  background: #000;
-
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  grid-auto-rows: minmax(180px, 1fr);
 }
 
 .remote-tile {

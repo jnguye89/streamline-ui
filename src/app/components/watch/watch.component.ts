@@ -37,9 +37,6 @@ import { AgoraWatchService } from '../../services/agora/agora-watch.service';
 import { LiveStream } from '../../models/live-stream.model';
 import { RecordingSocketService } from '../../services/socket/recording.service';
 
-// Helper: compare arrays by (type,id)
-const idsKey = (arr: PlayItem[]) => arr.map(x => `${x.type}:${x.id}`).join('|');
-
 @Component({
   selector: 'app-watch',
   standalone: true,
