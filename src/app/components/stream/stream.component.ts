@@ -73,7 +73,7 @@ export class StreamComponent implements AfterViewInit, CanComponentDeactivate {
 
     const ref = this.dialog.open(ConfirmEndStreamDialog, {
       disableClose: true,
-      data: { title: 'End stream?', body: `Are you sure you want to end your live stream and leave?` }
+      data: { title: 'End stream?', body: `Are you sure you want to end your live stream and leave?`, confirmBtnText: 'Stay', cancelBtnText: 'End & Leave' }
     });
 
     const isClose = await firstValueFrom(ref.afterClosed());

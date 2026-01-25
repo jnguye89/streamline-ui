@@ -21,6 +21,7 @@ import { PodcastService } from "../../services/podcast.service";
 import { RecordingSocketService } from "../../services/socket/recording.service";
 import { MatIconModule } from "@angular/material/icon";
 import { StreamService } from "../../services/stream.service";
+import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 
 @Component({
   selector: "app-podcast",
@@ -120,7 +121,10 @@ export class PodcastComponent implements OnInit, OnDestroy {
     }
   }
 
-  async hangup() { await this.orchestrator.hangup(); }
+  async hangup() {
+    await this.stopRecording();
+    await this.orchestrator.hangup();
+  }
 
   async ngOnInit() {
     this.isAuthenticated$.pipe(
@@ -152,10 +156,23 @@ export class PodcastComponent implements OnInit, OnDestroy {
   }
 
   async startRecording() {
-    // await this.podcastService.start(this.channelName);
-    await this.socket.startRecording(this.channelName);
-    await this.streamservice.start(this.channelName);
-    this.isRecording = true;
+    const ref = this.dialog.open(ConfirmEndStreamDialog, {
+      data: {
+        title: 'Go live!',
+        body: 'Should we also live stream this podcast?',
+        confirmBtnText: 'Stream & Podcast',
+        cancelBtnText: 'Just Podcast',
+      },
+      disableClose: true
+    });
+
+    ref.afterClosed().pipe(take(1)).subscribe(async result => {
+      console.log('start recording podcast, stream: ', result);
+      // await this.podcastService.start(this.channelName);
+      await this.socket.startRecording(this.channelName);
+      await this.streamservice.start(this.channelName, result);
+      this.isRecording = true;
+    })
   }
 
   async stopRecording() {

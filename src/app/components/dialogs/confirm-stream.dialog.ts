@@ -10,8 +10,8 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/materia
     <h2 mat-dialog-title>{{data.title}}</h2>
     <mat-dialog-content>{{data.body}}</mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button (click)="close(false)">Stay</button>
-      <button mat-flat-button color="warn" (click)="close(true)">End & Leave</button>
+      <button mat-button (click)="close(false)">{{ data.confirmBtnText}}</button>
+      <button mat-flat-button color="warn" (click)="close(true)">{{ data.cancelBtnText}}</button>
     </mat-dialog-actions>
   `,
   imports: [MatDialogModule, MatButtonModule, CommonModule]
@@ -19,7 +19,7 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/materia
 export class ConfirmEndStreamDialog {
   constructor(
     private ref: MatDialogRef<ConfirmEndStreamDialog>,
-    @Inject(MAT_DIALOG_DATA) public data: { title: string; body: string }
+    @Inject(MAT_DIALOG_DATA) public data: { title: string; body: string, confirmBtnText: string, cancelBtnText: string }
   ) { }
   close(v: boolean) { this.ref.close(v); }
 }

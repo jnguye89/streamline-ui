@@ -17,24 +17,27 @@ export class StreamService {
         return this.http.post<AgoraTokenResponse>(`${this.apiUrl}/stream/ensure`, { channelName });
     }
 
-    async start(channelName: string, uid?: number) {
+    async start(channelName: string, uid?: number, isStreaming: boolean = true) {
         // stop any existing heartbeat
         // this.stop();
-        await this.publish(channelName);
+        console.log('start stream service, channel: ', channelName, ' isStreaming: ', isStreaming);
+        await this.publish(channelName, isStreaming);
 
-        // fire immediately, then every 10s
-        timer(0, 10_000).pipe(
-            takeUntil(this.stop$),
-            // exhaustMap prevents overlapping requests if one takes >10s
-            exhaustMap(() =>
-                firstValueFrom(this.http.post(`${this.apiUrl}/stream/heartbeat`, { channelName, uid })
+        if (isStreaming) {
+            // fire immediately, then every 10s
+            timer(0, 10_000).pipe(
+                takeUntil(this.stop$),
+                // exhaustMap prevents overlapping requests if one takes >10s
+                exhaustMap(() =>
+                    firstValueFrom(this.http.post(`${this.apiUrl}/stream/heartbeat`, { channelName, uid })
+                    )
                 )
-            )
-        ).subscribe();
+            ).subscribe();
+        }
     }
 
-    private publish(channelName: string): Promise<void> {
-        return firstValueFrom(this.http.put<void>(`${this.apiUrl}/stream/publish`, { channelName }));
+    private publish(channelName: string, isStreaming: boolean): Promise<void> {
+        return firstValueFrom(this.http.put<void>(`${this.apiUrl}/stream/publish`, { channelName, isStreaming }));
     }
 
     async stop(channelName?: string) {
