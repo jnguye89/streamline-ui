@@ -28,7 +28,6 @@ import { MatDialog } from "@angular/material/dialog";
 import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 import { RtcStreamService } from "../../services/agora/rtc-stream.service";
 import { UserService } from "../../services/user.service";
-import { CanComponentDeactivate } from "../../guards/stream-exist.guard";
 
 @Component({
   selector: "app-stream",
@@ -38,7 +37,7 @@ import { CanComponentDeactivate } from "../../guards/stream-exist.guard";
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
-export class StreamComponent implements AfterViewInit, CanComponentDeactivate {
+export class StreamComponent implements AfterViewInit { 
   private dialog = inject(MatDialog);
   private userId: number | undefined;
   isAuthenticated$ = this.auth.isAuthenticated$;
@@ -68,23 +67,6 @@ export class StreamComponent implements AfterViewInit, CanComponentDeactivate {
       });
   }
 
-  async canDeactivate(): Promise<boolean> {
-    // if (!this.hasUnsavedChanges) return true;
-
-    const ref = this.dialog.open(ConfirmEndStreamDialog, {
-      disableClose: true,
-      data: { title: 'End stream?', body: `Are you sure you want to end your live stream and leave?`, confirmBtnText: 'Stay', cancelBtnText: 'End & Leave' }
-    });
-
-    const isClose = await firstValueFrom(ref.afterClosed());
-
-    if (isClose) {
-      await this.stopWebcam();
-    }
-
-    return isClose;
-  }
-
   async init() {
     this.user$ = this.auth.user$;
     this.user$.pipe(
@@ -96,7 +78,7 @@ export class StreamComponent implements AfterViewInit, CanComponentDeactivate {
       });
     this.channelName = `host-${Math.random().toString(36).substring(2, 15)}`;
     const token = await firstValueFrom(this.streamService.ensureReady(this.channelName));
-    // console.log('token', token.rtcToken)
+    
     this.rtcStreamService.join(token.appId, this.channelName, token.rtcToken, this.userId!);
     this.isReady = true;
   }
@@ -119,38 +101,24 @@ export class StreamComponent implements AfterViewInit, CanComponentDeactivate {
   }
 
   async stopWebcam() {
+    const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+      data: {
+        title: 'Nice work.',
+        body: `We're saving your stream; it'll land on your profile shortly. Go live again!`
+      }
+    });
+
+    const timeout = setTimeout(() => dialogRef.close(), 3000);
+
+    dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
     await this.rtcStreamService.stopPublish();
     await this.streamService.stop(this.channelName!);
-    // this.wowzaPublishService.stopPublish();
-    // if (isNav) this.detachAndStopVideoTracks();          // always do this
-
-    // if (!isNav) {
-    //   const ref = this.dialog.open(ConfirmEndStreamDialog, {
-    //     width: '420px',
-    //     data: { title: 'End stream?', body: `Click stay to start another live stream.` }
-    //   });
-    //   ref.afterClosed().pipe(take(1)).subscribe(v => v ? this.router.navigateByUrl('/profile') : this.init());
-    // }
   }
-
-  // stopAndNavigate() {
-  //   this.streamService.stop(this.streamId!).pipe(
-  //     takeUntil(this.destroy$))
-  //     .subscribe(_ =>
-  //       this.router.navigateByUrl('/profile'));
-  // }
 
   ngOnDestroy(): void {
     this.stopWebcam();
     this.destroy$.next();
     this.destroy$.complete();
-  }
-
-  private detachAndStopVideoTracks() {
-    const video = this.videoElement?.nativeElement;
-    const ms = video?.srcObject as MediaStream | null;
-    ms?.getTracks().forEach(t => t.stop());
-    if (video) video.srcObject = null;
   }
 
   private setUpSeo() {

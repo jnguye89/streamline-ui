@@ -9,10 +9,6 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/materia
   template: `
     <h2 mat-dialog-title>{{data.title}}</h2>
     <mat-dialog-content>{{data.body}}</mat-dialog-content>
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="close(false)">{{ data.confirmBtnText}}</button>
-      <button mat-flat-button color="warn" (click)="close(true)">{{ data.cancelBtnText}}</button>
-    </mat-dialog-actions>
   `,
   imports: [MatDialogModule, MatButtonModule, CommonModule]
 })
