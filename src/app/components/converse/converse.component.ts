@@ -1,9 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import {
   DomSanitizer,
-  Meta,
   SafeResourceUrl,
-  Title,
 } from "@angular/platform-browser";
 import { SeoService } from "../../services/seo.service";
 

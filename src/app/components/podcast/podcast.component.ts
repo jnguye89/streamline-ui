@@ -1,12 +1,11 @@
 import { CommonModule } from "@angular/common";
 import { Component, inject, OnDestroy, OnInit, ViewEncapsulation } from "@angular/core";
 import { AuthService, User } from "@auth0/auth0-angular";
-import { VoximplantService } from "../../services/voximplant.service";
 import { FormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
 import { RtmService } from "../../services/agora/rtm.service";
-import { concatMap, filter, firstValueFrom, map, Observable, of, single, Subject, take, takeUntil, tap } from "rxjs";
+import { concatMap, filter, firstValueFrom, map, Observable, of, Subject, take, takeUntil } from "rxjs";
 import { ActivatedRoute, Router } from "@angular/router";
 import { Auth0User } from "../../models/auth0-user.model";
 import { UserService } from "../../services/user.service";
@@ -17,7 +16,6 @@ import { AcceptCallModal } from "./../calls/accept-call.components";
 import { MatButtonModule } from "@angular/material/button";
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from "@angular/material/snack-bar";
-import { PodcastService } from "../../services/podcast.service";
 import { RecordingSocketService } from "../../services/socket/recording.service";
 import { MatIconModule } from "@angular/material/icon";
 import { StreamService } from "../../services/stream.service";
@@ -29,7 +27,6 @@ import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
   encapsulation: ViewEncapsulation.None,
   imports: [CommonModule, FormsModule, MatButtonModule, MatSlideToggleModule,
     MatIconModule],
-  providers: [VoximplantService],
   templateUrl: "./podcast.component.html",
   styleUrl: "./podcast.component.scss",
 })
@@ -58,7 +55,6 @@ export class PodcastComponent implements OnInit, OnDestroy {
     private snack: MatSnackBar,
     private router: Router,
     private route: ActivatedRoute,
-    private podcastService: PodcastService,
     private streamservice: StreamService,
     private socket: RecordingSocketService) { }
 
@@ -168,7 +164,6 @@ export class PodcastComponent implements OnInit, OnDestroy {
 
     ref.afterClosed().pipe(take(1)).subscribe(async result => {
       console.log('start recording podcast, stream: ', result);
-      // await this.podcastService.start(this.channelName);
       await this.socket.startRecording(this.channelName);
       await this.streamservice.start(this.channelName, result);
       this.isRecording = true;
@@ -176,7 +171,6 @@ export class PodcastComponent implements OnInit, OnDestroy {
   }
 
   async stopRecording() {
-    // await this.podcastService.stop(this.channelName);
     await this.socket.stopRecording(this.channelName);
     await this.streamservice.stop(this.channelName);
     this.isRecording = false;

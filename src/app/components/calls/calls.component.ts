@@ -1,7 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { Component, inject, OnDestroy, OnInit, ViewEncapsulation } from "@angular/core";
 import { AuthService, User } from "@auth0/auth0-angular";
-import { VoximplantService } from "../../services/voximplant.service";
 import { FormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
@@ -23,7 +22,6 @@ import { Router } from "@angular/router";
   standalone: true,
   encapsulation: ViewEncapsulation.None,
   imports: [CommonModule, FormsModule, MatButtonModule, MatSlideToggleModule],
-  providers: [VoximplantService],
   templateUrl: "./calls.component.html",
   styleUrl: "./calls.component.scss",
 })

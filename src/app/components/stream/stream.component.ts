@@ -19,7 +19,7 @@ import {
   take,
   takeUntil,
 } from "rxjs";
-import { CommonModule, DatePipe } from "@angular/common";
+import { CommonModule } from "@angular/common";
 import { AuthService, User } from "@auth0/auth0-angular";
 import { SeoService } from "../../services/seo.service";
 import { Router } from "@angular/router";
@@ -33,23 +33,20 @@ import { UserService } from "../../services/user.service";
   selector: "app-stream",
   standalone: true,
   imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule],
-  providers: [DatePipe],
+
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
-export class StreamComponent implements AfterViewInit { 
+export class StreamComponent implements AfterViewInit {
   private dialog = inject(MatDialog);
   private userId: number | undefined;
   isAuthenticated$ = this.auth.isAuthenticated$;
   isLive$ = this.rtcStreamService.isLive$;
   isReady = false;
-  streamId: number | undefined;
   user$: Observable<User | null | undefined> = of();
   channelName: string | undefined;
   private destroy$ = new Subject<void>();
   @ViewChild('video', { static: true }) videoElement!: ElementRef<HTMLVideoElement>;
-
-  beforeRouteLeave = async () => this.stopWebcam();
 
   constructor(
     private streamService: StreamService,
@@ -78,7 +75,7 @@ export class StreamComponent implements AfterViewInit {
       });
     this.channelName = `host-${Math.random().toString(36).substring(2, 15)}`;
     const token = await firstValueFrom(this.streamService.ensureReady(this.channelName));
-    
+
     this.rtcStreamService.join(token.appId, this.channelName, token.rtcToken, this.userId!);
     this.isReady = true;
   }
@@ -100,23 +97,25 @@ export class StreamComponent implements AfterViewInit {
     await this.streamService.start(this.channelName!);
   }
 
-  async stopWebcam() {
-    const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
-      data: {
-        title: 'Nice work.',
-        body: `We're saving your stream; it'll land on your profile shortly. Go live again!`
-      }
-    });
+  async stopWebcam(openDialog: boolean = true) {
+    if (openDialog) {
+      const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+        data: {
+          title: 'Nice work.',
+          body: `We're saving your stream; it'll land on your profile shortly. Go live again!`
+        }
+      });
 
-    const timeout = setTimeout(() => dialogRef.close(), 3000);
+      const timeout = setTimeout(() => dialogRef.close(), 3000);
 
-    dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
+      dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
+    }
     await this.rtcStreamService.stopPublish();
     await this.streamService.stop(this.channelName!);
   }
 
   ngOnDestroy(): void {
-    this.stopWebcam();
+    this.stopWebcam(false);
     this.destroy$.next();
     this.destroy$.complete();
   }

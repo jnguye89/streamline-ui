@@ -12,14 +12,14 @@ export class AgoraWatchService {
     constructor(private http: HttpClient) { }
 
     /** Call your backend to get an audience token for this stream */
-    getWatchToken(streamName: string, uid: number) {
-        return this.http.post<AgoraTokenResponse>(`${environment.baseUrl}/call/agora/token`, { channel: streamName, uid });
+    getWatchToken(streamName: string) {
+        return this.http.post<AgoraTokenResponse>(`${environment.baseUrl}/call/agora/viewer-token`, { channel: streamName });
     }
 
     async watch(channelName: string, containerEl: HTMLElement) {
         this.clearContainer();
         // Always leave any previous channel before joining a new one
-        var random = Math.floor(Math.random() * 100000);
+        // var random = Math.floor(Math.random() * 100000);
         await this.stop();
 
         this.containerEl = containerEl;
@@ -31,11 +31,11 @@ export class AgoraWatchService {
         this.client.on('user-left', this.onUserLeft);
 
         // get token for viewer
-        const joinInfo = await this.getWatchToken(channelName, random).toPromise();
+        const joinInfo = await this.getWatchToken(channelName).toPromise();
         if (!joinInfo) throw new Error('Missing joinInfo');
 
         await this.client.setClientRole('audience');
-        await this.client.join(joinInfo.appId, channelName, joinInfo.rtcToken, random);
+        await this.client.join(joinInfo.appId, channelName, joinInfo.rtcToken, 0);
 
         // In case the host was already publishing before we attached listeners:
         await this.subscribeExistingRemoteUsers();
