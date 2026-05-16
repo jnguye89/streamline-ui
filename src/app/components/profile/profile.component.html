@@ -25,7 +25,7 @@
   <div fxLayout="row wrap" fxLayoutGap="16px" fxLayoutAlign="center">
     <div *ngFor="let video of videos">
       <div class="video-item">
-        <video [src]="video.videoPath" controls loop class="video-player"></video>
+        <video [src]="video.processedPath ?? video.videoPath" controls loop class="video-player"></video>
       </div>
     </div>
   </div>
