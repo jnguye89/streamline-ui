@@ -5,6 +5,7 @@ import {
 } from "@angular/core";
 import { VideoService } from "../../services/video.service";
 import { MatIconModule } from "@angular/material/icon";
+import { MatTooltipModule } from "@angular/material/tooltip";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { concatMap, first, Subject, tap } from "rxjs";
 import { CommonModule } from "@angular/common";
@@ -15,7 +16,7 @@ import { PlayerStateService } from "../../state/player-state.service";
 @Component({
   selector: "app-profile",
   standalone: true,
-  imports: [MatIconModule, FlexLayoutModule, CommonModule],
+  imports: [MatIconModule, MatTooltipModule, FlexLayoutModule, CommonModule],
   providers: [VideoService],
   templateUrl: "./profile.component.html",
   styleUrl: "./profile.component.scss",

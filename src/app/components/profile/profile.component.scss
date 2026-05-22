@@ -9,6 +9,24 @@
   color: var(--c-on-surface);
 }
 
+.video-item {
+  position: relative;
+}
+
+.processed-badge {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 50%;
+  padding: 4px;
+  pointer-events: none;
+}
+
 .video-player {
   padding-top: var(--app-bar-height);
   max-width: 30vw;

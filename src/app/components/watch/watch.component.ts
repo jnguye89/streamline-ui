@@ -287,14 +287,14 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private mapVod(v: Video): PlayItem {
-    // TODO: Map to your actual VOD url field. Common names: v.url, v.src, v.hlsUrl, v.mp4Url
     return {
       type: 'vod',
       id: (v as any).id ?? crypto.randomUUID(),
       title: (v as any).title ?? (v as any).name ?? 'Video',
       user: (v as any).user,
-      src: v.videoPath,
-      thumbnail: (v as any).thumbnail
+      src: v.processedPath ?? v.videoPath,
+      thumbnail: (v as any).thumbnail,
+      isProcessed: !!v.processedPath
     };
   }
 

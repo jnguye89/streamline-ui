@@ -26,6 +26,7 @@
     <div *ngFor="let video of videos">
       <div class="video-item">
         <video [src]="video.processedPath ?? video.videoPath" controls loop class="video-player"></video>
+        <mat-icon *ngIf="video.processedPath" class="processed-badge" matTooltip="Processed by Streamline">auto_awesome</mat-icon>
       </div>
     </div>
   </div>

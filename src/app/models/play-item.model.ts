@@ -17,4 +17,5 @@ export type PlayItem =
       user?: string;
       src: string; // <-- map from your Video model (e.g., video.url)
       thumbnail?: string;
+      isProcessed?: boolean;
     };

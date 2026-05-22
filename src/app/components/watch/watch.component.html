@@ -15,6 +15,10 @@
     <div class="topbar">
       <mat-chip-set>
         <mat-chip *ngIf="currentItem?.type === 'live'" color="warn" selected>LIVE</mat-chip>
+        <mat-chip *ngIf="currentItem?.type === 'vod' && $any(currentItem).isProcessed" class="processed-chip" selected>
+          <mat-icon matChipAvatar>auto_awesome</mat-icon>
+          Processed
+        </mat-chip>
       </mat-chip-set>
       <!-- <div class="title">{{ currentItem?.title }}</div> -->
     </div>
