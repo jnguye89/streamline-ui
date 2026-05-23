@@ -40,9 +40,14 @@ export class StreamService {
         return firstValueFrom(this.http.put<void>(`${this.apiUrl}/stream/publish`, { channelName, isStreaming }));
     }
 
-    async stop(channelName?: string) {
+    async stop(channelName?: string): Promise<{filename: string}> {
+        console.log('in stream service stop, channel: ', channelName);
         this.stop$.next();
-        await firstValueFrom(this.http.put<void>(`${this.apiUrl}/stream/unpublish`, { channelName }));
+        return await firstValueFrom<{filename: string}>(this.http.put<{filename: string}>(`${this.apiUrl}/stream/unpublish`, { channelName }));
+    }
+
+    async process(fileName: string): Promise<void>{
+        return await firstValueFrom(this.http.post<void>(`${this.apiUrl}/stream/process`, { fileName }));
     }
 
     getLiveStreams(): Observable<LiveStream[]> {

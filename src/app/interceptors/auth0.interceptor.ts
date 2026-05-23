@@ -6,7 +6,7 @@ import {
   HttpHandler,
   HttpEvent,
 } from "@angular/common/http";
-import { Observable, from, throwError } from "rxjs";
+import { Observable, from, of, throwError } from "rxjs";
 import { AuthService } from "@auth0/auth0-angular";
 import {
   switchMap,
@@ -56,18 +56,16 @@ export class OptionalAuthInterceptor implements HttpInterceptor {
     if (req.url.includes(environment.baseUrl)) {
       return this.getToken$().pipe(
         take(1),
+        catchError(() => of(null)),
         switchMap((token) => {
+          if (!token) return next.handle(req);
           const authReq = req.clone({
             setHeaders: { Authorization: `Bearer ${token}` },
           });
           return next.handle(authReq);
-        }),
-        catchError((err) => {
-          // Optionally: redirect to login if token is required
-          return next.handle(req); // Fallback: continue without token
         })
-      )
+      );
     }
-    return next.handle(req);;
+    return next.handle(req);
   }
 }

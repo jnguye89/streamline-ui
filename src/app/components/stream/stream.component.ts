@@ -98,24 +98,54 @@ export class StreamComponent implements AfterViewInit {
   }
 
   async stopWebcam(openDialog: boolean = true) {
-    if (openDialog) {
-      const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
-        data: {
-          title: 'Nice work.',
-          body: `We're saving your stream; it'll land on your profile shortly. Go live again!`
-        }
-      });
-
-      const timeout = setTimeout(() => dialogRef.close(), 3000);
-
-      dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
-    }
+    console.log('stopped got called');
     await this.rtcStreamService.stopPublish();
-    await this.streamService.stop(this.channelName!);
+    var response = await this.streamService.stop(this.channelName!);
+    console.log('response', response);
+    if (openDialog) {
+      if (!!response.filename) {
+        const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+          data: {
+            title: 'Nice work.',
+            body: `Your stream has been saved to your profile. Do you want to automatically process your video?`,
+            confirmBtnText: 'Process Video',
+            cancelBtnText: 'No Thanks'
+          }
+        });
+
+        dialogRef.afterClosed().subscribe(async (confirmed: boolean) => {
+          if (confirmed) {
+            this.streamService.process(response.filename);
+            const dialogRef2 = this.dialog.open(ConfirmEndStreamDialog, {
+              data: {
+                title: 'Processing Started',
+                body: `Your video is being processed. This can take a few minutes. The video will show up in your profile when ready!`,
+                confirmBtnText: 'OK',
+              }
+            })
+            const timeout = setTimeout(() => dialogRef2.close(), 5000);
+            dialogRef2.afterClosed().subscribe(() => clearTimeout(timeout));
+          }
+        })
+      } else {
+        const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+          data: {
+            title: 'Nice work.',
+            body: `We're saving your stream; it'll land on your profile shortly. Go live again!`
+          }
+        });
+
+        const timeout = setTimeout(() => dialogRef.close(), 3000);
+
+        dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
+      }
+    }
   }
 
   ngOnDestroy(): void {
-    this.stopWebcam(false);
+    this.rtcStreamService.isLive$.pipe(take(1)).subscribe(isLive => {
+      if (isLive) this.stopWebcam(false);
+    });
     this.destroy$.next();
     this.destroy$.complete();
   }

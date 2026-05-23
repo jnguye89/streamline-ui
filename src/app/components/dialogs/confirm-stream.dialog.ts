@@ -9,6 +9,10 @@ import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/materia
   template: `
     <h2 mat-dialog-title>{{data.title}}</h2>
     <mat-dialog-content>{{data.body}}</mat-dialog-content>
+    <mat-dialog-actions align="end">
+      <button mat-button *ngIf="!!data.cancelBtnText" (click)="close(false)">{{data.cancelBtnText}}</button>
+      <button mat-raised-button color="primary" (click)="close(true)">{{data.confirmBtnText}}</button>
+    </mat-dialog-actions>
   `,
   imports: [MatDialogModule, MatButtonModule, CommonModule]
 })
