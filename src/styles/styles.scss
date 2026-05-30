@@ -75,3 +75,25 @@ body {
 .meta-theme-color {
   content: var(--c-primary);
 }
+
+/* Spotlight search dialog */
+.spotlight-backdrop {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.45) !important;
+}
+
+.spotlight-panel {
+  border-radius: 14px !important;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7), 0 0 0 0.5px rgba(255,255,255,0.08) !important;
+  overflow: hidden !important;
+
+  .mat-mdc-dialog-container,
+  .mdc-dialog__container,
+  .mdc-dialog__surface {
+    border-radius: 14px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+  }
+}

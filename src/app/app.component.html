@@ -35,10 +35,8 @@
       read
     </button> -->
   </div>
-  <div class="icon-wrapper">
-    <a routerLink=".">
-      <mat-icon class="transparent icon">search</mat-icon>
-    </a>
+  <div class="icon-wrapper" (click)="openSearch()">
+    <mat-icon class="transparent icon">search</mat-icon>
   </div>
 </div>
 <div id="rotate-overlay">📱🔄<br />Please rotate your device</div>

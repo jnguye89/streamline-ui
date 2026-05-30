@@ -21,4 +21,10 @@ export class UserService {
     getAgoraUser(agoraId: string): Observable<Auth0User> {
         return this.http.get<Auth0User>(`${environment.baseUrl}/user/agora/${agoraId}`);
     }
+
+    searchUsers(query: string): Observable<Auth0User[]> {
+        return this.http.get<Auth0User[]>(`${environment.baseUrl}/user/search`, {
+            params: { q: query }
+        });
+    }
 }
