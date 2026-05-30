@@ -51,9 +51,10 @@ export class AppComponent {
 
   public openSearch() {
     this.dialog.open(SearchDialogComponent, {
-      width: '600px',
-      maxWidth: '90vw',
-      position: { top: '15%' },
+      width: '560px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      position: { top: '6%' },
       panelClass: 'spotlight-panel',
       backdropClass: 'spotlight-backdrop',
       autoFocus: false,

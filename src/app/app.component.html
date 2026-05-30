@@ -1,9 +1,7 @@
 <div class="buttons header-container" fxLayout="row" fxLayoutAlign="space-between center" style="width: 100%">
-  <div class="icon-wrapper">
-    <!-- <a routerLink="/profile"> -->
-    <mat-icon (click)="handleProfileClick()" class="transparent icon">person</mat-icon>
-    <!-- </a> -->
-  </div>
+  <button class="icon-wrapper icon-btn" (click)="handleProfileClick()" aria-label="Profile">
+    <mat-icon class="transparent icon">person</mat-icon>
+  </button>
   <div>
     <button mat-button button class="transparent button large-button" [routerLink]="['/podcast']">
       podcast
@@ -35,9 +33,9 @@
       read
     </button> -->
   </div>
-  <div class="icon-wrapper" (click)="openSearch()">
+  <button class="icon-wrapper icon-btn" (click)="openSearch()" aria-label="Search">
     <mat-icon class="transparent icon">search</mat-icon>
-  </div>
+  </button>
 </div>
 <div id="rotate-overlay">📱🔄<br />Please rotate your device</div>
 <router-outlet></router-outlet>

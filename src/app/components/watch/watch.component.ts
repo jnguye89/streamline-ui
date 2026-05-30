@@ -9,6 +9,7 @@ import {
   ViewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatButtonModule } from '@angular/material/button';
@@ -59,6 +60,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('agoraContainer', { static: false }) agoraContainerRef!: ElementRef<HTMLElement>;
   @HostListener('window:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent) {
+    if (this.dialog.openDialogs.length > 0) return;
+
     const t = e.target as HTMLElement | null;
     const isTyping = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
     if (isTyping) return;
@@ -88,7 +91,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private seo: SeoService,
     private store: PlayerStateService,
     private agoraWatch: AgoraWatchService,
-    private socket: RecordingSocketService
+    private socket: RecordingSocketService,
+    private dialog: MatDialog
   ) { }
 
   ngOnInit() {

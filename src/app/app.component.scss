@@ -28,6 +28,20 @@
   cursor: pointer;
 }
 
+.icon-btn {
+  background: none;
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:focus-visible {
+    outline: 2px solid var(--c-primary);
+    outline-offset: 2px;
+  }
+}
+
 .icon-wrapper mat-icon {
   color: var(--c-primary) !important;
   /* Foreground (icon) color */
