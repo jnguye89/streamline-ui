@@ -170,7 +170,11 @@ const TRIGRAMS: Record<string, string[]> = {
     .badge-off  { background: rgba(198,40,40,0.2);  color: #ef9a9a; }
     .badge-skip { background: rgba(245,127,23,0.2); color: #ffd54f; }
 
-    .gk-body { padding: 8px 10px 12px; }
+    .gk-body {
+      padding: 8px 10px 12px;
+      width: fit-content;
+      margin: 0 auto;
+    }
 
     .gk-row { display: flex; margin-bottom: 4px; }
     .gk-row:last-child { margin-bottom: 0; }
@@ -264,7 +268,10 @@ export class GliderKeyboardComponent implements OnDestroy {
 
   readonly rows = LAYOUT.map((row, ri) => {
     const keys = row.keys.map(k => k.toLowerCase());
-    if (ri === CAPS_ROW) return { keys: [...keys, 'caps'], stagger: row.stagger };
+    if (ri === CAPS_ROW) {
+      // CAPS appended makes this a 6-key row; stagger 0.5 keeps its center aligned with the home row
+      return { keys: [...keys, 'caps'], stagger: 0.5 };
+    }
     return { keys, stagger: row.stagger };
   });
 
