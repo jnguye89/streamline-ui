@@ -4,6 +4,7 @@
   justify-content: center;
   min-height: 100vh;
   padding: 24px;
+  color: var(--mat-app-on-surface-variant, #aaa);
 }
 
 .login-card {
@@ -33,12 +34,10 @@
 
 .instruction {
   margin: 0;
-  color: var(--mat-app-on-surface-variant, #aaa);
   font-size: 0.9rem;
 }
 
 .divider {
-  color: var(--mat-app-on-surface-variant, #aaa);
   font-size: 0.8rem;
 }
 
@@ -48,7 +47,6 @@
 }
 
 .user-code-label {
-  color: var(--mat-app-on-surface-variant, #aaa);
   font-size: 0.8rem;
 }
 
@@ -61,7 +59,6 @@
 
 .hint {
   margin: 0;
-  color: var(--mat-app-on-surface-variant, #aaa);
   font-size: 0.8rem;
 }
 
