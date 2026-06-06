@@ -1,4 +1,3 @@
-// src/app/auth/optional-auth.interceptor.ts
 import { Injectable } from "@angular/core";
 import {
   HttpInterceptor,
@@ -6,66 +5,24 @@ import {
   HttpHandler,
   HttpEvent,
 } from "@angular/common/http";
-import { Observable, from, of, throwError } from "rxjs";
-import { AuthService } from "@auth0/auth0-angular";
-import {
-  switchMap,
-  catchError,
-  shareReplay,
-  take,
-  tap,
-} from "rxjs/operators";
+import { Observable } from "rxjs";
+import { DeviceAuthService } from "../services/device-auth.service";
 import { environment } from "../../environments/environment";
 
 @Injectable()
 export class OptionalAuthInterceptor implements HttpInterceptor {
-  private tokenInFlight$: Observable<string> | null = null;
-  constructor(private auth: AuthService) { }
+  constructor(private deviceAuth: DeviceAuthService) {}
 
-  private getToken$(): Observable<string> {
-    // if a fetch is already running, return the same observable
-    if (!this.tokenInFlight$) {
-      this.tokenInFlight$ = from(
-        this.auth.getAccessTokenSilently({
-          detailedResponse: true,
-          authorizationParams: {
-            audience: environment.auth0.audience,
-            // scope: 'openid profile email offline_access'
-          },
-        })
-      ).pipe(
-        switchMap((res) => {
-          const token = res.access_token;
-          return [token];
-        }),
-        catchError((err) => {
-          this.tokenInFlight$ = null;
-          return throwError(() => err);
-        }),
-        shareReplay(1),
-        tap(() => (this.tokenInFlight$ = null)) // Always clean up
-      );
+  intercept(req: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
+    if (!req.url.includes(environment.baseUrl)) {
+      return next.handle(req);
     }
-    return this.tokenInFlight$;
-  }
 
-  intercept(
-    req: HttpRequest<any>,
-    next: HttpHandler
-  ): Observable<HttpEvent<any>> {
-    if (req.url.includes(environment.baseUrl)) {
-      return this.getToken$().pipe(
-        take(1),
-        catchError(() => of(null)),
-        switchMap((token) => {
-          if (!token) return next.handle(req);
-          const authReq = req.clone({
-            setHeaders: { Authorization: `Bearer ${token}` },
-          });
-          return next.handle(authReq);
-        })
-      );
-    }
-    return next.handle(req);
+    const token = this.deviceAuth.getAccessToken();
+    if (!token) return next.handle(req);
+
+    return next.handle(req.clone({
+      setHeaders: { Authorization: `Bearer ${token}` },
+    }));
   }
 }

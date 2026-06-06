@@ -9,9 +9,9 @@ import { MatTooltipModule } from "@angular/material/tooltip";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { concatMap, first, Subject, tap } from "rxjs";
 import { CommonModule } from "@angular/common";
-import { AuthService } from "@auth0/auth0-angular";
 import { ActivatedRoute, Router } from "@angular/router";
 import { PlayerStateService } from "../../state/player-state.service";
+import { DeviceAuthService } from "../../services/device-auth.service";
 
 @Component({
   selector: "app-profile",
@@ -22,16 +22,16 @@ import { PlayerStateService } from "../../state/player-state.service";
   styleUrl: "./profile.component.scss",
 })
 export class ProfileComponent implements OnInit, OnDestroy {
-  isAuthenticated$ = this.auth.isAuthenticated$;
+  isAuthenticated$ = this.deviceAuth.isAuthenticated$;
   userId: string | null = null;
   private destroy$ = new Subject<void>();
   videos: any[] = [];
-  isUploading = false; // <-- Added
+  isUploading = false;
   showPreviousButton: boolean = false;
 
   constructor(
     private videoService: VideoService,
-    public auth: AuthService,
+    public deviceAuth: DeviceAuthService,
     private route: ActivatedRoute,
     private router: Router,
     private store: PlayerStateService
@@ -48,23 +48,19 @@ export class ProfileComponent implements OnInit, OnDestroy {
           this.videos = videos;
         });
     } else {
-      this.auth.user$
+      this.deviceAuth.user$
         .pipe(
           first(),
           concatMap((user) => {
             if (!!user) {
               return this.videoService.getUserVideos(`${user.sub}`);
             } else {
-              return this.auth.loginWithRedirect({
-                appState: {
-                  // -> comes back to us after login
-                  target: this.router.url,
-                },
-              });
+              this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
+              return [];
             }
           }),
           tap((videos) => {
-            if (!!videos) this.videos = videos;
+            if (!!videos) this.videos = videos as any[];
           })
         )
         .subscribe();
@@ -73,7 +69,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.destroy$.next();
-    this.destroy$.complete;
+    this.destroy$.complete();
   }
 
   goToWatch() {
@@ -87,7 +83,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
     if (!input.files || input.files.length === 0) return;
 
     const file = input.files[0];
-    this.isUploading = true; // <-- Start loading
+    this.isUploading = true;
     this.videoService
       .uploadToPresignedUrl(file)
       .catch((er) => (this.isUploading = false))

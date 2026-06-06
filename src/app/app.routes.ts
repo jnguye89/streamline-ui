@@ -5,8 +5,13 @@ import { ListenComponent } from "./components/listen/listen.component";
 import { ProfileComponent } from "./components/profile/profile.component";
 import { ConverseComponent } from "./components/converse/converse.component";
 import ReadComponent from "./components/read/read.component";
+import { DeviceLoginComponent } from "./components/device-login/device-login.component";
 
 export const routes: Routes = [
+  {
+    path: "login",
+    component: DeviceLoginComponent,
+  },
   {
     path: "",
     component: WatchComponent,

@@ -1,11 +1,10 @@
 import { CommonModule } from "@angular/common";
 import { Component, inject, OnDestroy, OnInit, ViewEncapsulation } from "@angular/core";
-import { AuthService, User } from "@auth0/auth0-angular";
 import { FormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
 import { RtmService } from "../../services/agora/rtm.service";
-import { concatMap, filter, firstValueFrom, map, Observable, of, Subject, take, takeUntil } from "rxjs";
+import { concatMap, filter, firstValueFrom, Observable, of, Subject, take, takeUntil } from "rxjs";
 import { ActivatedRoute, Router } from "@angular/router";
 import { Auth0User } from "../../models/auth0-user.model";
 import { UserService } from "../../services/user.service";
@@ -20,6 +19,7 @@ import { RecordingSocketService } from "../../services/socket/recording.service"
 import { MatIconModule } from "@angular/material/icon";
 import { StreamService } from "../../services/stream.service";
 import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
+import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
 
 @Component({
   selector: "app-podcast",
@@ -34,10 +34,10 @@ export class PodcastComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private destroy$ = new Subject<void>();
   private userId: number | undefined;
-  sidebarCollapsed = false; // start open, will collapse on mouse leave
-  isAuthenticated$ = this.auth.isAuthenticated$;
+  sidebarCollapsed = false;
+  isAuthenticated$ = this.deviceAuth.isAuthenticated$;
   users$: Observable<Auth0User[]> = of();
-  user$: Observable<User | null | undefined> = of();
+  user$: Observable<DeviceUser | null> = of();
   isVideo = true;
   isPodcast = false;
   isRecording = false;
@@ -48,7 +48,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
     private orchestrator: CallOrchestratorService,
     public rtm: RtmService,
     private seo: SeoService,
-    private auth: AuthService,
+    private deviceAuth: DeviceAuthService,
     private userService: UserService,
     private tokenApi: AgoraService,
     private rtc: RtcService,
@@ -90,14 +90,12 @@ export class PodcastComponent implements OnInit, OnDestroy {
   }
 
   toggleSelection(id: number) {
-    // only toggle if it's allowed
     if (this.canSelect(id)) {
       this.selected[id] = !this.selected[id];
     }
   }
 
   async callSelected() {
-    // grab the latest users once
     const users = await firstValueFrom(this.users$);
 
     const invitees = (users ?? [])
@@ -128,7 +126,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
         isAuthenticated ? this.init() : this.login();
       });
 
-    this.socket.recordingStarted$.pipe(takeUntil(this.destroy$)).subscribe(e => {
+    this.socket.recordingStarted$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.isRecording = true;
       this.snack.open('Recording has started!', 'Dismiss', {
         duration: 10000,
@@ -137,9 +135,9 @@ export class PodcastComponent implements OnInit, OnDestroy {
         politeness: 'assertive',
         panelClass: ['snack-error']
       });
-    })
+    });
 
-    this.socket.recordingStopped$.pipe(takeUntil(this.destroy$)).subscribe(e => {
+    this.socket.recordingStopped$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.isRecording = false;
       this.snack.open('Recording has stopped!', 'Dismiss', {
         duration: 10000,
@@ -148,7 +146,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
         politeness: 'assertive',
         panelClass: ['snack-error']
       });
-    })
+    });
   }
 
   async startRecording() {
@@ -167,7 +165,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
       await this.socket.startRecording(this.channelName);
       await this.streamservice.start(this.channelName, result);
       this.isRecording = true;
-    })
+    });
   }
 
   async stopRecording() {
@@ -179,21 +177,20 @@ export class PodcastComponent implements OnInit, OnDestroy {
   init() {
     this.isPodcast = this.route.snapshot.url.map(u => u.path).indexOf('podcast') != -1;
     this.setUpSeo();
-    this.user$ = this.auth.user$;
+    this.user$ = this.deviceAuth.user$;
     this.user$.pipe(
       filter(r => !!r?.sub),
       concatMap(u => this.userService.getAuth0User(u?.sub!)),
       take(1))
       .subscribe(u => {
         this.userId = u.agoraUserId;
-        this.orchestrator.initForUser(this.userId!);     // login to RTM / presence}
-        this.users$ = this.userService.getUsers()
+        this.orchestrator.initForUser(this.userId!);
+        this.users$ = this.userService.getUsers();
       });
 
     this.rtm.incomingInvite$.subscribe(async ({ from, channel, media }) => {
-      // Open your modal: “{from} is calling…”
       this.channelName = channel;
-      const accepted = await this.openIncomingModal(from, media); // returns true/false
+      const accepted = await this.openIncomingModal(from, media);
 
       if (accepted) {
         await this.socket.connect();
@@ -202,27 +199,22 @@ export class PodcastComponent implements OnInit, OnDestroy {
         );
         await this.rtm.sendAccept(from, channel, media == 'video');
         await this.rtc.join(appId, channel, this.userId!, rtcToken, media == 'video');
-        // await this.socket.joinRoom(channel);
       } else {
         await this.rtm.sendDecline(from, channel, 'user-declined');
       }
     });
 
-    // (optional) receive CANCEL from caller if they hang up before you answer
     this.rtm.callSignals$.subscribe(async sig => {
       const user = await firstValueFrom(this.userService.getAgoraUser(sig.from));
       let message;
       if (sig.type === 'CALL_CANCEL') {
-        // close the modal if visible
         message = `Call cancelled by ${user.username}`;
       }
       if (sig.type === 'CALL_DECLINE') {
-        // close the modal if visible
         message = `Call declined by ${user.username}`;
       }
 
       if (!!message) {
-        // close the modal if visible
         this.snack.open(message, 'Dismiss', {
           duration: 6000,
           horizontalPosition: 'right',
@@ -233,23 +225,18 @@ export class PodcastComponent implements OnInit, OnDestroy {
   }
 
   login() {
-    this.auth.loginWithRedirect({
-      appState: {
-        target: this.router.url,
-      },
-    });
+    this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
   }
 
   async openIncomingModal(from: string, media: 'audio' | 'video'): Promise<boolean> {
     const user = await firstValueFrom(this.userService.getAgoraUser(from));
     const ref = this.dialog.open(AcceptCallModal, {
       data: { from: user.username, media },
-      disableClose: false, // allow Esc/backdrop if you want
+      disableClose: false,
     });
 
-    // Convert Observable -> Promise for async/await usage
-    const result = await firstValueFrom(ref.afterClosed()); // result could be true/false/undefined
-    return !!result; // coerce undefined (backdrop) to false
+    const result = await firstValueFrom(ref.afterClosed());
+    return !!result;
   }
 
   ngOnDestroy(): void {
@@ -282,7 +269,6 @@ export class PodcastComponent implements OnInit, OnDestroy {
       description,
       keywords,
       path: "/watch",
-      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
     });
   }
 }

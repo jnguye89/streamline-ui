@@ -20,7 +20,6 @@ import {
   takeUntil,
 } from "rxjs";
 import { CommonModule } from "@angular/common";
-import { AuthService, User } from "@auth0/auth0-angular";
 import { SeoService } from "../../services/seo.service";
 import { Router } from "@angular/router";
 import { StreamService } from "../../services/stream.service";
@@ -28,29 +27,29 @@ import { MatDialog } from "@angular/material/dialog";
 import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 import { RtcStreamService } from "../../services/agora/rtc-stream.service";
 import { UserService } from "../../services/user.service";
+import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
 
 @Component({
   selector: "app-stream",
   standalone: true,
   imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule],
-
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
 export class StreamComponent implements AfterViewInit {
   private dialog = inject(MatDialog);
   private userId: number | undefined;
-  isAuthenticated$ = this.auth.isAuthenticated$;
+  isAuthenticated$ = this.deviceAuth.isAuthenticated$;
   isLive$ = this.rtcStreamService.isLive$;
   isReady = false;
-  user$: Observable<User | null | undefined> = of();
+  user$: Observable<DeviceUser | null> = of();
   channelName: string | undefined;
   private destroy$ = new Subject<void>();
   @ViewChild('video', { static: true }) videoElement!: ElementRef<HTMLVideoElement>;
 
   constructor(
     private streamService: StreamService,
-    public auth: AuthService,
+    public deviceAuth: DeviceAuthService,
     private seo: SeoService,
     private router: Router,
     private rtcStreamService: RtcStreamService,
@@ -65,7 +64,7 @@ export class StreamComponent implements AfterViewInit {
   }
 
   async init() {
-    this.user$ = this.auth.user$;
+    this.user$ = this.deviceAuth.user$;
     this.user$.pipe(
       filter(r => !!r?.sub),
       concatMap(u => this.userService.getAuth0User(u?.sub!)),
@@ -81,11 +80,7 @@ export class StreamComponent implements AfterViewInit {
   }
 
   login() {
-    this.auth.loginWithRedirect({
-      appState: {
-        target: this.router.url,
-      },
-    });
+    this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
   }
 
   async ngAfterViewInit() {

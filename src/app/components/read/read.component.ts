@@ -10,8 +10,8 @@ import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { TextFieldModule } from '@angular/cdk/text-field';
 import { MatIconModule } from '@angular/material/icon';
-import { AuthService } from '@auth0/auth0-angular';
 import { Router } from '@angular/router';
+import { DeviceAuthService } from '../../services/device-auth.service';
 import { animate, style, transition, trigger } from '@angular/animations';
 import { SeoService } from '../../services/seo.service';
 
@@ -36,7 +36,7 @@ import { SeoService } from '../../services/seo.service';
   styleUrl: './read.component.scss'
 })
 export default class ReadComponent implements OnInit, OnDestroy {
-  isAuthenticated$ = this.auth.isAuthenticated$;
+  isAuthenticated$ = this.deviceAuth.isAuthenticated$;
   private destroy$ = new Subject<void>();
   currentIndex = 0;
   text = '';
@@ -48,7 +48,7 @@ export default class ReadComponent implements OnInit, OnDestroy {
 
   constructor(
     private threadService: ThreadService,
-    public auth: AuthService,
+    public deviceAuth: DeviceAuthService,
     private router: Router,
     private seo: SeoService) { }
 
@@ -66,11 +66,7 @@ export default class ReadComponent implements OnInit, OnDestroy {
   }
 
   login() {
-    this.auth.loginWithRedirect({
-      appState: {
-        target: this.router.url,
-      },
-    });
+    this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
   }
 
   init() {

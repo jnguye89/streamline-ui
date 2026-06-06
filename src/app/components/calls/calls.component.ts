@@ -1,6 +1,5 @@
 import { CommonModule } from "@angular/common";
 import { Component, inject, OnDestroy, OnInit, ViewEncapsulation } from "@angular/core";
-import { AuthService, User } from "@auth0/auth0-angular";
 import { FormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
@@ -16,6 +15,7 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from "@angular/material/snack-bar";
 import { Router } from "@angular/router";
+import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
 
 @Component({
   selector: "app-calls",
@@ -29,9 +29,9 @@ export class CallsComponent implements OnInit, OnDestroy {
   private dialog = inject(MatDialog);
   private destroy$ = new Subject<void>();
   private userId: number | undefined;
-  isAuthenticated$ = this.auth.isAuthenticated$;
+  isAuthenticated$ = this.deviceAuth.isAuthenticated$;
   users$: Observable<Auth0User[]> = of();
-  user$: Observable<User | null | undefined> = of();
+  user$: Observable<DeviceUser | null> = of();
   isVideo = true;
   channelName = '';
 
@@ -39,7 +39,7 @@ export class CallsComponent implements OnInit, OnDestroy {
     private orchestrator: CallOrchestratorService,
     public rtm: RtmService,
     private seo: SeoService,
-    private auth: AuthService,
+    private deviceAuth: DeviceAuthService,
     private userService: UserService,
     private tokenApi: AgoraService,
     private rtc: RtcService,
@@ -62,20 +62,16 @@ export class CallsComponent implements OnInit, OnDestroy {
 
   canSelect(id: number): boolean {
     const isSelected = this.selected[id];
-    // allow if it's currently selected (so you can uncheck),
-    // or if we haven't hit the limit yet
     return isSelected || this.selectedCount < 4;
   }
 
   toggleSelection(id: number) {
-    // only toggle if it's allowed
     if (this.canSelect(id)) {
       this.selected[id] = !this.selected[id];
     }
   }
 
   async callSelected() {
-    // grab the latest users once
     const users = await firstValueFrom(this.users$);
 
     const invitees = (users ?? [])
@@ -103,35 +99,20 @@ export class CallsComponent implements OnInit, OnDestroy {
 
   init() {
     this.setUpSeo();
-    this.user$ = this.auth.user$;
-    // .pipe(
-    // map(u => {
-    //   const user = { ...u };
-    //   user.sub = user.sub?.replace(/\D/g, '');
-    //   return user;
-    // })
-    // );
+    this.user$ = this.deviceAuth.user$;
     this.user$.pipe(
       filter(r => !!r?.sub),
       concatMap(u => this.userService.getAuth0User(u?.sub!)),
       take(1))
       .subscribe(u => {
         this.userId = u.agoraUserId;
-        this.orchestrator.initForUser(this.userId!);     // login to RTM / presence}
-        this.users$ = this.userService.getUsers()
-        // .pipe(
-        //   map(u => u.map(uu => {
-        //     const user = { ...uu };
-        //     user.auth0UserId = user.auth0UserId.replace(/\D/g, '');
-        //     return user;
-        //   }))
-        // );
+        this.orchestrator.initForUser(this.userId!);
+        this.users$ = this.userService.getUsers();
       });
 
     this.rtm.incomingInvite$.subscribe(async ({ from, channel, media }) => {
-      // Open your modal: “{from} is calling…”
       this.channelName = channel;
-      const accepted = await this.openIncomingModal(from, media); // returns true/false
+      const accepted = await this.openIncomingModal(from, media);
 
       if (accepted) {
         const { appId, rtcToken } = await firstValueFrom(
@@ -144,21 +125,17 @@ export class CallsComponent implements OnInit, OnDestroy {
       }
     });
 
-    // (optional) receive CANCEL from caller if they hang up before you answer
     this.rtm.callSignals$.subscribe(async sig => {
       const user = await firstValueFrom(this.userService.getAgoraUser(sig.from));
       let message;
       if (sig.type === 'CALL_CANCEL') {
-        // close the modal if visible
         message = `Call cancelled by ${user.username}`;
       }
       if (sig.type === 'CALL_DECLINE') {
-        // close the modal if visible
         message = `Call declined by ${user.username}`;
       }
 
       if (!!message) {
-        // close the modal if visible
         this.snack.open(message, 'Dismiss', {
           duration: 6000,
           horizontalPosition: 'right',
@@ -169,23 +146,18 @@ export class CallsComponent implements OnInit, OnDestroy {
   }
 
   login() {
-    this.auth.loginWithRedirect({
-      appState: {
-        target: this.router.url,
-      },
-    });
+    this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
   }
 
   async openIncomingModal(from: string, media: 'audio' | 'video'): Promise<boolean> {
     const user = await firstValueFrom(this.userService.getAgoraUser(from));
     const ref = this.dialog.open(AcceptCallModal, {
       data: { from: user.username, media },
-      disableClose: false, // allow Esc/backdrop if you want
+      disableClose: false,
     });
 
-    // Convert Observable -> Promise for async/await usage
-    const result = await firstValueFrom(ref.afterClosed()); // result could be true/false/undefined
-    return !!result; // coerce undefined (backdrop) to false
+    const result = await firstValueFrom(ref.afterClosed());
+    return !!result;
   }
 
   ngOnDestroy(): void {
@@ -215,7 +187,6 @@ export class CallsComponent implements OnInit, OnDestroy {
       description,
       keywords,
       path: "/watch",
-      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
     });
   }
 }

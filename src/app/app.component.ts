@@ -5,9 +5,9 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatDialog } from "@angular/material/dialog";
 import { MatIconModule } from "@angular/material/icon";
 import { Router, RouterModule, RouterOutlet } from "@angular/router";
-import { AuthService } from "@auth0/auth0-angular";
 import { first, tap } from "rxjs";
 import { SearchDialogComponent } from "./components/search/search-dialog.component";
+import { DeviceAuthService } from "./services/device-auth.service";
 
 @Component({
   selector: "app-root",
@@ -24,10 +24,10 @@ import { SearchDialogComponent } from "./components/search/search-dialog.compone
   styleUrl: "./app.component.scss",
 })
 export class AppComponent {
-  isAuthenticated$ = this.auth.isAuthenticated$;
+  isAuthenticated$ = this.deviceAuth.isAuthenticated$;
 
   constructor(
-    public auth: AuthService,
+    public deviceAuth: DeviceAuthService,
     private router: Router,
     private dialog: MatDialog
   ) {}
@@ -39,11 +39,7 @@ export class AppComponent {
         tap((isAuthenticated) => {
           isAuthenticated
             ? this.navigate()
-            : this.auth.loginWithRedirect({
-                appState: {
-                  target: this.router.url,
-                },
-              });
+            : this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
         })
       )
       .subscribe();

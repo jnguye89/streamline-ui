@@ -1,0 +1,72 @@
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 32px;
+  border-radius: 16px;
+  background: var(--mat-app-surface, #1e1e1e);
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+}
+
+.qr-canvas {
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+}
+
+.instruction {
+  margin: 0;
+  color: var(--mat-app-on-surface-variant, #aaa);
+  font-size: 0.9rem;
+}
+
+.divider {
+  color: var(--mat-app-on-surface-variant, #aaa);
+  font-size: 0.8rem;
+}
+
+.verification-link {
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.user-code-label {
+  color: var(--mat-app-on-surface-variant, #aaa);
+  font-size: 0.8rem;
+}
+
+.user-code {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 4px;
+  font-family: monospace;
+}
+
+.hint {
+  margin: 0;
+  color: var(--mat-app-on-surface-variant, #aaa);
+  font-size: 0.8rem;
+}
+
+.error {
+  margin: 0;
+  color: var(--mat-app-error, #f44336);
+  font-size: 0.9rem;
+}

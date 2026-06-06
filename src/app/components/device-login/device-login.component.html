@@ -1,0 +1,25 @@
+<div class="login-container">
+  <div class="login-card">
+    <h2>Sign in</h2>
+
+    @if (loading) {
+      <mat-spinner diameter="48"></mat-spinner>
+      <p class="hint">Setting up your sign-in&hellip;</p>
+    }
+
+    @if (!loading && !error && userCode) {
+      <p class="instruction">Scan the QR code with your phone to sign in</p>
+      <canvas #qrCanvas class="qr-canvas"></canvas>
+      <div class="divider">or visit</div>
+      <a class="verification-link" [href]="verificationUri" target="_blank">{{ verificationUri }}</a>
+      <div class="user-code-label">and enter the code</div>
+      <div class="user-code">{{ userCode }}</div>
+      <p class="hint">Waiting for you to authenticate&hellip;</p>
+    }
+
+    @if (error) {
+      <p class="error">{{ error }}</p>
+      <button mat-flat-button color="primary" (click)="retry()">Try again</button>
+    }
+  </div>
+</div>
