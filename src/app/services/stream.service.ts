@@ -40,6 +40,11 @@ export class StreamService {
         return firstValueFrom(this.http.put<void>(`${this.apiUrl}/stream/publish`, { channelName, isStreaming }));
     }
 
+    async stopLive(channelName: string): Promise<void> {
+        this.stop$.next(); // kill heartbeat
+        return firstValueFrom(this.http.put<void>(`${this.apiUrl}/stream/publish`, { channelName, isStreaming: false }));
+    }
+
     async stop(channelName?: string): Promise<{filename: string}> {
         console.log('in stream service stop, channel: ', channelName);
         this.stop$.next();

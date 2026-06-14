@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component, inject, OnDestroy, OnInit, ViewEncapsulation } from "@angular/core";
+import { AfterViewInit, Component, ElementRef, inject, OnDestroy, OnInit, ViewChild, ViewEncapsulation } from "@angular/core";
 import { FormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
@@ -18,7 +18,6 @@ import { MatSnackBar } from "@angular/material/snack-bar";
 import { RecordingSocketService } from "../../services/socket/recording.service";
 import { MatIconModule } from "@angular/material/icon";
 import { StreamService } from "../../services/stream.service";
-import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
 
 @Component({
@@ -30,7 +29,7 @@ import { DeviceAuthService, DeviceUser } from "../../services/device-auth.servic
   templateUrl: "./podcast.component.html",
   styleUrl: "./podcast.component.scss",
 })
-export class PodcastComponent implements OnInit, OnDestroy {
+export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
   private dialog = inject(MatDialog);
   private destroy$ = new Subject<void>();
   private userId: number | undefined;
@@ -41,6 +40,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
   isVideo = true;
   isPodcast = false;
   isRecording = false;
+  isLive = false;
   channelName = '';
   token: string | undefined;
 
@@ -58,7 +58,24 @@ export class PodcastComponent implements OnInit, OnDestroy {
     private streamservice: StreamService,
     private socket: RecordingSocketService) { }
 
+  @ViewChild('localPreview') localPreview!: ElementRef<HTMLVideoElement>;
+  private localStream: MediaStream | null = null;
+
+  showUserPicker = false;
   selected: Record<number, boolean> = {};
+
+  async ngAfterViewInit() {
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      this.localPreview.nativeElement.srcObject = this.localStream;
+    } catch (err) {
+      console.error('Camera access denied', err);
+    }
+  }
+
+  toggleUserPicker() {
+    this.showUserPicker = !this.showUserPicker;
+  }
 
   online(uid: number) {
     return this.rtm.onlineMap$.value.get(`${uid}`) === 'online';
@@ -150,28 +167,30 @@ export class PodcastComponent implements OnInit, OnDestroy {
   }
 
   async startRecording() {
-    const ref = this.dialog.open(ConfirmEndStreamDialog, {
-      data: {
-        title: 'Go live!',
-        body: 'Should we also live stream this podcast?',
-        confirmBtnText: 'Stream & Podcast',
-        cancelBtnText: 'Just Podcast',
-      },
-      disableClose: true
-    });
-
-    ref.afterClosed().pipe(take(1)).subscribe(async result => {
-      console.log('start recording podcast, stream: ', result);
-      await this.socket.startRecording(this.channelName);
-      await this.streamservice.start(this.channelName, result);
-      this.isRecording = true;
-    });
+    if (this.channelName === '') {
+      console.error('No channel name set. Cannot start recording.');
+      return;
+    }
+    this.socket.startRecording(this.channelName);
+    await this.streamservice.start(this.channelName, undefined, false);
+    this.isRecording = true;
   }
 
   async stopRecording() {
-    await this.socket.stopRecording(this.channelName);
+    this.socket.stopRecording(this.channelName);
     await this.streamservice.stop(this.channelName);
     this.isRecording = false;
+    this.isLive = false;
+  }
+
+  async toggleLive() {
+    if (this.isLive) {
+      await this.streamservice.stopLive(this.channelName);
+      this.isLive = false;
+    } else {
+      await this.streamservice.start(this.channelName, undefined, true);
+      this.isLive = true;
+    }
   }
 
   init() {
@@ -240,6 +259,7 @@ export class PodcastComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.localStream?.getTracks().forEach(t => t.stop());
     (async () => {
       try {
         if (this.isRecording) {
