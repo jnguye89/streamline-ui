@@ -9,12 +9,12 @@
     <a href="mailto:him&#64;skriin.com">support&#64;skriin.com</a>
   </h4>
   <div *ngIf="!!userId && showPreviousButton">
-    <button class="watch-icon" mat-icon-button (click)="goToWatch()">
+    <button gamepadFocusable class="watch-icon" mat-icon-button (click)="goToWatch()">
       <mat-icon>arrow_upward</mat-icon>
     </button>
   </div>
   <div *ngIf="(isAuthenticated$ | async) && !userId">
-    <button mat-raised-button color="primary" (click)="fileInput.click()">
+    <button gamepadFocusable mat-raised-button color="primary" (click)="fileInput.click()">
       <mat-icon>upload</mat-icon> Upload Video
     </button>
     <input type="file" accept="video/*" #fileInput style="display: none" [disabled]="isUploading"

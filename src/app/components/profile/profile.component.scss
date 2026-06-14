@@ -53,8 +53,6 @@
 }
 
 .watch-icon {
-  outline: none !important;
-  box-shadow: none !important;
   color: white;
   width: clamp(44px, 6.5vh, 64px);
   height: clamp(44px, 6.5vh, 64px);
@@ -68,6 +66,12 @@
   /* Clean, minimal look */
   background: rgba(0, 0, 0, 0);
   border: none;
+
+  /* Only hide the default Material focus ring; keep the gamepad focus highlight */
+  &:not(.gamepad-focused) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
 }
 
 .upload-overlay-content {

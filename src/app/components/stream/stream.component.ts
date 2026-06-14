@@ -28,11 +28,12 @@ import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 import { RtcStreamService } from "../../services/agora/rtc-stream.service";
 import { UserService } from "../../services/user.service";
 import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
+import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 
 @Component({
   selector: "app-stream",
   standalone: true,
-  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule],
+  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule, GamepadFocusableDirective],
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })

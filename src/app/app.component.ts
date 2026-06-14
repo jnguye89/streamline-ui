@@ -1,5 +1,5 @@
 import { CommonModule } from "@angular/common";
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { FlexLayoutModule } from "@angular/flex-layout";
 import { MatButtonModule } from "@angular/material/button";
 import { MatDialog } from "@angular/material/dialog";
@@ -8,6 +8,8 @@ import { Router, RouterModule, RouterOutlet } from "@angular/router";
 import { first, tap } from "rxjs";
 import { SearchDialogComponent } from "./components/search/search-dialog.component";
 import { DeviceAuthService } from "./services/device-auth.service";
+import { GamepadNavigationService } from "./services/gamepad-navigation.service";
+import { GamepadFocusableDirective } from "./directives/gamepad-focusable.directive";
 
 @Component({
   selector: "app-root",
@@ -19,18 +21,24 @@ import { DeviceAuthService } from "./services/device-auth.service";
     RouterModule,
     FlexLayoutModule,
     CommonModule,
+    GamepadFocusableDirective,
   ],
   templateUrl: "./app.component.html",
   styleUrl: "./app.component.scss",
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   isAuthenticated$ = this.deviceAuth.isAuthenticated$;
 
   constructor(
     public deviceAuth: DeviceAuthService,
     private router: Router,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private gamepadNav: GamepadNavigationService
   ) {}
+
+  ngOnInit(): void {
+    this.gamepadNav.start();
+  }
 
   public handleProfileClick() {
     this.isAuthenticated$

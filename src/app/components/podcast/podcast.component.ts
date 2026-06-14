@@ -19,13 +19,14 @@ import { RecordingSocketService } from "../../services/socket/recording.service"
 import { MatIconModule } from "@angular/material/icon";
 import { StreamService } from "../../services/stream.service";
 import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
+import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 
 @Component({
   selector: "app-podcast",
   standalone: true,
   encapsulation: ViewEncapsulation.None,
   imports: [CommonModule, FormsModule, MatButtonModule, MatSlideToggleModule,
-    MatIconModule],
+    MatIconModule, GamepadFocusableDirective],
   templateUrl: "./podcast.component.html",
   styleUrl: "./podcast.component.scss",
 })

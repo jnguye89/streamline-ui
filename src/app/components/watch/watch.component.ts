@@ -37,6 +37,7 @@ import { PlayerStateService } from '../../state/player-state.service';
 import { AgoraWatchService } from '../../services/agora/agora-watch.service';
 import { LiveStream } from '../../models/live-stream.model';
 import { RecordingSocketService } from '../../services/socket/recording.service';
+import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
 
 @Component({
   selector: 'app-watch',
@@ -48,7 +49,8 @@ import { RecordingSocketService } from '../../services/socket/recording.service'
     FlexLayoutModule,
     MatChipsModule,
     RouterModule,
-    CommonModule
+    CommonModule,
+    GamepadFocusableDirective
   ],
   providers: [VideoService],
   templateUrl: './watch.component.html',

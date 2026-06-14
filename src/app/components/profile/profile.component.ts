@@ -12,11 +12,12 @@ import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from "@angular/router";
 import { PlayerStateService } from "../../state/player-state.service";
 import { DeviceAuthService } from "../../services/device-auth.service";
+import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 
 @Component({
   selector: "app-profile",
   standalone: true,
-  imports: [MatIconModule, MatTooltipModule, FlexLayoutModule, CommonModule],
+  imports: [MatIconModule, MatTooltipModule, FlexLayoutModule, CommonModule, GamepadFocusableDirective],
   providers: [VideoService],
   templateUrl: "./profile.component.html",
   styleUrl: "./profile.component.scss",

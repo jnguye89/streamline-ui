@@ -1,18 +1,18 @@
 <div class="buttons header-container" fxLayout="row" fxLayoutAlign="space-between center" style="width: 100%">
-  <button class="icon-wrapper icon-btn" (click)="handleProfileClick()" aria-label="Profile">
+  <button gamepadFocusable class="icon-wrapper icon-btn" (click)="handleProfileClick()" aria-label="Profile">
     <mat-icon class="transparent icon">person</mat-icon>
   </button>
   <div>
-    <button mat-button button class="transparent button large-button" [routerLink]="['/podcast']">
+    <button gamepadFocusable mat-button button class="transparent button large-button" [routerLink]="['/podcast']">
       podcast
     </button>
     <!-- <button mat-button button class="transparent button large-button" [routerLink]="['/call']">
       call
     </button> -->
-    <button mat-button button class="transparent button large-button" [routerLink]="['/stream']">
+    <button gamepadFocusable mat-button button class="transparent button large-button" [routerLink]="['/stream']">
       now
     </button>
-    <button mat-button button class="transparent button large-button" [routerLink]="['/watch']">
+    <button gamepadFocusable mat-button button class="transparent button large-button" [routerLink]="['/watch']">
       watch
     </button>
     <!-- <button
@@ -23,7 +23,7 @@
     >
       live
     </button> -->
-    <button mat-button button class="transparent button large-button" [routerLink]="['/yap']">
+    <button gamepadFocusable mat-button button class="transparent button large-button" [routerLink]="['/yap']">
       yap
     </button>
     <!-- <button mat-button button class="transparent button large-button" [routerLink]="['/listen']">
@@ -33,7 +33,7 @@
       read
     </button> -->
   </div>
-  <button class="icon-wrapper icon-btn" (click)="openSearch()" aria-label="Search">
+  <button gamepadFocusable class="icon-wrapper icon-btn" (click)="openSearch()" aria-label="Search">
     <mat-icon class="transparent icon">search</mat-icon>
   </button>
 </div>

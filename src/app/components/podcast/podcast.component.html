@@ -16,7 +16,7 @@
   <div class="user-picker" *ngIf="showUserPicker">
     <div class="user-picker__header">
       <span class="user-picker__title">People</span>
-      <button class="user-picker__close" (click)="showUserPicker = false">
+      <button gamepadFocusable class="user-picker__close" (click)="showUserPicker = false">
         <mat-icon>close</mat-icon>
       </button>
     </div>
@@ -24,7 +24,7 @@
     <input class="user-picker__search" type="search" placeholder="Search users…" />
 
     <div class="user-picker__list">
-      <label class="user"
+      <label gamepadFocusable class="user"
              *ngFor="let u of (users$ | async)"
              [class.self]="u.auth0UserId == (user$ | async)?.sub">
         <input type="checkbox"
@@ -37,8 +37,8 @@
     </div>
 
     <div class="user-picker__footer">
-      <mat-slide-toggle [(ngModel)]="isVideo" [disabled]="isPodcast">Video</mat-slide-toggle>
-      <button mat-flat-button color="primary"
+      <!-- <mat-slide-toggle gamepadFocusable [(ngModel)]="isVideo" [disabled]="isPodcast">Video</mat-slide-toggle> -->
+      <button gamepadFocusable mat-flat-button color="primary"
               [disabled]="selectedCount === 0"
               (click)="callSelected(); showUserPicker = false">
         Call {{ selectedCount > 0 ? '(' + selectedCount + ')' : '' }}
@@ -56,14 +56,14 @@
 
     <div class="toolbar__sep"></div>
 
-    <button class="toolbar__btn toolbar__btn--people" [class.toolbar__btn--active]="showUserPicker"
+    <button gamepadFocusable class="toolbar__btn toolbar__btn--people" [class.toolbar__btn--active]="showUserPicker"
             (click)="toggleUserPicker()" title="People">
       <mat-icon>person_add</mat-icon>
     </button>
 
     <div class="toolbar__sep"></div>
 
-    <button class="toolbar__btn toolbar__btn--rec"
+    <button gamepadFocusable class="toolbar__btn toolbar__btn--rec"
             [class.toolbar__btn--rec-on]="isRecording"
             (click)="isRecording ? stopRecording() : startRecording()"
             title="Record">
@@ -73,7 +73,7 @@
 
     <div class="toolbar__sep"></div>
 
-    <button class="toolbar__btn toolbar__btn--live"
+    <button gamepadFocusable class="toolbar__btn toolbar__btn--live"
             [class.toolbar__btn--live-on]="isLive"
             [disabled]="!isRecording"
             (click)="toggleLive()"
@@ -84,7 +84,7 @@
 
     <div class="toolbar__sep"></div>
 
-    <button class="toolbar__btn toolbar__btn--ai" title="AI Magic" [disabled]="true">
+    <button gamepadFocusable class="toolbar__btn toolbar__btn--ai" title="AI Magic" [disabled]="true">
       ✦ AI Magic
     </button>
 
