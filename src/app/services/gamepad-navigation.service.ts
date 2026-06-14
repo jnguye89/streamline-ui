@@ -15,7 +15,7 @@ const BUTTON_DPAD_RIGHT = 15;
 const AXIS_DEADZONE = 0.5;
 const REPEAT_DELAY_MS = 420;
 const REPEAT_RATE_MS = 150;
-const SCROLL_STEP_PX = 120;
+const SCROLL_STEP_PX = 240;
 
 const FOCUS_CLASS = 'gamepad-focused';
 
@@ -194,12 +194,16 @@ export class GamepadNavigationService implements OnDestroy {
     const dx = direction === 'left' ? -SCROLL_STEP_PX : direction === 'right' ? SCROLL_STEP_PX : 0;
     const dy = direction === 'up' ? -SCROLL_STEP_PX : direction === 'down' ? SCROLL_STEP_PX : 0;
 
-    const container = this.findScrollContainer(dx, dy);
-    if (!container) return;
-
+    const container = this.findScrollContainer(dx, dy) ?? window;
     this.zone.run(() => container.scrollBy({ left: dx, top: dy, behavior: 'smooth' }));
   }
 
+  /**
+   * Finds the nearest scrollable ancestor element of the focused element.
+   * Returns null (so the caller falls back to scrolling the window) when
+   * none of the ancestors scroll - the window itself is always a valid
+   * scroll target and doesn't need to be detected up front.
+   */
   private findScrollContainer(dx: number, dy: number): { scrollBy: (opts: ScrollToOptions) => void } | null {
     let el: HTMLElement | null = this.currentEl ?? document.body;
 
@@ -211,11 +215,7 @@ export class GamepadNavigationService implements OnDestroy {
       el = el.parentElement;
     }
 
-    const root = document.scrollingElement;
-    if (!root) return null;
-    const canScrollY = dy !== 0 && root.scrollHeight > root.clientHeight;
-    const canScrollX = dx !== 0 && root.scrollWidth > root.clientWidth;
-    return canScrollY || canScrollX ? window : null;
+    return null;
   }
 
   private score(from: DOMRect, to: DOMRect, dir: Direction): number | null {
