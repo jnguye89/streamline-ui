@@ -37,6 +37,8 @@ export class GamepadNavigationService implements OnDestroy {
   private heldSince = 0;
   private lastRepeatAt = 0;
 
+  private dpadActions: Partial<Record<Direction, () => void>> = {};
+
   constructor(
     @Inject(PLATFORM_ID) platformId: object,
     private zone: NgZone,
@@ -62,6 +64,14 @@ export class GamepadNavigationService implements OnDestroy {
     window.removeEventListener('gamepadconnected', this.onGamepadConnected);
     window.removeEventListener('gamepaddisconnected', this.onGamepadDisconnected);
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);
+  }
+
+  setDpadActions(actions: Partial<Record<Direction, () => void>>): void {
+    this.dpadActions = { ...actions };
+  }
+
+  clearDpadActions(): void {
+    this.dpadActions = {};
   }
 
   register(el: HTMLElement): void {
@@ -108,16 +118,27 @@ export class GamepadNavigationService implements OnDestroy {
     if (buttons[BUTTON_ACTIVATE] && !this.prevButtons[BUTTON_ACTIVATE]) this.activateCurrent();
     if (buttons[BUTTON_BACK] && !this.prevButtons[BUTTON_BACK]) this.goBack();
 
+    // Fire page-specific D-pad overrides on the leading edge only.
+    const dpadMap: [number, Direction][] = [
+      [BUTTON_DPAD_UP, 'up'], [BUTTON_DPAD_DOWN, 'down'],
+      [BUTTON_DPAD_LEFT, 'left'], [BUTTON_DPAD_RIGHT, 'right'],
+    ];
+    for (const [btn, dir] of dpadMap) {
+      if (this.dpadActions[dir] && buttons[btn] && !this.prevButtons[btn]) {
+        this.zone.run(() => this.dpadActions[dir]!());
+      }
+    }
+
     this.handleDirection(this.getDirection(pad, buttons));
 
     this.prevButtons = buttons;
   }
 
   private getDirection(pad: Gamepad, buttons: boolean[]): Direction | null {
-    if (buttons[BUTTON_DPAD_UP]) return 'up';
-    if (buttons[BUTTON_DPAD_DOWN]) return 'down';
-    if (buttons[BUTTON_DPAD_LEFT]) return 'left';
-    if (buttons[BUTTON_DPAD_RIGHT]) return 'right';
+    if (buttons[BUTTON_DPAD_UP] && !this.dpadActions['up']) return 'up';
+    if (buttons[BUTTON_DPAD_DOWN] && !this.dpadActions['down']) return 'down';
+    if (buttons[BUTTON_DPAD_LEFT] && !this.dpadActions['left']) return 'left';
+    if (buttons[BUTTON_DPAD_RIGHT] && !this.dpadActions['right']) return 'right';
 
     const [x, y] = pad.axes;
     if (x <= -AXIS_DEADZONE) return 'left';

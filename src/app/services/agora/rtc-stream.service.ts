@@ -21,9 +21,8 @@ export class RtcStreamService {
     async join(appId: string, channelName: string, rtcToken: string, uid: number) {
         console.log('joining channel', appId, channelName, rtcToken, uid);
         this.localTracks = await this.getLocalTracks();
-        this.localTracks.forEach(track => {
-            track.play('local-player'); // attach to your preview element
-        });
+        const [, cam] = this.localTracks;
+        cam.play('local-player');
         try {
             await this.client.setClientRole('host'); // host can publish :contentReference[oaicite:3]{index=3}
             await this.client.join(appId, channelName, rtcToken, uid);
@@ -38,9 +37,8 @@ export class RtcStreamService {
         try {
             if (!this.localTracks) this.localTracks = await this.getLocalTracks();
 
-            const [mic, cam] = this.localTracks;
+            const [, cam] = this.localTracks;
             cam.play('local-player');
-            mic.play();
 
             await this.client.publish(this.localTracks);
             console.log("publish OK");
@@ -55,13 +53,20 @@ export class RtcStreamService {
 
     async stopPublish() {
         await this.client.unpublish(this.localTracks!);
-        // this.localTracks?.forEach(track => {
-        //     track.stop();
-        //     track.close();
-        // });
-
         this.isLive$.next(false);
-        // call backend to update status
+    }
+
+    async leave() {
+        if (this.isLive$.value) {
+            await this.client.unpublish(this.localTracks!);
+            this.isLive$.next(false);
+        }
+        this.localTracks?.forEach(track => {
+            track.stop();
+            track.close();
+        });
+        this.localTracks = undefined;
+        try { await this.client.leave(); } catch { }
     }
 
     private async getLocalTracks() {

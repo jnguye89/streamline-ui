@@ -38,6 +38,7 @@ import { AgoraWatchService } from '../../services/agora/agora-watch.service';
 import { LiveStream } from '../../models/live-stream.model';
 import { RecordingSocketService } from '../../services/socket/recording.service';
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
+import { GamepadNavigationService } from '../../services/gamepad-navigation.service';
 
 @Component({
   selector: 'app-watch',
@@ -94,10 +95,15 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private store: PlayerStateService,
     private agoraWatch: AgoraWatchService,
     private socket: RecordingSocketService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    private gamepadNav: GamepadNavigationService
   ) { }
 
   ngOnInit() {
+    this.gamepadNav.setDpadActions({
+      left: () => this.previous(),
+      right: () => this.next(),
+    });
     this.setUpSeo();
     this.socket.connect();
 
@@ -179,10 +185,16 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.gamepadNav.clearDpadActions();
     this.destroy$.next();
     this.destroy$.complete();
 
-    void this.agoraWatch.stop(); // ✅ stop Agora
+    const curr = this.currentItem as LiveStream;
+    if (curr?.type === 'live') {
+      this.socket.leaveRoom(curr.channelName);
+    }
+
+    void this.agoraWatch.stop();
     const v = this.playerRef?.nativeElement;
     if (v) { v.src = ''; v.load(); }
   }

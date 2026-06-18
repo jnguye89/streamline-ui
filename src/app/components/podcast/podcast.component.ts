@@ -68,7 +68,9 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
   async ngAfterViewInit() {
     try {
       this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      this.localPreview.nativeElement.srcObject = this.localStream;
+      const el = this.localPreview.nativeElement;
+      el.muted = true;
+      el.srcObject = this.localStream;
     } catch (err) {
       console.error('Camera access denied', err);
     }
@@ -266,9 +268,7 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
         if (this.isRecording) {
           await this.stopRecording();
         }
-        if (this.isConnected) {
-          await this.hangup();
-        }
+        await this.orchestrator.hangup();
       } catch (err) {
         console.error('Error during cleanup in ngOnDestroy', err);
       } finally {

@@ -71,7 +71,7 @@ export class StreamComponent implements AfterViewInit {
       concatMap(u => this.userService.getAuth0User(u?.sub!)),
       take(1))
       .subscribe(u => {
-        this.userId = u.agoraUserId;
+        this.userId = (u as any).agoraUserId;
       });
     this.channelName = `host-${Math.random().toString(36).substring(2, 15)}`;
     const token = await firstValueFrom(this.streamService.ensureReady(this.channelName));
@@ -139,11 +139,9 @@ export class StreamComponent implements AfterViewInit {
   }
 
   ngOnDestroy(): void {
-    this.rtcStreamService.isLive$.pipe(take(1)).subscribe(isLive => {
-      if (isLive) this.stopWebcam(false);
-    });
     this.destroy$.next();
     this.destroy$.complete();
+    void this.rtcStreamService.leave();
   }
 
   private setUpSeo() {
