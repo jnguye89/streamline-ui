@@ -53,6 +53,7 @@ export class GamepadNavigationService implements OnDestroy {
 
     window.addEventListener('gamepadconnected', this.onGamepadConnected);
     window.addEventListener('gamepaddisconnected', this.onGamepadDisconnected);
+    window.addEventListener('keydown', this.onKeyDown);
 
     if (this.hasConnectedGamepad()) {
       this.zone.runOutsideAngular(() => this.loop());
@@ -63,6 +64,7 @@ export class GamepadNavigationService implements OnDestroy {
     if (!this.isBrowser) return;
     window.removeEventListener('gamepadconnected', this.onGamepadConnected);
     window.removeEventListener('gamepaddisconnected', this.onGamepadDisconnected);
+    window.removeEventListener('keydown', this.onKeyDown);
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);
   }
 
@@ -84,8 +86,70 @@ export class GamepadNavigationService implements OnDestroy {
     if (this.currentEl === el) {
       el.classList.remove(FOCUS_CLASS);
       this.currentEl = null;
+      // Defer so all synchronous unregistrations on the same destroy cycle finish first
+      Promise.resolve().then(() => {
+        if (this.currentEl) return;
+        const candidates = Array.from(this.focusables).filter(e => this.isFocusable(e));
+        const next = this.pickInitial(candidates);
+        if (next) this.zone.run(() => this.focusElement(next));
+      });
     }
   }
+
+  requestFocus(el: HTMLElement): void {
+    this.focusElement(el);
+  }
+
+  private onKeyDown = (e: KeyboardEvent): void => {
+    const t = e.target as HTMLElement | null;
+    const inputType = t instanceof HTMLInputElement ? t.type : '';
+    const isTyping = !!t && (
+      (t.tagName === 'INPUT' && inputType !== 'checkbox' && inputType !== 'radio') ||
+      t.tagName === 'TEXTAREA' ||
+      t.isContentEditable
+    );
+    if (isTyping) return;
+
+    // Arrow keys mirror the D-pad: respect page-specific overrides (e.g. prev/next on watch)
+    const arrowMap: Record<string, Direction> = {
+      ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
+    };
+
+    // WASD mirrors the joystick: always moves focus, never triggers page overrides
+    const wasdMap: Record<string, Direction> = {
+      w: 'up', s: 'down', a: 'left', d: 'right',
+    };
+
+    if (arrowMap[e.key]) {
+      e.preventDefault();
+      this.zone.run(() => {
+        const dir = arrowMap[e.key];
+        if (this.dpadActions[dir]) {
+          this.dpadActions[dir]!();
+        } else {
+          this.moveFocus(dir);
+        }
+      });
+      return;
+    }
+
+    if (wasdMap[e.key]) {
+      e.preventDefault();
+      this.zone.run(() => this.moveFocus(wasdMap[e.key]));
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      this.activateCurrent();
+      return;
+    }
+
+    if (e.key === 'Escape' || e.key === 'Backspace') {
+      e.preventDefault();
+      this.goBack();
+    }
+  };
 
   private onGamepadConnected = (): void => {
     if (this.rafId === null) {

@@ -61,6 +61,7 @@ import { GamepadNavigationService } from '../../services/gamepad-navigation.serv
 export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('player', { static: false }) playerRef!: ElementRef<HTMLVideoElement>;
   @ViewChild('agoraContainer', { static: false }) agoraContainerRef!: ElementRef<HTMLElement>;
+  @ViewChild('nextBtn', { static: false }) nextBtnRef!: ElementRef<HTMLElement>;
   @HostListener('window:keydown', ['$event'])
   onKeyDown(e: KeyboardEvent) {
     if (this.dialog.openDialogs.length > 0) return;
@@ -182,6 +183,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.viewReady$.next(true);
     void this.tryPlayCurrent();
+    if (this.nextBtnRef?.nativeElement) {
+      this.gamepadNav.requestFocus(this.nextBtnRef.nativeElement);
+    }
   }
 
   ngOnDestroy() {

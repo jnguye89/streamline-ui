@@ -28,7 +28,7 @@
       <mat-icon>skip_previous</mat-icon>
     </button>
 
-    <button gamepadFocusable class="nav next" mat-icon-button (click)="next()" [disabled]="!hasMany" aria-label="Next">
+    <button #nextBtn gamepadFocusable class="nav next" mat-icon-button (click)="next()" [disabled]="!hasMany" aria-label="Next">
       <mat-icon>skip_next</mat-icon>
     </button>
 
