@@ -3,7 +3,7 @@
   </video> -->
   <!-- VOD player -->
   <video #player id="watch-player" [class.is-hidden]="currentItem?.type === 'live'"
-    (loadedmetadata)="onVideoLoaded(player)" playsinline controls>
+    (loadedmetadata)="onVideoLoaded(player)" (ended)="next()" playsinline controls>
   </video>
 
   <div #agoraContainer class="agora-container" [class.is-hidden]="currentItem?.type !== 'live'">
