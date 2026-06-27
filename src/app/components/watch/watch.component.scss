@@ -153,7 +153,8 @@
   z-index: 100;
   position: absolute;
   bottom: 5vh;
-  left: 50vw;
+  left: 50%;
+  transform: translateX(-50%);
   pointer-events: auto;
 
   /* Bigger touch target with subtle background */
