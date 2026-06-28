@@ -123,9 +123,11 @@
   width: clamp(44px, 6.5vh, 64px);
   height: clamp(44px, 6.5vh, 64px);
   border-radius: 9999px;
-  // backdrop-filter: blur(2px);
-  // background: rgba(0, 0, 0, 0.35);
   color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
 
   /* Improve Material icon sizing */
   .mat-icon {
@@ -147,6 +149,10 @@
 
 .nav.next {
   right: max(8px, env(safe-area-inset-right, 0px));
+}
+
+.nav.gamepad-focused {
+  transform: translateY(-50%) scale(1.05);
 }
 
 .profile {
@@ -171,6 +177,10 @@
     width: 1em;
     height: 1em;
     line-height: 1em;
+  }
+
+  &.gamepad-focused {
+    transform: translateX(-50%) scale(1.05);
   }
 }
 

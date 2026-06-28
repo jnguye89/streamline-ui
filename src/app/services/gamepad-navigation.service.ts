@@ -97,6 +97,7 @@ export class GamepadNavigationService implements OnDestroy {
   }
 
   requestFocus(el: HTMLElement): void {
+    console.log('request focus', el);
     this.focusElement(el);
   }
 
