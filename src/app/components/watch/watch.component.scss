@@ -119,9 +119,8 @@
   pointer-events: auto;
   z-index: 2;
 
-  /* Bigger touch target with subtle background */
-  width: clamp(44px, 6.5vh, 64px);
-  height: clamp(44px, 6.5vh, 64px);
+  width: clamp(33px, 4.9vh, 48px);
+  height: clamp(33px, 4.9vh, 48px);
   border-radius: 9999px;
   color: white;
   display: flex;
@@ -131,7 +130,7 @@
 
   /* Improve Material icon sizing */
   .mat-icon {
-    font-size: clamp(28px, 4vh, 40px);
+    font-size: clamp(21px, 3vh, 30px);
     width: 1em;
     height: 1em;
     line-height: 1em;
@@ -169,17 +168,15 @@
   transform: translateX(-50%);
   pointer-events: auto;
 
-  /* Bigger touch target with subtle background */
-  width: clamp(44px, 6.5vh, 64px);
-  height: clamp(44px, 6.5vh, 64px);
+  width: clamp(25px, 3.7vh, 36px);
+  height: clamp(25px, 3.7vh, 36px);
   border-radius: 9999px;
-  backdrop-filter: blur(2px);
-  // background: rgba(0, 0, 0, 0.35);
+  background: transparent !important;
   color: white;
 
   /* Improve Material icon sizing */
   .mat-icon {
-    font-size: clamp(28px, 4vh, 40px);
+    font-size: clamp(16px, 2.25vh, 23px);
     width: 1em;
     height: 1em;
     line-height: 1em;
