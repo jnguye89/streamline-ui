@@ -25,6 +25,10 @@ export class VideoService {
     return this.http.get<StreamStatus>(`${this.apiUrl}/video/status`);
   }
 
+  deleteVideo(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/video/${id}`);
+  }
+
   async uploadToPresignedUrl(
     file: File
   ): Promise<{ user: string; videoPath: string }> {

@@ -27,6 +27,12 @@
       <div class="video-item">
         <video [src]="video.processedPath ?? video.videoPath" controls loop class="video-player"></video>
         <mat-icon *ngIf="video.processedPath" class="processed-badge" matTooltip="Processed by Streamline">auto_awesome</mat-icon>
+        <button *ngIf="isOwnProfile && (isAuthenticated$ | async)"
+                mat-icon-button class="delete-btn"
+                (click)="deleteVideo(video)"
+                matTooltip="Delete video">
+          <mat-icon>delete</mat-icon>
+        </button>
       </div>
     </div>
   </div>

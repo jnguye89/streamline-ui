@@ -11,6 +11,20 @@
 
 .video-item {
   position: relative;
+
+  .delete-btn {
+    position: absolute;
+    top: 28px;
+    right: 28px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  &:hover .delete-btn {
+    opacity: 1;
+  }
 }
 
 .processed-badge {
