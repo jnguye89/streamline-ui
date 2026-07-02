@@ -137,9 +137,18 @@
     line-height: 1em;
   }
 
-  &:hover {
-    background: transparent;
-    color: rgba(0, 0, 0, 0.5);
+  --mat-icon-button-hover-state-layer-opacity: 0;
+  --mat-icon-button-pressed-state-layer-opacity: 0;
+  --mat-icon-button-focus-state-layer-opacity: 0;
+
+  &.gamepad-focused {
+    background-color: transparent !important;
+    box-shadow: none !important;
+    transform: translateY(-50%) !important;
+  }
+
+  ::ng-deep .mat-mdc-button-persistent-ripple {
+    display: none;
   }
 }
 
@@ -151,9 +160,6 @@
   right: max(8px, env(safe-area-inset-right, 0px));
 }
 
-.nav.gamepad-focused {
-  transform: translateY(-50%) scale(1.05);
-}
 
 .profile {
   z-index: 100;
@@ -179,8 +185,18 @@
     line-height: 1em;
   }
 
+  --mat-icon-button-hover-state-layer-opacity: 0;
+  --mat-icon-button-pressed-state-layer-opacity: 0;
+  --mat-icon-button-focus-state-layer-opacity: 0;
+
   &.gamepad-focused {
-    transform: translateX(-50%) scale(1.05);
+    background-color: transparent !important;
+    box-shadow: none !important;
+    transform: translateX(-50%) !important;
+  }
+
+  ::ng-deep .mat-mdc-button-persistent-ripple {
+    display: none;
   }
 }
 
