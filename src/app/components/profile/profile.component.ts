@@ -101,10 +101,13 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.isUploading = true;
     this.videoService
       .uploadToPresignedUrl(file)
-      .catch((er) => (this.isUploading = false))
-      .then((file) => {
+      .catch(() => { this.isUploading = false; })
+      .then(() => {
         this.isUploading = false;
-        this.videos.push(file);
+        this.deviceAuth.user$.pipe(
+          first(),
+          concatMap(user => user ? this.videoService.getUserVideos(`${user.sub}`) : [])
+        ).subscribe(videos => { this.videos = videos as any[]; });
       });
   }
 
