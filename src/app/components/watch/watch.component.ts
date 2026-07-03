@@ -6,6 +6,7 @@ import {
   HostListener,
   OnDestroy,
   OnInit,
+  Renderer2,
   ViewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -70,14 +71,36 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     const isTyping = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
     if (isTyping) return;
 
+    this.onUserActivity();
     if (e.key === 'ArrowLeft') { e.preventDefault(); this.previous(); }
     if (e.key === 'ArrowRight') { e.preventDefault(); this.next(); }
+  }
+
+  @HostListener('window:mousemove')
+  @HostListener('window:click')
+  onUserActivity(): void {
+    if (this.overlayHidden) this.overlayHidden = false;
+    this.scheduleHide();
   }
 
   private destroy$ = new Subject<void>();
 
   // UI state
   isPortrait = false;
+  private _overlayHidden = false;
+  get overlayHidden() { return this._overlayHidden; }
+  set overlayHidden(value: boolean) {
+    this._overlayHidden = value;
+    if (value) {
+      this.renderer.addClass(document.body, 'watch-overlay-hidden');
+    } else {
+      this.renderer.removeClass(document.body, 'watch-overlay-hidden');
+    }
+  }
+  private currentVideoDuration = 0;
+  private hideTimerRef: ReturnType<typeof setTimeout> | null = null;
+  private readonly HIDE_DELAY_MS = 2.5 * 60 * 1000;
+  private readonly MIN_DURATION_S = 2.5 * 60;
   playlist: (PlayItem | LiveStream)[] = [];
   currentIndex = 0;
   currentItem: PlayItem | LiveStream | null = null;
@@ -97,13 +120,14 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private agoraWatch: AgoraWatchService,
     private socket: RecordingSocketService,
     private dialog: MatDialog,
-    private gamepadNav: GamepadNavigationService
+    private gamepadNav: GamepadNavigationService,
+    private renderer: Renderer2
   ) { }
 
   ngOnInit() {
     this.gamepadNav.setDpadActions({
-      left: () => this.previous(),
-      right: () => this.next(),
+      left: () => { this.onUserActivity(); this.previous(); },
+      right: () => { this.onUserActivity(); this.next(); },
     });
     this.setUpSeo();
     this.socket.connect();
@@ -192,6 +216,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.clearAutoHide();
     this.gamepadNav.clearDpadActions();
     this.destroy$.next();
     this.destroy$.complete();
@@ -215,6 +240,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.playlist.length) return;
     this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
     this.currentItem = this.playlist[this.currentIndex];
+    this.clearAutoHide();
     void this.tryPlayCurrent();
   }
 
@@ -222,6 +248,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.playlist.length) return;
     this.currentIndex = (this.currentIndex - 1 + this.playlist.length) % this.playlist.length;
     this.currentItem = this.playlist[this.currentIndex];
+    this.clearAutoHide();
     void this.tryPlayCurrent();
   }
 
@@ -229,7 +256,21 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (i < 0 || i >= this.playlist.length) return;
     this.currentIndex = i;
     this.currentItem = this.playlist[i];
+    this.clearAutoHide();
     void this.tryPlayCurrent();
+  }
+
+  // Auto-hide overlay
+  private scheduleHide(): void {
+    if (this.hideTimerRef) clearTimeout(this.hideTimerRef);
+    if (this.currentItem?.type !== 'vod' || this.currentVideoDuration < this.MIN_DURATION_S) return;
+    this.hideTimerRef = setTimeout(() => { this.overlayHidden = true; }, this.HIDE_DELAY_MS);
+  }
+
+  private clearAutoHide(): void {
+    if (this.hideTimerRef) { clearTimeout(this.hideTimerRef); this.hideTimerRef = null; }
+    this.overlayHidden = false;
+    this.currentVideoDuration = 0;
   }
 
   // Make this async (and call it with void)
@@ -289,6 +330,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     video.defaultMuted = false;
     video.muted = false;
     video.play().catch(() => { });
+    this.currentVideoDuration = video.duration;
+    this.scheduleHide();
   }
 
   goToProfile() {

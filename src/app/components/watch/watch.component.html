@@ -1,4 +1,4 @@
-<div class="watch-container" [class.portrait]="isPortrait">
+<div class="watch-container" [class.portrait]="isPortrait" [class.overlay-hidden]="overlayHidden">
   <!-- <video #player id="watch-player" controls autoplay playsinline loop (loadedmetadata)="onVideoLoaded(player)">
   </video> -->
   <!-- VOD player -->
@@ -10,7 +10,7 @@
   </div>
 
   <!-- Overlay (fills the container) -->
-  <div class="overlay">
+  <div class="overlay" [class.hidden]="overlayHidden">
     <!-- Top-left title + LIVE chip -->
     <div class="topbar">
       <mat-chip-set>
