@@ -1,12 +1,140 @@
 :host {
-  /* the component’s root element */
-  position: fixed; /* pin to viewport so scrolling stays inside iframe */
-  inset: 0; /* shorthand for top:0 right:0 bottom:0 left:0 */
-  z-index: 0; /* sit below any overlays you add later */
+  position: fixed;
+  inset: 0;
+  z-index: 0;
 }
 
-iframe {
+.converse-page {
   width: 100%;
   height: 100%;
-  border: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  background: #000;
+  color: #fff;
+  text-align: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #9aa0a6;
+  transition: background-color 0.2s ease;
+
+  &--listening {
+    background: #4ade80;
+  }
+
+  &--speaking {
+    background: #8b5cf6;
+  }
+
+  &--error {
+    background: #f87171;
+  }
+}
+
+.helper-text {
+  font-size: 18px;
+  color: #e5e5e5;
+  margin: 0;
+}
+
+.orb-button {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 4px solid #a5adf7;
+  background: #6c6ce0;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    transform: scale(1.03);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &--connecting {
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  &--listening {
+    background: #4ade80;
+    border-color: #86efac;
+  }
+
+  &--speaking {
+    background: #e2645c;
+    border-color: #f0a29b;
+    animation: pulse 0.9s ease-in-out infinite;
+  }
+
+  &--error {
+    background: #ef4444;
+    border-color: #fca5a5;
+  }
+}
+
+.orb-icon {
+  font-size: 48px;
+}
+
+.orb-label {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.waveform {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+}
+
+.waveform-bar {
+  width: 6px;
+  min-height: 20%;
+  border-radius: 3px;
+  background: #8b5cf6;
+  transition: height 0.1s ease-out;
+}
+
+.caption {
+  font-size: 18px;
+  color: #e5e5e5;
+  margin: 0;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 16px rgba(255, 255, 255, 0);
+  }
 }

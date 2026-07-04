@@ -1,8 +1,37 @@
-<iframe
-  class="w-full h-full"
-  [src]="safeUrl"
-  loading="lazy"
-  allow="microphone; camera"
-  frameborder="0"
->
-</iframe>
+<div class="converse-page">
+  <div class="status-row">
+    <span
+      class="status-dot"
+      [class.status-dot--listening]="viewState === 'connected' && mode === 'listening'"
+      [class.status-dot--speaking]="viewState === 'connected' && mode === 'speaking'"
+      [class.status-dot--error]="viewState === 'error'"
+    ></span>
+    <span class="status-label">{{ statusLabel }}</span>
+  </div>
+
+  <p class="helper-text">{{ helperText }}</p>
+
+  <button
+    type="button"
+    gamepadFocusable
+    class="orb-button"
+    [class.orb-button--connecting]="viewState === 'connecting'"
+    [class.orb-button--listening]="viewState === 'connected' && mode === 'listening'"
+    [class.orb-button--speaking]="viewState === 'connected' && mode === 'speaking'"
+    [class.orb-button--error]="viewState === 'error'"
+    (click)="onOrbClick()"
+  >
+    <span class="orb-icon">{{ buttonIcon }}</span>
+    <span class="orb-label">{{ buttonLabel }}</span>
+  </button>
+
+  <div class="waveform" *ngIf="viewState === 'connected'">
+    <span
+      class="waveform-bar"
+      *ngFor="let level of bars"
+      [style.height.%]="20 + level * 80"
+    ></span>
+  </div>
+
+  <p class="caption">Talk to me :)</p>
+</div>
