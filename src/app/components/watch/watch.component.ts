@@ -99,8 +99,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   private currentVideoDuration = 0;
   private hideTimerRef: ReturnType<typeof setTimeout> | null = null;
-  private readonly HIDE_DELAY_MS = 2.5 * 60 * 1000;
-  private readonly MIN_DURATION_S = 2.5 * 60;
+  private readonly HIDE_DELAY_MS = 1 * 60 * 1000;
+  private readonly MIN_DURATION_S = 1 * 60;
   playlist: (PlayItem | LiveStream)[] = [];
   currentIndex = 0;
   currentItem: PlayItem | LiveStream | null = null;
