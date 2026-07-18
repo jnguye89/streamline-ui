@@ -40,6 +40,8 @@ import { LiveStream } from '../../models/live-stream.model';
 import { RecordingSocketService } from '../../services/socket/recording.service';
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
 import { GamepadNavigationService } from '../../services/gamepad-navigation.service';
+import { DeviceAuthService } from '../../services/device-auth.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-watch',
@@ -83,6 +85,11 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.scheduleHide();
   }
 
+  @HostListener('window:beforeunload')
+  onBeforeUnload(): void {
+    this.sendProgress(true);
+  }
+
   private destroy$ = new Subject<void>();
 
   // UI state
@@ -101,6 +108,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private hideTimerRef: ReturnType<typeof setTimeout> | null = null;
   private readonly HIDE_DELAY_MS = 1 * 60 * 1000;
   private readonly MIN_DURATION_S = 1 * 60;
+  private progressPingRef: ReturnType<typeof setInterval> | null = null;
+  private readonly PROGRESS_PING_MS = 10 * 1000;
+  private readonly RESUME_NEAR_END_S = 15;
   playlist: (PlayItem | LiveStream)[] = [];
   currentIndex = 0;
   currentItem: PlayItem | LiveStream | null = null;
@@ -121,7 +131,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private socket: RecordingSocketService,
     private dialog: MatDialog,
     private gamepadNav: GamepadNavigationService,
-    private renderer: Renderer2
+    private renderer: Renderer2,
+    private deviceAuth: DeviceAuthService
   ) { }
 
   ngOnInit() {
@@ -216,6 +227,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.stopProgressPing();
+    this.sendProgress(true);
     this.clearAutoHide();
     this.gamepadNav.clearDpadActions();
     this.destroy$.next();
@@ -233,6 +246,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Navigation
   next() {
+    this.stopProgressPing();
+    this.sendProgress();
     var curr = this.currentItem as LiveStream;
     if (curr?.type === 'live') {
       this.socket.leaveRoom(curr.channelName);
@@ -245,6 +260,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   previous() {
+    this.stopProgressPing();
+    this.sendProgress();
     if (!this.playlist.length) return;
     this.currentIndex = (this.currentIndex - 1 + this.playlist.length) % this.playlist.length;
     this.currentItem = this.playlist[this.currentIndex];
@@ -254,6 +271,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   select(i: number) {
     if (i < 0 || i >= this.playlist.length) return;
+    this.stopProgressPing();
+    this.sendProgress();
     this.currentIndex = i;
     this.currentItem = this.playlist[i];
     this.clearAutoHide();
@@ -329,9 +348,75 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isPortrait = aspectRatio < 1;
     video.defaultMuted = false;
     video.muted = false;
+    this.applyResumeTimestamp(video);
     video.play().catch(() => { });
     this.currentVideoDuration = video.duration;
     this.scheduleHide();
+  }
+
+  onVideoPlay(): void {
+    this.startProgressPing();
+  }
+
+  onVideoPause(): void {
+    this.stopProgressPing();
+    this.sendProgress();
+  }
+
+  private applyResumeTimestamp(video: HTMLVideoElement): void {
+    if (this.currentItem?.type !== 'vod') return;
+    if (!this.deviceAuth.getAccessToken()) return; // not logged in -> always starts at 0:00
+
+    const resume = this.currentItem.resumeTimestamp;
+    if (!resume || resume <= 0) return;
+
+    // If they basically finished it last time, start over instead of resuming near the end
+    if (!Number.isNaN(video.duration) && video.duration - resume <= this.RESUME_NEAR_END_S) return;
+
+    if (resume < video.duration) video.currentTime = resume;
+  }
+
+  private startProgressPing(): void {
+    if (this.progressPingRef) return;
+    this.progressPingRef = setInterval(() => this.sendProgress(), this.PROGRESS_PING_MS);
+  }
+
+  private stopProgressPing(): void {
+    if (this.progressPingRef) {
+      clearInterval(this.progressPingRef);
+      this.progressPingRef = null;
+    }
+  }
+
+  private sendProgress(useBeacon = false): void {
+    if (this.currentItem?.type !== 'vod') return;
+
+    const token = this.deviceAuth.getAccessToken();
+    if (!token) return; // anonymous viewing isn't tracked
+
+    const el = this.playerRef?.nativeElement;
+    if (!el) return;
+
+    const timestamp = Math.floor(el.currentTime);
+    const id = this.currentItem.id;
+
+    // Keep the in-memory playlist item in sync so navigating back to this
+    // video later in the session resumes from here, not the stale value
+    // fetched on page load.
+    this.currentItem.resumeTimestamp = timestamp;
+
+    if (useBeacon) {
+      const url = `${environment.baseUrl}/video/${id}/progress`;
+      fetch(url, {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ timestamp })
+      }).catch(() => { });
+      return;
+    }
+
+    this.videoService.updateProgress(id, timestamp).subscribe({ error: () => { } });
   }
 
   goToProfile() {
@@ -362,7 +447,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       user: (v as any).user,
       src: v.processedPath ?? v.videoPath,
       thumbnail: (v as any).thumbnail,
-      isProcessed: !!v.processedPath
+      isProcessed: !!v.processedPath,
+      resumeTimestamp: v.resumeTimestamp
     };
   }
 

@@ -29,6 +29,10 @@ export class VideoService {
     return this.http.delete<void>(`${this.apiUrl}/video/${id}`);
   }
 
+  updateProgress(id: number | string, timestamp: number): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/video/${id}/progress`, { timestamp });
+  }
+
   async uploadToPresignedUrl(
     file: File
   ): Promise<{ user: string; videoPath: string }> {
