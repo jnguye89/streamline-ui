@@ -111,6 +111,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private progressPingRef: ReturnType<typeof setInterval> | null = null;
   private readonly PROGRESS_PING_MS = 10 * 1000;
   private readonly RESUME_NEAR_END_S = 15;
+  private readonly VOD_PAGE_SIZE = 20;
+  private readonly VOD_PREFETCH_THRESHOLD = 5;
   playlist: (PlayItem | LiveStream)[] = [];
   currentIndex = 0;
   currentItem: PlayItem | LiveStream | null = null;
@@ -119,6 +121,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // Internal streams
   // private playlist$ = new BehaviorSubject<PlayItem[]>([]);
   private viewReady$ = new BehaviorSubject<boolean>(false);
+  private vodItems$ = new BehaviorSubject<PlayItem[]>([]);
+  private isLoadingMoreVods = false;
+  private vodExhausted = false;
 
   constructor(
     private videoService: VideoService,
@@ -147,12 +152,16 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       this.next();
     })
 
-    // 1) VOD: fetch once, shuffle once, cache
-    const vod$ = this.videoService.getVideos().pipe(
-      map(videos => videos.map(v => this.mapVod(v))),
-      map(vods => this.shuffle(vods)),                         // <-- shuffle ONCE
-      shareReplay({ bufferSize: 1, refCount: true })
-    );
+    // 1) VOD: server-randomized, no-repeat feed, paged in as the playlist is
+    // consumed (see loadMoreVods / next())
+    const vod$ = this.vodItems$.asObservable();
+    this.loadMoreVods();
+
+    // Cross-device resume: if logged in and not deep-linked to a specific
+    // video, jump to whatever they were last watching (any device, any time).
+    if (this.deviceAuth.getAccessToken() && !this.route.snapshot.paramMap.get('id')) {
+      this.applyContinueWatching();
+    }
 
     // 2) LIVE: poll, sort deterministically, suppress repeats
     const live$ = timer(0, 15000).pipe(
@@ -253,6 +262,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       this.socket.leaveRoom(curr.channelName);
     }
     if (!this.playlist.length) return;
+    if (this.currentIndex >= this.playlist.length - this.VOD_PREFETCH_THRESHOLD) {
+      this.loadMoreVods();
+    }
     this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
     this.currentItem = this.playlist[this.currentIndex];
     this.clearAutoHide();
@@ -458,13 +470,62 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     return a.id === b.id || a.src === (b as any).src;
   }
 
+  // Fetches the next page from the server's randomized, no-repeat feed and
+  // appends it. The server only dedupes for logged-in users, so unseen ids
+  // are also filtered here as a safety net for anonymous viewers; if a page
+  // comes back with nothing new, stop prefetching and let next()/previous()
+  // fall back to wrapping around the playlist already loaded.
+  private loadMoreVods(): void {
+    if (this.isLoadingMoreVods || this.vodExhausted) return;
+    this.isLoadingMoreVods = true;
 
-  private shuffle<T>(input: T[]): T[] {
-    const arr = input.slice();               // don't mutate the original
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
+    this.videoService.getVideos(this.VOD_PAGE_SIZE)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (videos) => {
+          const existingIds = new Set(this.vodItems$.value.map(v => v.id));
+          const fresh = videos
+            .map(v => this.mapVod(v))
+            .filter(v => !existingIds.has(v.id));
+
+          if (fresh.length === 0) {
+            this.vodExhausted = true;
+          } else {
+            this.vodItems$.next([...this.vodItems$.value, ...fresh]);
+          }
+          this.isLoadingMoreVods = false;
+        },
+        error: () => { this.isLoadingMoreVods = false; }
+      });
+  }
+
+  // Prepends the last video the user was watching (on any device) and jumps
+  // to it. Doesn't interrupt a live stream that's already playing by the
+  // time this resolves.
+  private applyContinueWatching(): void {
+    this.videoService.getContinueWatching()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (video) => {
+          if (!video) return;
+          const item = this.mapVod(video);
+
+          const current = this.vodItems$.value;
+          if (!current.some(v => v.id === item.id)) {
+            this.vodItems$.next([item, ...current]);
+          }
+
+          if (this.currentItem?.type !== 'live') {
+            const idx = this.playlist.findIndex(p => p.type === 'vod' && p.id === item.id);
+            if (idx >= 0) {
+              this.currentIndex = idx;
+              this.currentItem = this.playlist[idx];
+              this.clearAutoHide();
+              void this.tryPlayCurrent();
+            }
+          }
+        },
+        error: () => { }
+      });
   }
 }

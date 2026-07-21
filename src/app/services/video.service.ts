@@ -17,8 +17,14 @@ export class VideoService {
     return this.http.get<any[]>(`${this.apiUrl}/video/user/${id}`);
   }
 
-  getVideos(): Observable<Video[]> {
-    return this.http.get<Video[]>(`${this.apiUrl}/video`);
+  getVideos(limit?: number): Observable<Video[]> {
+    const params: Record<string, string> = {};
+    if (limit) params['limit'] = String(limit);
+    return this.http.get<Video[]>(`${this.apiUrl}/video`, { params });
+  }
+
+  getContinueWatching(): Observable<Video | null> {
+    return this.http.get<Video | null>(`${this.apiUrl}/video/continue-watching`);
   }
 
   getStreamStatus(): Observable<StreamStatus> {
