@@ -114,6 +114,16 @@
   pointer-events: none;
 }
 
+.preload-container {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* Optional top-right profile button */
 .topright {
   position: absolute;

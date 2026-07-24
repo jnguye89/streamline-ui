@@ -10,6 +10,9 @@
   <div #agoraContainer class="agora-container" [class.is-hidden]="currentItem?.type !== 'live'">
   </div>
 
+  <!-- Off-screen pool that buffers the next few VODs ahead of time -->
+  <div #preloadContainer class="preload-container"></div>
+
   <!-- Overlay (fills the container) -->
   <div class="overlay" [class.hidden]="overlayHidden">
     <!-- Top-left title + LIVE chip -->

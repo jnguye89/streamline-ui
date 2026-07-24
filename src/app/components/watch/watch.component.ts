@@ -63,6 +63,7 @@ import { environment } from '../../../environments/environment';
 
 export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('player', { static: false }) playerRef!: ElementRef<HTMLVideoElement>;
+  @ViewChild('preloadContainer', { static: false }) preloadContainerRef!: ElementRef<HTMLElement>;
   @ViewChild('agoraContainer', { static: false }) agoraContainerRef!: ElementRef<HTMLElement>;
   @ViewChild('nextBtn', { static: true, read: ElementRef }) nextBtnRef!: ElementRef<HTMLElement>;
   @HostListener('window:keydown', ['$event'])
@@ -124,6 +125,15 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private vodItems$ = new BehaviorSubject<PlayItem[]>([]);
   private isLoadingMoreVods = false;
   private vodExhausted = false;
+  private readonly PRELOAD_WINDOW_SIZE = 5;
+  // Only the very next video gets a real, fully-buffered <video> element -
+  // browsers cap how many media elements can actively decode/buffer at once,
+  // and blowing that budget was stalling the *real* player once you'd
+  // navigated past a handful of videos. The rest of the window is just
+  // warmed into the HTTP cache via <link rel="prefetch">, which doesn't
+  // touch a decoder.
+  private hotPreload: { src: string; el: HTMLVideoElement } | null = null;
+  private warmPrefetch = new Map<string, HTMLLinkElement>();
 
   constructor(
     private videoService: VideoService,
@@ -251,6 +261,14 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.agoraWatch.stop();
     const v = this.playerRef?.nativeElement;
     if (v) { v.src = ''; v.load(); }
+    if (this.hotPreload) {
+      this.hotPreload.el.src = '';
+      this.hotPreload.el.load();
+      this.hotPreload.el.remove();
+      this.hotPreload = null;
+    }
+    for (const [, link] of this.warmPrefetch) { link.remove(); }
+    this.warmPrefetch.clear();
   }
 
   // Navigation
@@ -310,6 +328,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // stop any previous live session when switching items
     await this.agoraWatch.stop();
+    this.computePreloadWindow();
 
     const el = this.playerRef?.nativeElement;
 
@@ -352,6 +371,63 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       await el.play();
     } catch (e) {
       console.warn('Failed to start VOD:', e);
+    }
+  }
+
+  // Keeps a sliding window of the next PRELOAD_WINDOW_SIZE VODs warmed up so
+  // playback is ready by the time the user gets there. Live items aren't
+  // preloadable this way (joined via Agora, not a src URL), so those are
+  // skipped when building the window. Each step forward drops whatever
+  // fell out of range and picks up exactly one new item at the tail.
+  private computePreloadWindow(): void {
+    const container = this.preloadContainerRef?.nativeElement;
+    if (!container || !this.playlist.length) return;
+
+    const target: string[] = [];
+    const seen = new Set<string>();
+    for (let step = 1; step < this.playlist.length && target.length < this.PRELOAD_WINDOW_SIZE; step++) {
+      const idx = (this.currentIndex + step) % this.playlist.length;
+      const item = this.playlist[idx];
+      if (!item || item.type !== 'vod') continue;
+      const src = item.src;
+      if (!src || seen.has(src)) continue;
+      seen.add(src);
+      target.push(src);
+    }
+
+    const [hotSrc, ...warmSrcs] = target;
+
+    if (this.hotPreload && this.hotPreload.src !== hotSrc) {
+      this.hotPreload.el.src = '';
+      this.hotPreload.el.load();
+      this.hotPreload.el.remove();
+      this.hotPreload = null;
+    }
+    if (hotSrc && !this.hotPreload) {
+      const el = document.createElement('video');
+      el.preload = 'auto';
+      el.muted = true;
+      el.playsInline = true;
+      el.src = hotSrc;
+      container.appendChild(el);
+      el.load();
+      this.hotPreload = { src: hotSrc, el };
+    }
+
+    const warmSet = new Set(warmSrcs);
+    for (const [src, link] of this.warmPrefetch) {
+      if (warmSet.has(src)) continue;
+      link.remove();
+      this.warmPrefetch.delete(src);
+    }
+    for (const src of warmSrcs) {
+      if (this.warmPrefetch.has(src)) continue;
+      const link = document.createElement('link');
+      link.rel = 'prefetch';
+      link.as = 'video';
+      link.href = src;
+      document.head.appendChild(link);
+      this.warmPrefetch.set(src, link);
     }
   }
 
