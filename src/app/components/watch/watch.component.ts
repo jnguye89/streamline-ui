@@ -134,6 +134,11 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // touch a decoder.
   private hotPreload: { src: string; el: HTMLVideoElement } | null = null;
   private warmPrefetch = new Map<string, HTMLLinkElement>();
+  // Give the main player's own buffering a head start before competing for
+  // bandwidth - starting preload the instant we navigate was slowing down
+  // the video actually on screen.
+  private readonly PRELOAD_DELAY_MS = 3 * 1000;
+  private preloadTimerRef: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private videoService: VideoService,
@@ -249,6 +254,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.stopProgressPing();
     this.sendProgress(true);
     this.clearAutoHide();
+    if (this.preloadTimerRef) { clearTimeout(this.preloadTimerRef); this.preloadTimerRef = null; }
     this.gamepadNav.clearDpadActions();
     this.destroy$.next();
     this.destroy$.complete();
@@ -328,7 +334,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // stop any previous live session when switching items
     await this.agoraWatch.stop();
-    this.computePreloadWindow();
+    this.schedulePreloadWindow();
 
     const el = this.playerRef?.nativeElement;
 
@@ -374,6 +380,14 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  private schedulePreloadWindow(): void {
+    if (this.preloadTimerRef) clearTimeout(this.preloadTimerRef);
+    this.preloadTimerRef = setTimeout(() => {
+      this.preloadTimerRef = null;
+      this.computePreloadWindow();
+    }, this.PRELOAD_DELAY_MS);
+  }
+
   // Keeps a sliding window of the next PRELOAD_WINDOW_SIZE VODs warmed up so
   // playback is ready by the time the user gets there. Live items aren't
   // preloadable this way (joined via Agora, not a src URL), so those are
@@ -408,6 +422,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       el.preload = 'auto';
       el.muted = true;
       el.playsInline = true;
+      (el as any).fetchPriority = 'low'; // don't compete with the visible player's own buffering
       el.src = hotSrc;
       container.appendChild(el);
       el.load();
@@ -425,6 +440,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       const link = document.createElement('link');
       link.rel = 'prefetch';
       link.as = 'video';
+      (link as any).fetchPriority = 'low';
       link.href = src;
       document.head.appendChild(link);
       this.warmPrefetch.set(src, link);
