@@ -19,4 +19,6 @@ export type PlayItem =
       thumbnail?: string;
       isProcessed?: boolean;
       resumeTimestamp?: number;
+      viewCount?: number;
+      likeCount?: number;
     };

@@ -4,4 +4,6 @@ export interface Video {
     processedPath: string;
     id: number;
     resumeTimestamp?: number;
+    viewCount?: number;
+    likeCount?: number;
 }

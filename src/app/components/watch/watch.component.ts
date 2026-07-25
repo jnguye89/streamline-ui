@@ -532,6 +532,20 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (user) this.router.navigate(['/profile', user]);
   }
 
+  onView(): void {
+    if (this.currentItem?.type !== 'vod') return;
+    const item = this.currentItem;
+    item.viewCount = (item.viewCount ?? 0) + 1;
+    this.videoService.addView(item.id).subscribe({ error: () => { } });
+  }
+
+  onLike(): void {
+    if (this.currentItem?.type !== 'vod') return;
+    const item = this.currentItem;
+    item.likeCount = (item.likeCount ?? 0) + 1;
+    this.videoService.addLike(item.id).subscribe({ error: () => { } });
+  }
+
 
   // Helpers
   private setUpSeo() {
@@ -552,7 +566,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       src: v.processedPath ?? v.videoPath,
       thumbnail: (v as any).thumbnail,
       isProcessed: !!v.processedPath,
-      resumeTimestamp: v.resumeTimestamp
+      resumeTimestamp: v.resumeTimestamp,
+      viewCount: v.viewCount,
+      likeCount: v.likeCount
     };
   }
 

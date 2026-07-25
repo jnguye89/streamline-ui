@@ -181,7 +181,8 @@
 }
 
 
-.profile {
+/* Bottom action row: view count (left), profile/down (center), like count (right) */
+.bottom-actions {
   z-index: 100;
   position: absolute;
   bottom: 5vh;
@@ -189,13 +190,26 @@
   transform: translateX(-50%);
   pointer-events: auto;
 
-  width: clamp(25px, 3.7vh, 36px);
+  display: flex;
+  align-items: center;
+  gap: clamp(20px, 5vw, 48px);
+}
+
+.profile {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  /* Same box model as .action (plain button, no mat-icon-button) so the
+     icons line up on the exact same row */
   height: clamp(25px, 3.7vh, 36px);
-  border-radius: 9999px;
-  background: transparent !important;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
   color: white;
 
-  /* Improve Material icon sizing */
   .mat-icon {
     font-size: clamp(16px, 2.25vh, 23px);
     width: 1em;
@@ -203,18 +217,46 @@
     line-height: 1em;
   }
 
-  --mat-icon-button-hover-state-layer-opacity: 0;
-  --mat-icon-button-pressed-state-layer-opacity: 0;
-  --mat-icon-button-focus-state-layer-opacity: 0;
-
   &.gamepad-focused {
-    background-color: transparent !important;
-    box-shadow: none !important;
-    transform: translateX(-50%) !important;
+    outline: 2px solid white;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+.action {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+
+  /* Match .profile's height so the icons themselves line up on one row */
+  height: clamp(25px, 3.7vh, 36px);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: white;
+
+  .mat-icon {
+    font-size: clamp(16px, 2.25vh, 23px);
+    width: 1em;
+    height: 1em;
+    line-height: 1em;
   }
 
-  ::ng-deep .mat-mdc-button-persistent-ripple {
-    display: none;
+  .count {
+    white-space: nowrap;
+    font-size: clamp(11px, 1.6vh, 14px);
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, .6);
+  }
+
+  &.gamepad-focused {
+    outline: 2px solid white;
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 }
 

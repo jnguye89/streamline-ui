@@ -39,6 +39,14 @@ export class VideoService {
     return this.http.post<void>(`${this.apiUrl}/video/${id}/progress`, { timestamp });
   }
 
+  addView(id: number | string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/video/${id}/view`, {});
+  }
+
+  addLike(id: number | string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/video/${id}/like`, {});
+  }
+
   async uploadToPresignedUrl(
     file: File
   ): Promise<{ user: string; videoPath: string }> {
