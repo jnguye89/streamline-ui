@@ -21,4 +21,5 @@ export type PlayItem =
       resumeTimestamp?: number;
       viewCount?: number;
       likeCount?: number;
+      liked?: boolean;
     };

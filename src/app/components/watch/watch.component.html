@@ -38,17 +38,18 @@
 
     <!-- Bottom action row: view count, profile/down, like count -->
     <div class="bottom-actions">
-      <button *ngIf="currentItem?.type === 'vod'" gamepadFocusable class="action view" (click)="onView()" aria-label="View">
+      <div *ngIf="currentItem?.type === 'vod'" class="action view" aria-label="View count">
         <span class="count">{{ $any(currentItem).viewCount ?? 0 | number }}</span>
         <mat-icon>visibility</mat-icon>
-      </button>
+      </div>
 
       <button gamepadFocusable class="profile" (click)="goToProfile()" aria-label="Profile">
         <mat-icon>arrow_downward</mat-icon>
       </button>
 
-      <button *ngIf="currentItem?.type === 'vod'" gamepadFocusable class="action like" (click)="onLike()" aria-label="Like">
-        <mat-icon>favorite</mat-icon>
+      <button *ngIf="currentItem?.type === 'vod'" gamepadFocusable class="action like" [class.liked]="$any(currentItem).liked"
+        [disabled]="$any(currentItem).liked" (click)="onLike()" [attr.aria-label]="$any(currentItem).liked ? 'Already liked' : 'Like'">
+        <mat-icon>{{ $any(currentItem).liked ? 'favorite' : 'favorite_border' }}</mat-icon>
         <span class="count">{{ $any(currentItem).likeCount ?? 0 | number }}</span>
       </button>
     </div>

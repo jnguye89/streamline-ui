@@ -125,6 +125,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private vodItems$ = new BehaviorSubject<PlayItem[]>([]);
   private isLoadingMoreVods = false;
   private vodExhausted = false;
+  private lastViewCountedId: string | number | null = null;
   private readonly PRELOAD_WINDOW_SIZE = 5;
   // Only the very next video gets a real, fully-buffered <video> element -
   // browsers cap how many media elements can actively decode/buffer at once,
@@ -460,6 +461,19 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onVideoPlay(): void {
     this.startProgressPing();
+    this.registerView();
+  }
+
+  // Counts a view the moment a video actually starts playing, once per
+  // video - not on every play/pause resume within the same video.
+  private registerView(): void {
+    if (this.currentItem?.type !== 'vod') return;
+    const item = this.currentItem;
+    if (this.lastViewCountedId === item.id) return;
+
+    this.lastViewCountedId = item.id;
+    item.viewCount = (item.viewCount ?? 0) + 1;
+    this.videoService.addView(item.id).subscribe({ error: () => { } });
   }
 
   onVideoPause(): void {
@@ -532,16 +546,12 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (user) this.router.navigate(['/profile', user]);
   }
 
-  onView(): void {
-    if (this.currentItem?.type !== 'vod') return;
-    const item = this.currentItem;
-    item.viewCount = (item.viewCount ?? 0) + 1;
-    this.videoService.addView(item.id).subscribe({ error: () => { } });
-  }
-
   onLike(): void {
     if (this.currentItem?.type !== 'vod') return;
     const item = this.currentItem;
+    if (item.liked) return;
+
+    item.liked = true;
     item.likeCount = (item.likeCount ?? 0) + 1;
     this.videoService.addLike(item.id).subscribe({ error: () => { } });
   }
@@ -568,7 +578,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       isProcessed: !!v.processedPath,
       resumeTimestamp: v.resumeTimestamp,
       viewCount: v.viewCount,
-      likeCount: v.likeCount
+      likeCount: v.likeCount,
+      liked: v.liked
     };
   }
 

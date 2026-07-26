@@ -236,7 +236,6 @@
   background: transparent;
   border: none;
   padding: 0;
-  cursor: pointer;
   color: white;
 
   .mat-icon {
@@ -257,6 +256,18 @@
     outline: 2px solid white;
     outline-offset: 2px;
     border-radius: 4px;
+  }
+}
+
+.action.like {
+  cursor: pointer;
+
+  &.liked {
+    cursor: default;
+
+    .mat-icon {
+      color: #ff375f;
+    }
   }
 }
 
