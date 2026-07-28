@@ -19,6 +19,9 @@
     </button>
     <input type="file" accept="video/*" #fileInput style="display: none" [disabled]="isUploading"
       (change)="onFileSelected($event)" />
+    <button gamepadFocusable mat-stroked-button (click)="openStreamKeys()">
+      <mat-icon>settings_input_antenna</mat-icon> Streaming
+    </button>
   </div>
   <br />
   <h1>Videos</h1>

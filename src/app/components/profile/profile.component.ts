@@ -16,6 +16,7 @@ import { PlayerStateService } from "../../state/player-state.service";
 import { DeviceAuthService } from "../../services/device-auth.service";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
+import { StreamKeysDialog } from "../dialogs/stream-keys.dialog";
 
 @Component({
   selector: "app-profile",
@@ -91,6 +92,10 @@ export class ProfileComponent implements OnInit, OnDestroy {
     const url = `/watch/${this.store.snapshot?.id}`;
     this.store.clear();
     this.router.navigate([url]);
+  }
+
+  openStreamKeys(): void {
+    this.dialog.open(StreamKeysDialog, { panelClass: 'spotlight-panel', autoFocus: false });
   }
 
   onFileSelected(event: Event) {

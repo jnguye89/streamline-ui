@@ -1,0 +1,108 @@
+@import "tokens";
+
+.stream-keys-dialog {
+  background: var(--c-bg);
+  color: var(--c-on-surface);
+  padding: 1rem 1.5rem 1.5rem;
+  min-width: min(90vw, 760px);
+  max-width: 90vw;
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 1.5rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+
+  button {
+    color: var(--c-on-surface);
+  }
+}
+
+.loading-state {
+  opacity: 0.6;
+  padding: 1rem 0;
+}
+
+.platform-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.platform-card {
+  flex: 1 1 200px;
+  background: var(--c-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.platform-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+
+  .platform-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .platform-status {
+    font-size: 0.8rem;
+
+    &.saved {
+      color: #3ddc84;
+    }
+
+    &.error {
+      color: #ff5252;
+    }
+  }
+}
+
+.field-label {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin-top: 6px;
+}
+
+.field-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: var(--c-on-surface);
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  font-family: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: var(--c-primary);
+  }
+
+  &.invalid {
+    border-color: #ff5252;
+  }
+}
+
+.field-error {
+  font-size: 0.75rem;
+  color: #ff5252;
+  margin-top: -2px;
+}
+
+.save-btn {
+  margin-top: 12px;
+  align-self: flex-start;
+}

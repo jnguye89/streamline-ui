@@ -1,0 +1,34 @@
+<div class="stream-keys-dialog">
+  <div class="dialog-header">
+    <button gamepadFocusable mat-icon-button (click)="close()" aria-label="Close">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h2>streaming</h2>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">Loading your streaming settings...</div>
+
+  <div class="platform-grid" *ngIf="!loading">
+    <div class="platform-card" *ngFor="let entry of platforms">
+      <div class="platform-header">
+        <span class="platform-name">{{ entry.label }}</span>
+        <span class="platform-status saved" *ngIf="entry.saved">saved</span>
+        <span class="platform-status error" *ngIf="entry.error">save failed</span>
+      </div>
+
+      <label class="field-label">stream url{{ entry.requiresUrl ? '' : ' (optional)' }}</label>
+      <input class="field-input" [class.invalid]="isUrlDirty(entry) && urlError(entry)" type="text"
+        [(ngModel)]="entry.streamUrl" placeholder="rtmp://..." autocomplete="off" />
+      <span class="field-error" *ngIf="isUrlDirty(entry) && urlError(entry) as err">{{ err }}</span>
+
+      <label class="field-label">stream key</label>
+      <input class="field-input" type="password" [(ngModel)]="entry.streamKey" placeholder="paste your stream key"
+        autocomplete="off" />
+
+      <button gamepadFocusable mat-flat-button color="primary" class="save-btn"
+        [disabled]="!canSave(entry)" (click)="save(entry)">
+        {{ entry.saving ? 'saving...' : 'save' }}
+      </button>
+    </div>
+  </div>
+</div>
