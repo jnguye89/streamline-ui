@@ -80,6 +80,15 @@
   padding: 20px;
 }
 
+/* <video> sizes itself from its intrinsic dimensions; <iframe> has none, so
+   the YouTube embed needs an explicit box to fill within the same padding. */
+.youtube-frame {
+  box-sizing: content-box;
+  width: min(30vw, 480px);
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
 .upload-overlay {
   position: fixed;
   top: 0;

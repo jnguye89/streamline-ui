@@ -16,10 +16,12 @@
         <span class="platform-status error" *ngIf="entry.error">save failed</span>
       </div>
 
-      <label class="field-label">stream url{{ entry.requiresUrl ? '' : ' (optional)' }}</label>
-      <input class="field-input" [class.invalid]="isUrlDirty(entry) && urlError(entry)" type="text"
-        [(ngModel)]="entry.streamUrl" placeholder="rtmp://..." autocomplete="off" />
-      <span class="field-error" *ngIf="isUrlDirty(entry) && urlError(entry) as err">{{ err }}</span>
+      <ng-container *ngIf="entry.showUrl">
+        <label class="field-label">stream url{{ entry.requiresUrl ? '' : ' (optional)' }}</label>
+        <input class="field-input" [class.invalid]="isUrlDirty(entry) && urlError(entry)" type="text"
+          [(ngModel)]="entry.streamUrl" placeholder="rtmp://..." autocomplete="off" />
+        <span class="field-error" *ngIf="isUrlDirty(entry) && urlError(entry) as err">{{ err }}</span>
+      </ng-container>
 
       <label class="field-label">stream key</label>
       <input class="field-input" type="password" [(ngModel)]="entry.streamKey" placeholder="paste your stream key"

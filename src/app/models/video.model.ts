@@ -7,4 +7,5 @@ export interface Video {
     viewCount?: number;
     likeCount?: number;
     liked?: boolean;
+    source?: string;
 }

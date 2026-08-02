@@ -28,13 +28,17 @@
   <div fxLayout="row wrap" fxLayoutGap="16px" fxLayoutAlign="center">
     <div *ngFor="let video of videos">
       <div class="video-item">
-        <video [src]="video.processedPath ?? video.videoPath" controls loop class="video-player"></video>
+        <video *ngIf="video.source !== 'YOUTUBE'" [src]="video.processedPath ?? video.videoPath" controls loop
+          class="video-player"></video>
+        <!-- YouTube exposes no raw playable file, only its iframe embed player -->
+        <iframe *ngIf="video.source === 'YOUTUBE'" [src]="video.videoPath | safeUrl" class="video-player youtube-frame"
+          allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         <mat-icon *ngIf="video.processedPath" class="processed-badge" matTooltip="Processed by Streamline">auto_awesome</mat-icon>
-        <div class="video-stat views">
+        <div *ngIf="video.source !== 'YOUTUBE'" class="video-stat views">
           <span class="count">{{ video.viewCount ?? 0 | number }}</span>
           <mat-icon>visibility</mat-icon>
         </div>
-        <div class="video-stat likes">
+        <div *ngIf="video.source !== 'YOUTUBE'" class="video-stat likes">
           <mat-icon>favorite</mat-icon>
           <span class="count">{{ video.likeCount ?? 0 | number }}</span>
         </div>

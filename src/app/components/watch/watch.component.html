@@ -2,10 +2,16 @@
   <!-- <video #player id="watch-player" controls autoplay playsinline loop (loadedmetadata)="onVideoLoaded(player)">
   </video> -->
   <!-- VOD player -->
-  <video #player id="watch-player" [class.is-hidden]="currentItem?.type === 'live'"
+  <video #player id="watch-player" [class.is-hidden]="currentItem?.type === 'live' || isYouTube(currentItem)"
     (loadedmetadata)="onVideoLoaded(player)" (ended)="next()" (play)="onVideoPlay()" (pause)="onVideoPause()"
     playsinline controls>
   </video>
+
+  <!-- YouTube exposes no raw playable file, only its iframe embed player -->
+  <iframe *ngIf="isYouTube(currentItem)" id="watch-youtube-player" [src]="youtubeEmbedSrc | safeUrl"
+    allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
+    allowfullscreen>
+  </iframe>
 
   <div #agoraContainer class="agora-container" [class.is-hidden]="currentItem?.type !== 'live'">
   </div>
@@ -38,7 +44,7 @@
 
     <!-- Bottom action row: view count, profile/down, like count -->
     <div class="bottom-actions">
-      <div *ngIf="currentItem?.type === 'vod'" class="action view" aria-label="View count">
+      <div *ngIf="currentItem?.type === 'vod' && !isYouTube(currentItem)" class="action view" aria-label="View count">
         <span class="count">{{ $any(currentItem).viewCount ?? 0 | number }}</span>
         <mat-icon>visibility</mat-icon>
       </div>
@@ -47,7 +53,7 @@
         <mat-icon>arrow_downward</mat-icon>
       </button>
 
-      <button *ngIf="currentItem?.type === 'vod'" gamepadFocusable class="action like" [class.liked]="$any(currentItem).liked"
+      <button *ngIf="currentItem?.type === 'vod' && !isYouTube(currentItem)" gamepadFocusable class="action like" [class.liked]="$any(currentItem).liked"
         [disabled]="$any(currentItem).liked" (click)="onLike()" [attr.aria-label]="$any(currentItem).liked ? 'Already liked' : 'Like'">
         <mat-icon>{{ $any(currentItem).liked ? 'favorite' : 'favorite_border' }}</mat-icon>
         <span class="count">{{ $any(currentItem).likeCount ?? 0 | number }}</span>

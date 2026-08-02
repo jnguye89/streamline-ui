@@ -41,7 +41,10 @@ import { RecordingSocketService } from '../../services/socket/recording.service'
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
 import { GamepadNavigationService } from '../../services/gamepad-navigation.service';
 import { DeviceAuthService } from '../../services/device-auth.service';
+import { SafeUrlPipe } from '../../pipes/safe-url.pipe';
 import { environment } from '../../../environments/environment';
+
+const YOUTUBE_SOURCE = 'YOUTUBE';
 
 @Component({
   selector: 'app-watch',
@@ -54,7 +57,8 @@ import { environment } from '../../../environments/environment';
     MatChipsModule,
     RouterModule,
     CommonModule,
-    GamepadFocusableDirective
+    GamepadFocusableDirective,
+    SafeUrlPipe
   ],
   providers: [VideoService],
   templateUrl: './watch.component.html',
@@ -365,20 +369,50 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    // VOD path
+    // VOD path - always release the <video> element first. YouTube-sourced
+    // items play through the iframe instead (see youtubeEmbedSrc), so the
+    // element is left empty rather than pointed at a src it can't actually
+    // load. Deliberately not calling el.pause() here: it can synchronously
+    // fire the 'pause' event -> onVideoPause() -> sendProgress(), which by
+    // this point would use the *new* currentItem's id with the *old*
+    // element's currentTime.
+    if (el) {
+      try {
+        (el as any).srcObject = null;
+        el.removeAttribute('src');
+        el.load();
+      } catch { }
+    }
+
+    if (this.isYouTube(this.currentItem)) return;
     if (!el) return;
 
     try {
-      (el as any).srcObject = null;
-      el.removeAttribute('src');
-      el.load();
-
       el.autoplay = true;
       el.src = (this.currentItem as any).src;
       await el.play();
     } catch (e) {
       console.warn('Failed to start VOD:', e);
     }
+  }
+
+  // YouTube exposes no raw playable file - only its <iframe> embed player -
+  // so those items skip the <video> element entirely and render through the
+  // iframe/safeUrl binding in the template instead.
+  isYouTube(item: PlayItem | LiveStream | null): boolean {
+    return item?.type === 'vod' && item.source === YOUTUBE_SOURCE;
+  }
+
+  get youtubeEmbedSrc(): string {
+    if (this.currentItem?.type !== 'vod') return '';
+    const url = this.currentItem.src;
+    if (!url) return '';
+
+    const separator = url.includes('?') ? '&' : '?';
+    // mute is required for autoplay to be allowed by browsers; playsinline
+    // keeps it from forcing fullscreen on mobile, matching the <video
+    // playsinline> behavior used for regular VODs.
+    return `${url}${separator}autoplay=1&mute=1&playsinline=1`;
   }
 
   private schedulePreloadWindow(): void {
@@ -403,7 +437,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     for (let step = 1; step < this.playlist.length && target.length < this.PRELOAD_WINDOW_SIZE; step++) {
       const idx = (this.currentIndex + step) % this.playlist.length;
       const item = this.playlist[idx];
-      if (!item || item.type !== 'vod') continue;
+      if (!item || item.type !== 'vod' || this.isYouTube(item)) continue;
       const src = item.src;
       if (!src || seen.has(src)) continue;
       seen.add(src);
@@ -579,7 +613,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       resumeTimestamp: v.resumeTimestamp,
       viewCount: v.viewCount,
       likeCount: v.likeCount,
-      liked: v.liked
+      liked: v.liked,
+      source: v.source
     };
   }
 

@@ -17,11 +17,12 @@ import { DeviceAuthService } from "../../services/device-auth.service";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 import { StreamKeysDialog } from "../dialogs/stream-keys.dialog";
+import { SafeUrlPipe } from "../../pipes/safe-url.pipe";
 
 @Component({
   selector: "app-profile",
   standalone: true,
-  imports: [MatIconModule, MatTooltipModule, MatButtonModule, FlexLayoutModule, CommonModule, GamepadFocusableDirective],
+  imports: [MatIconModule, MatTooltipModule, MatButtonModule, FlexLayoutModule, CommonModule, GamepadFocusableDirective, SafeUrlPipe],
   providers: [VideoService],
   templateUrl: "./profile.component.html",
   styleUrl: "./profile.component.scss",

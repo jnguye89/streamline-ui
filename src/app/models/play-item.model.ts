@@ -22,4 +22,5 @@ export type PlayItem =
       viewCount?: number;
       likeCount?: number;
       liked?: boolean;
+      source?: string;
     };

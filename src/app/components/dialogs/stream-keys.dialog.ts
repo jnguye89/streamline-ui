@@ -11,6 +11,7 @@ import { StreamPlatform } from '../../models/stream-key.model';
 interface PlatformFormState {
   platform: StreamPlatform;
   label: string;
+  showUrl: boolean;
   requiresUrl: boolean;
   streamKey: string;
   streamUrl: string;
@@ -30,9 +31,9 @@ interface PlatformFormState {
 })
 export class StreamKeysDialog implements OnInit {
   platforms: PlatformFormState[] = [
-    this.makeEntry(StreamPlatform.TWITCH, 'Twitch', false),
-    this.makeEntry(StreamPlatform.KICK, 'Kick', true),
-    this.makeEntry(StreamPlatform.RUMBLE, 'Rumble', true),
+    this.makeEntry(StreamPlatform.TWITCH, 'Twitch', false, false),
+    this.makeEntry(StreamPlatform.KICK, 'Kick', true, true),
+    this.makeEntry(StreamPlatform.RUMBLE, 'Rumble', true, true),
   ];
   loading = true;
 
@@ -68,6 +69,8 @@ export class StreamKeysDialog implements OnInit {
   }
 
   urlError(entry: PlatformFormState): string | null {
+    if (!entry.showUrl) return null;
+
     const url = entry.streamUrl.trim();
     if (!url) return entry.requiresUrl ? 'Stream URL is required' : null;
 
@@ -112,9 +115,9 @@ export class StreamKeysDialog implements OnInit {
     this.ref.close();
   }
 
-  private makeEntry(platform: StreamPlatform, label: string, requiresUrl: boolean): PlatformFormState {
+  private makeEntry(platform: StreamPlatform, label: string, showUrl: boolean, requiresUrl: boolean): PlatformFormState {
     return {
-      platform, label, requiresUrl,
+      platform, label, showUrl, requiresUrl,
       streamKey: '', streamUrl: '',
       initialStreamKey: '', initialStreamUrl: '',
       saving: false, saved: false, error: false,
