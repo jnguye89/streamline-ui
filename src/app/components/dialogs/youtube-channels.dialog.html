@@ -1,0 +1,56 @@
+<div class="channels-dialog">
+  <div class="dialog-header">
+    <button gamepadFocusable mat-icon-button (click)="close()" aria-label="Close">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h2>youtube channels</h2>
+  </div>
+
+  <div class="add-channel-card">
+    <label class="field-label">handle</label>
+    <input class="field-input" type="text" [(ngModel)]="newChannelHandle" placeholder="@channelname" autocomplete="off" />
+
+    <label class="field-label">display name (optional)</label>
+    <input class="field-input" type="text" [(ngModel)]="newChannelName" placeholder="My favorite channel"
+      autocomplete="off" />
+
+    <span class="field-error" *ngIf="addError">{{ addError }}</span>
+
+    <button gamepadFocusable mat-flat-button color="primary" class="save-btn"
+      [disabled]="!newChannelHandle.trim() || adding" (click)="addChannel()">
+      {{ adding ? 'adding...' : 'add channel' }}
+    </button>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">Loading your channels...</div>
+
+  <div class="channel-list" *ngIf="!loading">
+    <div class="empty-state" *ngIf="!channels.length">No channels added yet.</div>
+
+    <div class="channel-row" *ngFor="let row of channels">
+      <div class="channel-main">
+        <input class="field-input name-input" type="text" [(ngModel)]="row.name" placeholder="Channel name"
+          autocomplete="off" />
+        <span class="channel-id">{{ row.channelId }}</span>
+      </div>
+
+      <label class="enabled-toggle">
+        <input type="checkbox" [(ngModel)]="row.enabled" />
+        enabled
+      </label>
+
+      <span class="row-status saved" *ngIf="row.saved">saved</span>
+      <span class="row-status error" *ngIf="row.error">error</span>
+
+      <button gamepadFocusable mat-flat-button color="primary" class="save-btn" [disabled]="!canSave(row)"
+        (click)="save(row)">
+        {{ row.saving ? 'saving...' : 'save' }}
+      </button>
+
+      <button gamepadFocusable mat-icon-button (click)="remove(row)" [disabled]="row.deleting"
+        aria-label="Remove channel">
+        <mat-icon>delete</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

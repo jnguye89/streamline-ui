@@ -17,6 +17,7 @@ import { DeviceAuthService } from "../../services/device-auth.service";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 import { StreamKeysDialog } from "../dialogs/stream-keys.dialog";
+import { YoutubeChannelsDialog } from "../dialogs/youtube-channels.dialog";
 import { SafeUrlPipe } from "../../pipes/safe-url.pipe";
 
 @Component({
@@ -97,6 +98,10 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   openStreamKeys(): void {
     this.dialog.open(StreamKeysDialog, { panelClass: 'spotlight-panel', autoFocus: false });
+  }
+
+  openYoutubeChannels(): void {
+    this.dialog.open(YoutubeChannelsDialog, { panelClass: 'spotlight-panel', autoFocus: false });
   }
 
   onFileSelected(event: Event) {
