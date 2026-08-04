@@ -282,6 +282,121 @@
   }
 }
 
+/* Live chat: floating messages (TikTok-style), bottom-left of the video */
+@keyframes chat-msg-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes chat-msg-fade {
+  0%, 75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.chat-overlay {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: clamp(72px, 13vh, 118px);
+  width: min(78vw, 380px);
+  max-height: 38vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.chat-message {
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  border-radius: 10px;
+  padding: 6px 10px;
+  color: #fff;
+  font-size: clamp(12px, 1.6vh, 15px);
+  line-height: 1.3;
+  word-break: break-word;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .5);
+  animation: chat-msg-in 0.2s ease-out, chat-msg-fade 6s ease-in forwards;
+}
+
+.chat-username {
+  font-weight: 700;
+  margin-right: 6px;
+  color: #6ec1ff;
+}
+
+.chat-input-row {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  width: min(78vw, 380px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+  z-index: 6;
+}
+
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 8px 14px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+}
+
+.chat-send {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .mat-icon {
+    font-size: 18px;
+    width: 1em;
+    height: 1em;
+    line-height: 1em;
+  }
+}
+
+.chat-login {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  pointer-events: auto;
+  z-index: 6;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 8px 16px;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 .remote-tile {
   width: 100%;
   height: 100%;

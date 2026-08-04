@@ -37,7 +37,8 @@ import { StreamService } from '../../services/stream.service';
 import { PlayerStateService } from '../../state/player-state.service';
 import { AgoraWatchService } from '../../services/agora/agora-watch.service';
 import { LiveStream } from '../../models/live-stream.model';
-import { RecordingSocketService } from '../../services/socket/recording.service';
+import { RecordingSocketService, ChatMessage } from '../../services/socket/recording.service';
+import { FormsModule } from '@angular/forms';
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
 import { GamepadNavigationService } from '../../services/gamepad-navigation.service';
 import { DeviceAuthService } from '../../services/device-auth.service';
@@ -58,7 +59,8 @@ const YOUTUBE_SOURCE = 'YOUTUBE';
     RouterModule,
     CommonModule,
     GamepadFocusableDirective,
-    SafeUrlPipe
+    SafeUrlPipe,
+    FormsModule
   ],
   providers: [VideoService],
   templateUrl: './watch.component.html',
@@ -145,6 +147,12 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly PRELOAD_DELAY_MS = 3 * 1000;
   private preloadTimerRef: ReturnType<typeof setTimeout> | null = null;
 
+  // Live chat (floating overlay, TikTok-style)
+  private readonly CHAT_FADE_MS = 6000;
+  private readonly CHAT_MAX_VISIBLE = 30;
+  chatMessages: (ChatMessage & { key: string })[] = [];
+  chatText = '';
+
   constructor(
     private videoService: VideoService,
     private route: ActivatedRoute,
@@ -171,6 +179,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.socket.recordingStopped$.pipe(takeUntil(this.destroy$)).subscribe(e => {
       this.next();
     })
+
+    this.socket.chatMessage$.pipe(takeUntil(this.destroy$)).subscribe(msg => this.onChatMessage(msg));
 
     // 1) VOD: server-randomized, no-repeat feed, paged in as the playlist is
     // consumed (see loadMoreVods / next())
@@ -339,6 +349,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // stop any previous live session when switching items
     await this.agoraWatch.stop();
+    this.chatMessages = [];
     this.schedulePreloadWindow();
 
     const el = this.playerRef?.nativeElement;
@@ -578,6 +589,31 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       '';
     this.store.set(this.playlist[this.currentIndex])
     if (user) this.router.navigate(['/profile', user]);
+  }
+
+  private onChatMessage(msg: ChatMessage): void {
+    const curr = this.currentItem as LiveStream;
+    if (curr?.type !== 'live' || msg.roomId !== curr.channelName) return;
+
+    const entry = { ...msg, key: `${msg.ts}-${Math.random().toString(36).slice(2)}` };
+    this.chatMessages = [...this.chatMessages, entry].slice(-this.CHAT_MAX_VISIBLE);
+
+    setTimeout(() => {
+      this.chatMessages = this.chatMessages.filter(m => m.key !== entry.key);
+    }, this.CHAT_FADE_MS);
+  }
+
+  sendChat(): void {
+    const curr = this.currentItem as LiveStream;
+    const text = this.chatText.trim();
+    if (!text || curr?.type !== 'live') return;
+
+    this.socket.sendChat(curr.channelName, text);
+    this.chatText = '';
+  }
+
+  trackChatMessage(_: number, m: ChatMessage & { key: string }): string {
+    return m.key;
   }
 
   onLike(): void {

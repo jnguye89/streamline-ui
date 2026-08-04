@@ -42,6 +42,24 @@
       <mat-icon>skip_next</mat-icon>
     </button>
 
+    <!-- Live chat: floating messages + send box, viewers only see this while watching a live stream -->
+    <ng-container *ngIf="currentItem?.type === 'live'">
+      <div class="chat-overlay" aria-live="polite">
+        <div class="chat-message" *ngFor="let m of chatMessages; trackBy: trackChatMessage">
+          <span class="chat-username">{{ m.username }}</span>
+          <span class="chat-text">{{ m.text }}</span>
+        </div>
+      </div>
+
+      <form class="chat-input-row" (ngSubmit)="sendChat()">
+        <input class="chat-input" type="text" [(ngModel)]="chatText" name="chatText" placeholder="Say something..."
+          maxlength="500" autocomplete="off" />
+        <button gamepadFocusable type="submit" class="chat-send" [disabled]="!chatText.trim()" aria-label="Send chat message">
+          <mat-icon>send</mat-icon>
+        </button>
+      </form>
+    </ng-container>
+
     <!-- Bottom action row: view count, profile/down, like count -->
     <div class="bottom-actions">
       <div *ngIf="currentItem?.type === 'vod' && !isYouTube(currentItem)" class="action view" aria-label="View count">

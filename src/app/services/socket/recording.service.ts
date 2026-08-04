@@ -16,6 +16,14 @@ export interface RecordingEvent {
     roomId: string;
 }
 
+export interface ChatMessage {
+    userId: string;
+    username: string;
+    text: string;
+    roomId: string;
+    ts: number;
+}
+
 @Injectable({
     providedIn: 'root'
 })
@@ -30,6 +38,7 @@ export class RecordingSocketService implements OnDestroy {
     roomUserLeft$ = new Subject<RoomUserJoined>();
     recordingStarted$ = new Subject<RecordingEvent>();
     recordingStopped$ = new Subject<RecordingEvent>();
+    chatMessage$ = new Subject<ChatMessage>();
 
     constructor(private deviceAuth: DeviceAuthService) { }
 
@@ -70,6 +79,10 @@ export class RecordingSocketService implements OnDestroy {
         this.socket.on('recording:stopped', (payload: RecordingEvent) => {
             this.recordingStopped$.next(payload);
         });
+
+        this.socket.on('chat:message', (payload: ChatMessage) => {
+            this.chatMessage$.next(payload);
+        });
     }
 
     joinRoom(roomId: string): void {
@@ -104,6 +117,14 @@ export class RecordingSocketService implements OnDestroy {
 
         this.socket.emit('recording:stopped', { roomId }, (ack: any) => {
             console.log('[WS] recording:stopped ack', ack);
+        });
+    }
+
+    sendChat(roomId: string, text: string): void {
+        if (!this.socket) return;
+
+        this.socket.emit('chat:send', { roomId, text }, (ack: any) => {
+            console.log('[WS] chat:send ack', ack);
         });
     }
 

@@ -9,6 +9,7 @@ import { FlexLayoutModule } from "@angular/flex-layout";
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from "@angular/material/button";
 import { MatIconModule } from "@angular/material/icon";
+import { FormsModule } from "@angular/forms";
 import {
   concatMap,
   filter,
@@ -29,11 +30,12 @@ import { RtcStreamService } from "../../services/agora/rtc-stream.service";
 import { UserService } from "../../services/user.service";
 import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
+import { RecordingSocketService, ChatMessage } from "../../services/socket/recording.service";
 
 @Component({
   selector: "app-stream",
   standalone: true,
-  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule, GamepadFocusableDirective],
+  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule, GamepadFocusableDirective, FormsModule],
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
@@ -48,6 +50,13 @@ export class StreamComponent implements AfterViewInit {
   private destroy$ = new Subject<void>();
   @ViewChild('video', { static: true }) videoElement!: ElementRef<HTMLVideoElement>;
 
+  // Live chat (floating overlay, TikTok-style) - lets the host see and
+  // reply to viewer chat while broadcasting.
+  private readonly CHAT_FADE_MS = 6000;
+  private readonly CHAT_MAX_VISIBLE = 30;
+  chatMessages: (ChatMessage & { key: string })[] = [];
+  chatText = '';
+
   constructor(
     private streamService: StreamService,
     public deviceAuth: DeviceAuthService,
@@ -55,6 +64,7 @@ export class StreamComponent implements AfterViewInit {
     private router: Router,
     private rtcStreamService: RtcStreamService,
     private userService: UserService,
+    private socket: RecordingSocketService,
   ) { }
 
   ngOnInit() {
@@ -78,6 +88,10 @@ export class StreamComponent implements AfterViewInit {
 
     this.rtcStreamService.join(token.appId, this.channelName, token.rtcToken, this.userId!);
     this.isReady = true;
+
+    this.socket.connect();
+    this.socket.joinRoom(this.channelName);
+    this.socket.chatMessage$.pipe(takeUntil(this.destroy$)).subscribe(msg => this.onChatMessage(msg));
   }
 
   login() {
@@ -139,9 +153,33 @@ export class StreamComponent implements AfterViewInit {
   }
 
   ngOnDestroy(): void {
+    if (this.channelName) this.socket.leaveRoom(this.channelName);
     this.destroy$.next();
     this.destroy$.complete();
     void this.rtcStreamService.leave();
+  }
+
+  private onChatMessage(msg: ChatMessage): void {
+    if (msg.roomId !== this.channelName) return;
+
+    const entry = { ...msg, key: `${msg.ts}-${Math.random().toString(36).slice(2)}` };
+    this.chatMessages = [...this.chatMessages, entry].slice(-this.CHAT_MAX_VISIBLE);
+
+    setTimeout(() => {
+      this.chatMessages = this.chatMessages.filter(m => m.key !== entry.key);
+    }, this.CHAT_FADE_MS);
+  }
+
+  sendChat(): void {
+    const text = this.chatText.trim();
+    if (!text || !this.channelName) return;
+
+    this.socket.sendChat(this.channelName, text);
+    this.chatText = '';
+  }
+
+  trackChatMessage(_: number, m: ChatMessage & { key: string }): string {
+    return m.key;
   }
 
   private setUpSeo() {

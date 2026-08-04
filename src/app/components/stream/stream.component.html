@@ -24,3 +24,21 @@
     <button gamepadFocusable mat-flat-button (click)="login()">Login to start streaming</button>
   </div>
 </div>
+
+<!-- Live chat: floating messages from viewers, fades out as new ones arrive -->
+<ng-container *ngIf="isReady">
+  <div class="chat-overlay" aria-live="polite">
+    <div class="chat-message" *ngFor="let m of chatMessages; trackBy: trackChatMessage">
+      <span class="chat-username">{{ m.username }}</span>
+      <span class="chat-text">{{ m.text }}</span>
+    </div>
+  </div>
+
+  <form class="chat-input-row" (ngSubmit)="sendChat()">
+    <input class="chat-input" type="text" [(ngModel)]="chatText" name="chatText" placeholder="Say something..."
+      maxlength="500" autocomplete="off" />
+    <button gamepadFocusable type="submit" class="chat-send" [disabled]="!chatText.trim()" aria-label="Send chat message">
+      <mat-icon>send</mat-icon>
+    </button>
+  </form>
+</ng-container>
