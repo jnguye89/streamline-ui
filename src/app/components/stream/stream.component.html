@@ -7,29 +7,50 @@
     <p>This can take a few seconds.</p>
   </div>
 </div>
-<div class="controls-container">
-  <div class="controls" *ngIf="isAuthenticated$ | async">
-    <span class="live-indicator" [ngClass]="(isLive$ | async) ? 'live' : 'offline'" aria-live="polite">
-      <i class="dot"></i>
-      <span class="label">{{ (isLive$ | async) ? "LIVE" : "OFFLINE" }}</span>
+<!-- Bottom toolbar - same look as the podcast page's rec/go-live panel -->
+<div class="toolbar">
+  <ng-container *ngIf="isAuthenticated$ | async; else loginPrompt">
+    <span class="toolbar__status" [class.toolbar__status--live]="isLive$ | async" aria-live="polite">
+      <i class="toolbar__dot"></i>
+      LIVE
     </span>
-    <button gamepadFocusable class="play icon" (click)="resumeWebcam()" [disabled]="(isLive$ | async) || !isReady">
-      <mat-icon class="transparent">play_arrow</mat-icon>
+
+    <div class="toolbar__sep"></div>
+
+    <button gamepadFocusable class="toolbar__btn toolbar__btn--rec" disabled title="Record">
+      <i class="toolbar__dot toolbar__dot--red"></i>
+      REC
     </button>
-    <button gamepadFocusable class="stop icon" (click)="stopWebcam()" [disabled]="!(isLive$ | async)">
-      <mat-icon class="transparent">stop</mat-icon>
+
+    <div class="toolbar__sep"></div>
+
+    <button gamepadFocusable class="toolbar__btn toolbar__btn--live"
+            [class.toolbar__btn--live-on]="isLive$ | async"
+            [disabled]="!isReady"
+            (click)="toggleLive()"
+            title="Go live">
+      <mat-icon class="toolbar__live-icon">fiber_manual_record</mat-icon>
+      GO LIVE
     </button>
-  </div>
-  <div *ngIf="!(isAuthenticated$ | async)" class="controls">
+
+    <div class="toolbar__sep"></div>
+
+    <button gamepadFocusable class="toolbar__btn toolbar__btn--ai" [class.toolbar__btn--ai-on]="aiMagicEnabled"
+            [attr.aria-pressed]="aiMagicEnabled" (click)="toggleAiMagic()" title="AI Magic">
+      ✦ AI Magic
+    </button>
+  </ng-container>
+
+  <ng-template #loginPrompt>
     <button gamepadFocusable mat-flat-button (click)="login()">Login to start streaming</button>
-  </div>
+  </ng-template>
 </div>
 
-<!-- Live chat: floating messages from viewers, fades out as new ones arrive -->
+<!-- Live chat: floating messages from viewers, oldest falls off as new ones arrive -->
 <ng-container *ngIf="isReady">
   <div class="chat-overlay" aria-live="polite">
     <div class="chat-message" *ngFor="let m of chatMessages; trackBy: trackChatMessage">
-      <span class="chat-username">{{ m.username }}</span>
+      <span class="chat-username" [style.color]="m.userId | chatColor">{{ m.username }}</span>
       <span class="chat-text">{{ m.text }}</span>
     </div>
   </div>

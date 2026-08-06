@@ -46,7 +46,7 @@
     <ng-container *ngIf="currentItem?.type === 'live'">
       <div class="chat-overlay" aria-live="polite">
         <div class="chat-message" *ngFor="let m of chatMessages; trackBy: trackChatMessage">
-          <span class="chat-username">{{ m.username }}</span>
+          <span class="chat-username" [style.color]="m.userId | chatColor">{{ m.username }}</span>
           <span class="chat-text">{{ m.text }}</span>
         </div>
       </div>

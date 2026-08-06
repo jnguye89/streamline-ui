@@ -31,11 +31,12 @@ import { UserService } from "../../services/user.service";
 import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 import { RecordingSocketService, ChatMessage } from "../../services/socket/recording.service";
+import { ChatColorPipe } from "../../pipes/chat-color.pipe";
 
 @Component({
   selector: "app-stream",
   standalone: true,
-  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule, GamepadFocusableDirective, FormsModule],
+  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule, GamepadFocusableDirective, FormsModule, ChatColorPipe],
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
@@ -45,15 +46,16 @@ export class StreamComponent implements AfterViewInit {
   isAuthenticated$ = this.deviceAuth.isAuthenticated$;
   isLive$ = this.rtcStreamService.isLive$;
   isReady = false;
+  aiMagicEnabled = false;
   user$: Observable<DeviceUser | null> = of();
   channelName: string | undefined;
   private destroy$ = new Subject<void>();
   @ViewChild('video', { static: true }) videoElement!: ElementRef<HTMLVideoElement>;
 
   // Live chat (floating overlay, TikTok-style) - lets the host see and
-  // reply to viewer chat while broadcasting.
-  private readonly CHAT_FADE_MS = 6000;
-  private readonly CHAT_MAX_VISIBLE = 30;
+  // reply to viewer chat while broadcasting. Fixed-size buffer, oldest
+  // message drops off as a new one comes in.
+  private readonly CHAT_MAX_VISIBLE = 12;
   chatMessages: (ChatMessage & { key: string })[] = [];
   chatText = '';
 
@@ -107,49 +109,72 @@ export class StreamComponent implements AfterViewInit {
     await this.streamService.start(this.channelName!);
   }
 
+  toggleLive(): void {
+    if (this.rtcStreamService.isLive$.value) {
+      void this.stopWebcam();
+    } else {
+      void this.resumeWebcam();
+    }
+  }
+
+  toggleAiMagic(): void {
+    this.aiMagicEnabled = !this.aiMagicEnabled;
+  }
+
   async stopWebcam(openDialog: boolean = true) {
     console.log('stopped got called');
     await this.rtcStreamService.stopPublish();
     var response = await this.streamService.stop(this.channelName!);
     console.log('response', response);
-    if (openDialog) {
-      if (!!response.filename) {
-        const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
-          data: {
-            title: 'Nice work.',
-            body: `Your stream has been saved to your profile. Do you want to automatically process your video?`,
-            confirmBtnText: 'Process Video',
-            cancelBtnText: 'No Thanks'
-          }
-        });
+    if (!openDialog) return;
 
-        dialogRef.afterClosed().subscribe(async (confirmed: boolean) => {
-          if (confirmed) {
-            this.streamService.process(response.filename);
-            const dialogRef2 = this.dialog.open(ConfirmEndStreamDialog, {
-              data: {
-                title: 'Processing Started',
-                body: `Your video is being processed. This can take a few minutes. The video will show up in your profile when ready!`,
-                confirmBtnText: 'OK',
-              }
-            })
-            const timeout = setTimeout(() => dialogRef2.close(), 5000);
-            dialogRef2.afterClosed().subscribe(() => clearTimeout(timeout));
-          }
-        })
-      } else {
-        const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
-          data: {
-            title: 'Nice work.',
-            body: `We're saving your stream; it'll land on your profile shortly. Go live again!`
-          }
-        });
+    if (!response.filename) {
+      const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+        data: {
+          title: 'Nice work.',
+          body: `We're saving your stream; it'll land on your profile shortly. Go live again!`
+        }
+      });
 
-        const timeout = setTimeout(() => dialogRef.close(), 3000);
-
-        dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
-      }
+      const timeout = setTimeout(() => dialogRef.close(), 3000);
+      dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
+      return;
     }
+
+    if (this.aiMagicEnabled) {
+      this.runAiMagic(response.filename);
+      return;
+    }
+
+    // AI Magic isn't on - ask instead of silently skipping it.
+    const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+      data: {
+        title: 'AI Magic is off',
+        body: `Your stream has been saved to your profile. Want to turn on AI Magic to automatically enhance this video?`,
+        confirmBtnText: 'Yes, enable it',
+        cancelBtnText: 'No thanks'
+      }
+    });
+
+    dialogRef.afterClosed().subscribe((enable: boolean) => {
+      if (enable) {
+        this.aiMagicEnabled = true;
+        this.runAiMagic(response.filename);
+      }
+    });
+  }
+
+  private runAiMagic(filename: string): void {
+    this.streamService.process(filename);
+    const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+      data: {
+        title: 'AI Magic running',
+        body: `Your video is being processed. This can take a few minutes. The video will show up in your profile when ready!`,
+        confirmBtnText: 'OK',
+      }
+    });
+    const timeout = setTimeout(() => dialogRef.close(), 5000);
+    dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
   }
 
   ngOnDestroy(): void {
@@ -164,10 +189,6 @@ export class StreamComponent implements AfterViewInit {
 
     const entry = { ...msg, key: `${msg.ts}-${Math.random().toString(36).slice(2)}` };
     this.chatMessages = [...this.chatMessages, entry].slice(-this.CHAT_MAX_VISIBLE);
-
-    setTimeout(() => {
-      this.chatMessages = this.chatMessages.filter(m => m.key !== entry.key);
-    }, this.CHAT_FADE_MS);
   }
 
   sendChat(): void {

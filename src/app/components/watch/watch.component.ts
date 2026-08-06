@@ -43,6 +43,7 @@ import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.di
 import { GamepadNavigationService } from '../../services/gamepad-navigation.service';
 import { DeviceAuthService } from '../../services/device-auth.service';
 import { SafeUrlPipe } from '../../pipes/safe-url.pipe';
+import { ChatColorPipe } from '../../pipes/chat-color.pipe';
 import { environment } from '../../../environments/environment';
 
 const YOUTUBE_SOURCE = 'YOUTUBE';
@@ -60,6 +61,7 @@ const YOUTUBE_SOURCE = 'YOUTUBE';
     CommonModule,
     GamepadFocusableDirective,
     SafeUrlPipe,
+    ChatColorPipe,
     FormsModule
   ],
   providers: [VideoService],
@@ -147,9 +149,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly PRELOAD_DELAY_MS = 3 * 1000;
   private preloadTimerRef: ReturnType<typeof setTimeout> | null = null;
 
-  // Live chat (floating overlay, TikTok-style)
-  private readonly CHAT_FADE_MS = 6000;
-  private readonly CHAT_MAX_VISIBLE = 30;
+  // Live chat (floating overlay, TikTok-style): fixed-size buffer, oldest
+  // message drops off as a new one comes in.
+  private readonly CHAT_MAX_VISIBLE = 12;
   chatMessages: (ChatMessage & { key: string })[] = [];
   chatText = '';
 
@@ -595,12 +597,10 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     const curr = this.currentItem as LiveStream;
     if (curr?.type !== 'live' || msg.roomId !== curr.channelName) return;
 
+    // Fixed-size window: newest message pushes in at the bottom, oldest
+    // falls off the top once the buffer is full - no timed fade-out.
     const entry = { ...msg, key: `${msg.ts}-${Math.random().toString(36).slice(2)}` };
     this.chatMessages = [...this.chatMessages, entry].slice(-this.CHAT_MAX_VISIBLE);
-
-    setTimeout(() => {
-      this.chatMessages = this.chatMessages.filter(m => m.key !== entry.key);
-    }, this.CHAT_FADE_MS);
   }
 
   sendChat(): void {
