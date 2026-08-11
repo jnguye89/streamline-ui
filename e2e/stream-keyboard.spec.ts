@@ -42,6 +42,7 @@ test.beforeEach(async ({ context, page }) => {
         rtcToken: 'e2e-rtc-token',
         rtmToken: 'e2e-rtm-token',
         expireAt: Date.now() + 60 * 60 * 1000,
+        agoraUid: 101,
       }),
     });
   });

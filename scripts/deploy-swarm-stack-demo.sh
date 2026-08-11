@@ -29,6 +29,22 @@ set -a
 source "$env_file"
 set +a
 
+# A redeploy should not require operators to keep the database root password in
+# a local file when the existing Swarm service already has it. New stacks still
+# require MYSQL_ROOT_PASSWORD to be supplied explicitly.
+if [[ -z "${MYSQL_ROOT_PASSWORD:-}" ]]; then
+  MYSQL_ROOT_PASSWORD="$({
+    ssh "$remote_host" bash -s -- "$stack_name" <<'REMOTE_EXISTING_ROOT_PASSWORD'
+set -eu
+stack_name="$1"
+docker service inspect "${stack_name}_mysql" \
+  --format '{{range .Spec.TaskTemplate.ContainerSpec.Env}}{{println .}}{{end}}' |
+  sed -n 's/^MYSQL_ROOT_PASSWORD=//p'
+REMOTE_EXISTING_ROOT_PASSWORD
+  } 2>/dev/null || true)"
+  export MYSQL_ROOT_PASSWORD
+fi
+
 required_variables=(
   UI_ORIGIN API_BASE_URL UI_IMAGE API_IMAGE
   RDS_USERNAME RDS_PASSWORD MYSQL_ROOT_PASSWORD STREAMLINE_DB_NAME
@@ -42,6 +58,15 @@ for variable_name in "${required_variables[@]}"; do
     exit 1
   fi
 done
+
+if [[ "${AGORA_CLOUD_RECORDING_ENABLED:-false}" != "false" ]]; then
+  for variable_name in AGORA_CUSTOMER_ID AGORA_SECRET; do
+    if [[ -z "${!variable_name:-}" ]]; then
+      echo "Required variable is unset or empty when Agora cloud recording is enabled: $variable_name" >&2
+      exit 1
+    fi
+  done
+fi
 
 if [[ "$UI_ORIGIN" == */ || "$API_BASE_URL" == */ ]]; then
   echo "UI_ORIGIN and API_BASE_URL must not have trailing slashes." >&2

@@ -31,7 +31,6 @@ import { MediaInputService } from "../../services/media-input.service";
 import { RtcStreamService } from "../../services/agora/rtc-stream.service";
 import { SeoService } from "../../services/seo.service";
 import { StreamService } from "../../services/stream.service";
-import { UserService } from "../../services/user.service";
 import {
   ChatMessage,
   RecordingSocketService,
@@ -95,7 +94,6 @@ export class StreamComponent
     private readonly router: Router,
     private readonly gamepadNavigation: GamepadNavigationService,
     private readonly rtcStreamService: RtcStreamService,
-    private readonly userService: UserService,
     private readonly socket: RecordingSocketService,
     public readonly mediaInput: MediaInputService,
   ) {}
@@ -135,29 +133,30 @@ export class StreamComponent
     this.channelName = `host-${Math.random().toString(36).substring(2, 15)}`;
 
     try {
-      const authUser = await firstValueFrom(
+      await firstValueFrom(
         this.deviceAuth.user$.pipe(
           filter((user): user is NonNullable<typeof user> & { sub: string } => !!user?.sub),
           take(1),
         ),
       );
-      const apiUser = await firstValueFrom(
-        this.userService.getAuth0User(authUser.sub),
+
+      const token = await firstValueFrom(
+        this.streamService.ensureReady(this.channelName),
       );
+      if (!token.agoraUid) {
+        throw new Error('The stream token response did not include an Agora UID.');
+      }
 
       await this.mediaInput.initialize();
       if (this.mediaInput.snapshot.selection.videoDeviceId) {
         await this.refreshPreview();
       }
 
-      const token = await firstValueFrom(
-        this.streamService.ensureReady(this.channelName),
-      );
       await this.rtcStreamService.join(
         token.appId,
         this.channelName,
         token.rtcToken,
-        apiUser.agoraUserId,
+        token.agoraUid,
       );
       this.isReady = true;
       this.initializeChat();

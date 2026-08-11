@@ -14,7 +14,6 @@ import { MediaInputService } from '../../services/media-input.service';
 import { RtcStreamService } from '../../services/agora/rtc-stream.service';
 import { SeoService } from '../../services/seo.service';
 import { StreamService } from '../../services/stream.service';
-import { UserService } from '../../services/user.service';
 import {
   ChatMessage,
   RecordingSocketService,
@@ -156,6 +155,7 @@ describe('StreamComponent', () => {
         rtmToken: 'rtm-token',
         channelName: 'channel',
         expireAt: Date.now() + 60_000,
+        agoraUid: 42,
       }),
     );
     streamService.stop.and.resolveTo({ filename: '' });
@@ -173,10 +173,6 @@ describe('StreamComponent', () => {
         { provide: MediaInputService, useValue: mediaInput },
         { provide: RtcStreamService, useValue: rtc },
         { provide: StreamService, useValue: streamService },
-        {
-          provide: UserService,
-          useValue: { getAuth0User: () => of({ agoraUserId: 42 }) },
-        },
         { provide: RecordingSocketService, useValue: socket },
         { provide: SeoService, useValue: { setTags: () => undefined } },
         {
@@ -227,6 +223,16 @@ describe('StreamComponent', () => {
 
     expect(fixture.nativeElement.querySelector('.chat-message').textContent)
       .toContain('hello');
+  });
+
+  it('joins Agora with the UID returned by stream readiness', () => {
+    expect(streamService.ensureReady).toHaveBeenCalled();
+    expect(rtc.join).toHaveBeenCalledWith(
+      'app',
+      jasmine.any(String),
+      'token',
+      42,
+    );
   });
 
   it('keeps stream inputs dismissed until opened from the toolbar', () => {
@@ -369,6 +375,7 @@ describe('StreamComponent', () => {
         rtmToken: 'rtm-token',
         channelName: 'channel',
         expireAt: Date.now() + 60_000,
+        agoraUid: 42,
       }),
     );
     retry.click();
