@@ -101,6 +101,14 @@ class FakeAnalyserNode extends FakeAudioNode {
   }
 }
 
+class FakeCompressorNode extends FakeAudioNode {
+  readonly threshold = { value: 0 };
+  readonly knee = { value: 0 };
+  readonly ratio = { value: 0 };
+  readonly attack = { value: 0 };
+  readonly release = { value: 0 };
+}
+
 class FakeAudioContext {
   state: AudioContextState = 'suspended';
   currentTime = 1;
@@ -134,6 +142,10 @@ class FakeAudioContext {
 
   createAnalyser(): AnalyserNode {
     return new FakeAnalyserNode() as unknown as AnalyserNode;
+  }
+
+  createDynamicsCompressor(): DynamicsCompressorNode {
+    return new FakeCompressorNode() as unknown as DynamicsCompressorNode;
   }
 }
 

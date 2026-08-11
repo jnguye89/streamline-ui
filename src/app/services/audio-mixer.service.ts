@@ -14,6 +14,8 @@ export interface AudioMixerChannelNodes {
 export interface AudioMixerChannels {
   game: AudioMixerChannelNodes | null;
   microphone: AudioMixerChannelNodes | null;
+  limiter?: DynamicsCompressorNode;
+  outputAnalyser?: AnalyserNode;
 }
 
 export function connectAudioMixer(
@@ -22,9 +24,22 @@ export function connectAudioMixer(
   sources: AudioMixerSources,
   state: AudioMixState,
 ): AudioMixerChannels {
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = -1;
+  limiter.knee.value = 0;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.1;
+  const outputAnalyser = context.createAnalyser();
+  outputAnalyser.fftSize = 2048;
+  outputAnalyser.smoothingTimeConstant = 0.75;
+  limiter.connect(outputAnalyser);
+  outputAnalyser.connect(destination);
   const channels: AudioMixerChannels = {
-    game: connectSource(context, destination, sources.game),
-    microphone: connectSource(context, destination, sources.microphone),
+    game: connectSource(context, limiter, sources.game),
+    microphone: connectSource(context, limiter, sources.microphone),
+    limiter,
+    outputAnalyser,
   };
   applyAudioMixState(context, channels, state, false);
   return channels;

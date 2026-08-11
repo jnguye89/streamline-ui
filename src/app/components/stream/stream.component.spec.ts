@@ -86,6 +86,7 @@ describe('StreamComponent', () => {
     audioMeter$ = new BehaviorSubject<AudioMeterState>({
       game: 0,
       microphone: 0,
+      output: 0,
     });
     mediaInput = jasmine.createSpyObj<MediaInputService>(
       'MediaInputService',
@@ -278,7 +279,7 @@ describe('StreamComponent', () => {
   });
 
   it('shows source activity at the selected level while preserving muted activity', () => {
-    audioMeter$.next({ game: -18, microphone: -14 });
+    audioMeter$.next({ game: -18, microphone: -14, output: -16 });
     audioMix$.next({
       ...audioMix$.value,
       gameLevel: 0.5,
@@ -297,7 +298,7 @@ describe('StreamComponent', () => {
     expect(fixture.componentInstance.meterBand(-8)).toBe('yellow');
     expect(fixture.componentInstance.meterBand(-2)).toBe('red');
 
-    audioMeter$.next({ game: 0, microphone: -60 });
+    audioMeter$.next({ game: 0, microphone: -60, output: -1 });
     fixture.detectChanges();
     expect(meter.classList).toContain('clipping');
   });
@@ -448,7 +449,24 @@ describe('StreamComponent', () => {
     expect(fixture.componentInstance.workflowError).toContain(
       'shutdown steps failed',
     );
-    expect(mediaInput.stopPreview).toHaveBeenCalled();
+    expect(mediaInput.startPreview).toHaveBeenCalled();
+  });
+
+  it('restores the selected-source preview after stopping publication', async () => {
+    const restoredPreview = new MediaStream();
+    spyOn(
+      fixture.componentInstance.videoElement.nativeElement,
+      'play',
+    ).and.resolveTo();
+    mediaInput.startPreview.calls.reset();
+    mediaInput.startPreview.and.resolveTo(restoredPreview);
+
+    await fixture.componentInstance.stopWebcam(false);
+
+    expect(rtc.stopPublish).toHaveBeenCalled();
+    expect(streamService.stop).toHaveBeenCalled();
+    expect(mediaInput.startPreview).toHaveBeenCalledTimes(1);
+    expect(fixture.componentInstance.workflowError).toBeNull();
   });
 
   it('stops the backend when live replacement clears the Agora live flag', async () => {

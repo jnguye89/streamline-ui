@@ -107,6 +107,7 @@ const INITIAL_AUDIO_MIX_STATE: AudioMixState = {
 const INITIAL_AUDIO_METER_STATE: AudioMeterState = {
   game: -60,
   microphone: -60,
+  output: -60,
 };
 
 const PERMISSION_DENIAL_ERRORS = new Set([
@@ -149,6 +150,8 @@ export class MediaInputService implements OnDestroy {
   private microphoneSourceNode: MediaStreamAudioSourceNode | null = null;
   private gameAudioChannel: AudioMixerChannelNodes | null = null;
   private microphoneAudioChannel: AudioMixerChannelNodes | null = null;
+  private mixLimiterNode: DynamicsCompressorNode | null = null;
+  private mixAnalyserNode: AnalyserNode | null = null;
   private meterAnimationFrame: number | null = null;
   private audioDestination: MediaStreamAudioDestinationNode | null = null;
   private videoCompositor: VideoCompositorSession | null = null;
@@ -946,6 +949,8 @@ export class MediaInputService implements OnDestroy {
     );
     this.gameAudioChannel = gains.game;
     this.microphoneAudioChannel = gains.microphone;
+    this.mixLimiterNode = gains.limiter ?? null;
+    this.mixAnalyserNode = gains.outputAnalyser ?? null;
     this.startAudioMeters();
   }
 
@@ -968,6 +973,8 @@ export class MediaInputService implements OnDestroy {
       this.microphoneAudioChannel?.level,
       this.microphoneAudioChannel?.analyser,
       this.microphoneAudioChannel?.mute,
+      this.mixLimiterNode,
+      this.mixAnalyserNode,
     ].forEach((node) => {
       try {
         node?.disconnect();
@@ -979,6 +986,8 @@ export class MediaInputService implements OnDestroy {
     this.microphoneSourceNode = null;
     this.gameAudioChannel = null;
     this.microphoneAudioChannel = null;
+    this.mixLimiterNode = null;
+    this.mixAnalyserNode = null;
   }
 
   private startAudioMeters(): void {
@@ -992,6 +1001,7 @@ export class MediaInputService implements OnDestroy {
         microphone: this.readAudioLoudness(
           this.microphoneAudioChannel?.analyser ?? null,
         ),
+        output: this.readAudioLoudness(this.mixAnalyserNode),
       });
       this.meterAnimationFrame = requestFrame(sample);
     };

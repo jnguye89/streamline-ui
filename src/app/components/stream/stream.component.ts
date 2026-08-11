@@ -347,8 +347,7 @@ export class StreamComponent
       await this.streamService.start(this.channelName);
     } catch {
       await this.rtcStreamService.stopPublish();
-      this.mediaInput.stopPreview();
-      this.clearVideoElement();
+      await this.restorePreview();
       this.workflowError =
         'Going live failed. Check the selected inputs and try again.';
     } finally {
@@ -364,6 +363,7 @@ export class StreamComponent
     let response: { filename: string } | undefined;
     let stopFailed = false;
     let backendStopFailed = false;
+    let previewRestoreFailed = false;
     try {
       try {
         await this.rtcStreamService.stopPublish();
@@ -377,13 +377,15 @@ export class StreamComponent
         backendStopFailed = true;
       }
     } finally {
-      this.mediaInput.stopPreview();
-      this.clearVideoElement();
+      previewRestoreFailed = !(await this.restorePreview());
     }
 
     if (stopFailed) {
       this.workflowError =
         'The stream stopped locally, but some shutdown steps failed. Retry before going live again.';
+    } else if (previewRestoreFailed) {
+      this.workflowError =
+        'The stream stopped, but the local preview could not be restarted. Review the selected inputs and retry.';
     }
     if (openDialog && !backendStopFailed) this.showEndStreamDialog(response);
   }
@@ -433,6 +435,16 @@ export class StreamComponent
 
     await this.renderPrimaryPreview(stream);
     return stream;
+  }
+
+  private async restorePreview(): Promise<boolean> {
+    try {
+      return !!(await this.refreshPreview());
+    } catch {
+      this.mediaInput.stopPreview();
+      this.clearVideoElement();
+      return false;
+    }
   }
 
   private async renderPrimaryPreview(stream: MediaStream): Promise<void> {

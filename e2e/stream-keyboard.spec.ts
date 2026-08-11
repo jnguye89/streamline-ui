@@ -250,8 +250,16 @@ test('publishes selected preview tracks and completes repeated backend lifecycle
   const stop = page.getByRole('button', { name: 'Stop streaming' });
 
   await expect(goLive).toBeEnabled();
+  const offlineButtonRadius = await goLive.evaluate(
+    (element) => getComputedStyle(element).borderRadius,
+  );
   await goLive.click();
   await expect(page.getByText('LIVE', { exact: true })).toBeVisible();
+  await expect
+    .poll(() =>
+      stop.evaluate((element) => getComputedStyle(element).borderRadius),
+    )
+    .toBe(offlineButtonRadius);
   await expect(page.getByLabel('Main stream video')).toBeEnabled();
   await expect(page.getByLabel('Main stream audio')).toBeEnabled();
   await expect(page.getByLabel('Facecam video')).toBeEnabled();
@@ -312,6 +320,17 @@ test('publishes selected preview tracks and completes repeated backend lifecycle
   await page.getByRole('button', { name: 'No Thanks' }).click();
   await expect(page.getByText('OFFLINE', { exact: true })).toBeVisible();
   await expect.poll(() => recordingStops).toBe(1);
+  await expect
+    .poll(() =>
+      page.locator('.primary-preview').evaluate((element: HTMLVideoElement) => {
+        const stream = element.srcObject as MediaStream | null;
+        return stream?.getVideoTracks()[0]?.readyState;
+      }),
+    )
+    .toBe('live');
+  await expect(
+    page.getByRole('meter', { name: 'Final mix level' }),
+  ).toHaveAttribute('aria-valuenow', /^-?\d+/);
   await expect
     .poll(() =>
       page.evaluate(() => {

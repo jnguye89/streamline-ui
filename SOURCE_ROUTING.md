@@ -6,7 +6,7 @@ Primary video ─┐
 Overlay video ─┘
 
 Game audio ────┐
-               ├─ Web Audio mixer ─── Final audio track ── Agora audio track
+               ├─ Web Audio mixer ── Limiter ── Final audio track ── Agora audio track
 Microphone ────┘
 ```
 
@@ -96,7 +96,7 @@ The two captured streams enter a shared Web Audio graph:
 
 ```text
 Game source ── Level gain ── Analyser ── Mute gain ──┐
-                                                     ├─ MediaStreamDestination
+                                                     ├─ Limiter ── Output analyser ── MediaStreamDestination
 Mic source ─── Level gain ── Analyser ── Mute gain ──┘
 ```
 
@@ -107,7 +107,7 @@ Each source has a separate level and mute stage:
 - The mute gain is `0` when muted and `1` when unmuted.
 - The analyser remains active while muted because mute is applied after it.
 
-The destination produces one mixed audio `MediaStreamTrack`. The raw game and microphone tracks are never published separately.
+The source channels converge on a shared `DynamicsCompressorNode` configured as a protective limiter with a −1 dB threshold, 20:1 ratio, hard knee, 3 ms attack, and 100 ms release. A final analyser follows the limiter, so it measures the signal that is delivered to the destination. The destination produces one mixed audio `MediaStreamTrack`; the raw game and microphone tracks are never published separately.
 
 The graph is assembled by `connectAudioMixer()` in [audio-mixer.service.ts](/home/bryan/projects/streamline-ui/src/app/services/audio-mixer.service.ts).
 
@@ -126,6 +126,10 @@ The meter uses a −60 to 0 dB display range and these bands:
 A vertical marker at −1 dB indicates the recommended ceiling. A clip indicator to the right of the meter activates when the measured level reaches 0 dB.
 
 Moving a volume slider changes the measured level naturally because its gain node precedes the analyser. Muting changes the meter's styling but does not suppress its activity, making it possible to verify that a muted source is still receiving audio.
+
+The final output analyser uses the same dBFS scale and color bands. Its compact vertical meter appears inside the Go Live/Stop button, replacing the redundant recording dot while leaving the toolbar's Offline/Live label as the authoritative broadcast-state indicator. Because this meter is downstream of both mute stages and the limiter, it represents the actual mixed output sent to Agora.
+
+The limiter is a peak-protection stage rather than loudness normalization. It attenuates signals that cross the ceiling but does not boost quiet material or target an integrated LUFS value.
 
 4. Agora conversion and publication
 

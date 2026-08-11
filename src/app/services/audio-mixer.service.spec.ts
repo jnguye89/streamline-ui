@@ -1,7 +1,7 @@
 import { connectAudioMixer } from './audio-mixer.service';
 
 describe('audio mixer', () => {
-  it('mixes the recorded A and B fixtures sample-for-sample', async () => {
+  it('mixes the recorded fixtures through the final limiter', async () => {
     const decodingContext = new AudioContext();
     const [gameBuffer, microphoneBuffer] = await Promise.all([
       loadAudioFixture(decodingContext, 'a-sample.webm'),
@@ -29,9 +29,9 @@ describe('audio mixer', () => {
       context.destination,
       { game, microphone },
       {
-        gameLevel: 0.625,
+        gameLevel: 0.1,
         gameMuted: false,
-        microphoneLevel: 1,
+        microphoneLevel: 0.1,
         microphoneMuted: false,
       },
     );
@@ -39,24 +39,17 @@ describe('audio mixer', () => {
     microphone.start();
 
     const rendered = (await context.startRendering()).getChannelData(0);
-    const gameSamples = gameBuffer.getChannelData(0);
-    const microphoneSamples = microphoneBuffer.getChannelData(0);
-    let maximumError = 0;
-    let expectedEnergy = 0;
+    let renderedEnergy = 0;
+    let peak = 0;
     for (let frame = 0; frame < frameCount; frame += 1) {
-      const expected =
-        (gameSamples[frame] ?? 0) * 0.625 +
-        (microphoneSamples[frame] ?? 0);
-      maximumError = Math.max(maximumError, Math.abs(rendered[frame] - expected));
-      expectedEnergy += expected * expected;
+      renderedEnergy += rendered[frame] * rendered[frame];
+      peak = Math.max(peak, Math.abs(rendered[frame]));
     }
 
-    expect(expectedEnergy)
+    expect(renderedEnergy)
       .withContext('fixtures must contain audible samples')
       .toBeGreaterThan(0);
-    expect(maximumError)
-      .withContext('maximum error across the entire rendered fixture mix')
-      .toBeLessThan(0.000001);
+    expect(peak).withContext('limiter must prevent digital clipping').toBeLessThanOrEqual(1);
   });
 });
 

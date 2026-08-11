@@ -432,7 +432,18 @@
             !mediaInput.snapshot.selection.videoDeviceId))
       "
     >
-      <mat-icon class="stream-toolbar__live-icon">fiber_manual_record</mat-icon>
+      <span
+        *ngIf="audioMeter$ | async as meter"
+        class="stream-toolbar__mix-meter"
+        [attr.data-band]="meterBand(meter.output)"
+        role="meter"
+        aria-label="Final mix level"
+        aria-valuemin="-60"
+        aria-valuemax="0"
+        [attr.aria-valuenow]="meter.output | number: '1.0-0'"
+      >
+        <i [style.transform]="'scaleY(' + meterScale(meter.output) + ')'"></i>
+      </span>
       {{ isLive ? 'STOP' : 'GO LIVE' }}
     </button>
   </ng-container>
