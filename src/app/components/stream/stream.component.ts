@@ -2,193 +2,378 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
-  inject,
+  OnDestroy,
+  OnInit,
   ViewChild,
+  inject,
 } from "@angular/core";
-import { FlexLayoutModule } from "@angular/flex-layout";
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatButtonModule } from "@angular/material/button";
-import { MatIconModule } from "@angular/material/icon";
+import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
+import { FlexLayoutModule } from "@angular/flex-layout";
+import { MatButtonModule } from "@angular/material/button";
+import { MatDialog } from "@angular/material/dialog";
+import { MatIconModule } from "@angular/material/icon";
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { Router } from "@angular/router";
+import { MediaPreviewState } from '../../models/media-input.models';
 import {
-  concatMap,
+  Subject,
   filter,
   firstValueFrom,
-  Observable,
-  of,
-  Subject,
   take,
   takeUntil,
 } from "rxjs";
-import { CommonModule } from "@angular/common";
-import { SeoService } from "../../services/seo.service";
-import { Router } from "@angular/router";
-import { StreamService } from "../../services/stream.service";
-import { MatDialog } from "@angular/material/dialog";
-import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
-import { RtcStreamService } from "../../services/agora/rtc-stream.service";
-import { UserService } from "../../services/user.service";
-import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
+import { DeviceAuthService } from "../../services/device-auth.service";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
-import { RecordingSocketService, ChatMessage } from "../../services/socket/recording.service";
 import { ChatColorPipe } from "../../pipes/chat-color.pipe";
+import { MediaInputService } from "../../services/media-input.service";
+import { RtcStreamService } from "../../services/agora/rtc-stream.service";
+import { SeoService } from "../../services/seo.service";
+import { StreamService } from "../../services/stream.service";
+import { UserService } from "../../services/user.service";
+import {
+  ChatMessage,
+  RecordingSocketService,
+} from "../../services/socket/recording.service";
+import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 
 @Component({
   selector: "app-stream",
   standalone: true,
-  imports: [MatButtonModule, MatIconModule, FlexLayoutModule, CommonModule, MatProgressSpinnerModule, GamepadFocusableDirective, FormsModule, ChatColorPipe],
+  imports: [
+    CommonModule,
+    FormsModule,
+    FlexLayoutModule,
+    MatButtonModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
+    GamepadFocusableDirective,
+    ChatColorPipe,
+  ],
   templateUrl: "./stream.component.html",
   styleUrl: "./stream.component.scss",
 })
-export class StreamComponent implements AfterViewInit {
-  private dialog = inject(MatDialog);
-  private userId: number | undefined;
-  isAuthenticated$ = this.deviceAuth.isAuthenticated$;
-  isLive$ = this.rtcStreamService.isLive$;
-  isReady = false;
-  aiMagicEnabled = false;
-  user$: Observable<DeviceUser | null> = of();
-  channelName: string | undefined;
-  private destroy$ = new Subject<void>();
-  @ViewChild('video', { static: true }) videoElement!: ElementRef<HTMLVideoElement>;
+export class StreamComponent
+  implements OnInit, AfterViewInit, OnDestroy
+{
+  private readonly dialog = inject(MatDialog);
+  private readonly destroy$ = new Subject<void>();
+  private inputChangeQueue = Promise.resolve();
 
-  // Live chat (floating overlay, TikTok-style) - lets the host see and
-  // reply to viewer chat while broadcasting. Fixed-size buffer, oldest
-  // message drops off as a new one comes in.
-  private readonly CHAT_MAX_VISIBLE = 12;
+  @ViewChild('video', { static: true })
+  videoElement!: ElementRef<HTMLVideoElement>;
+  @ViewChild('previewStage', { static: true })
+  previewStageElement!: ElementRef<HTMLElement>;
+
+  readonly isAuthenticated$ = this.deviceAuth.isAuthenticated$;
+  readonly isLive$ = this.rtcStreamService.isLive$;
+  readonly mediaState$ = this.mediaInput.state$;
+  readonly previewState$ = this.mediaInput.preview$;
+  readonly audioMix$ = this.mediaInput.audioMix$;
+
+  isAuthenticated = false;
+  isLive = this.rtcStreamService.isLive$.value;
+  previewState: MediaPreviewState = this.mediaInput.previewSnapshot;
+  isReady = false;
+  isStarting = false;
+  isInitializing = false;
+  isApplyingInputs = false;
+  channelName: string | undefined;
+  workflowError: string | null = null;
+  inputPanelOpen = false;
   chatMessages: (ChatMessage & { key: string })[] = [];
   chatText = '';
 
+  private readonly chatMaxVisible = 12;
+
   constructor(
-    private streamService: StreamService,
-    public deviceAuth: DeviceAuthService,
-    private seo: SeoService,
-    private router: Router,
-    private rtcStreamService: RtcStreamService,
-    private userService: UserService,
-    private socket: RecordingSocketService,
-  ) { }
+    private readonly streamService: StreamService,
+    public readonly deviceAuth: DeviceAuthService,
+    private readonly seo: SeoService,
+    private readonly router: Router,
+    private readonly rtcStreamService: RtcStreamService,
+    private readonly userService: UserService,
+    private readonly socket: RecordingSocketService,
+    public readonly mediaInput: MediaInputService,
+  ) {}
 
-  ngOnInit() {
-    this.isAuthenticated$.pipe(
-      takeUntil(this.destroy$)).subscribe(isAuthenticated => {
-        isAuthenticated ? this.init() : this.login();
+  ngOnInit(): void {
+    this.isAuthenticated$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((isAuthenticated) => {
+        this.isAuthenticated = isAuthenticated;
+        if (isAuthenticated && !this.channelName) {
+          void this.init();
+        } else if (!isAuthenticated) {
+          void this.login();
+        }
       });
+    this.isLive$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((isLive) => (this.isLive = isLive));
+    this.previewState$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((previewState) => (this.previewState = previewState));
   }
 
-  async init() {
-    this.user$ = this.deviceAuth.user$;
-    this.user$.pipe(
-      filter(r => !!r?.sub),
-      concatMap(u => this.userService.getAuth0User(u?.sub!)),
-      take(1))
-      .subscribe(u => {
-        this.userId = (u as any).agoraUserId;
-      });
-    this.channelName = `host-${Math.random().toString(36).substring(2, 15)}`;
-    const token = await firstValueFrom(this.streamService.ensureReady(this.channelName));
-
-    this.rtcStreamService.join(token.appId, this.channelName, token.rtcToken, this.userId!);
-    this.isReady = true;
-
-    this.socket.connect();
-    this.socket.joinRoom(this.channelName);
-    this.socket.chatMessage$.pipe(takeUntil(this.destroy$)).subscribe(msg => this.onChatMessage(msg));
-  }
-
-  login() {
-    this.router.navigate(['/login'], { queryParams: { returnUrl: this.router.url } });
-  }
-
-  async ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this.setUpSeo();
   }
 
-  async resumeWebcam() {
-    await this.rtcStreamService.startPublish();
-    await this.streamService.start(this.channelName!);
-  }
+  async init(): Promise<void> {
+    if (this.isInitializing) return;
+    this.isInitializing = true;
+    this.workflowError = null;
+    this.channelName = `host-${Math.random().toString(36).substring(2, 15)}`;
 
-  toggleLive(): void {
-    if (this.rtcStreamService.isLive$.value) {
-      void this.stopWebcam();
-    } else {
-      void this.resumeWebcam();
+    try {
+      const authUser = await firstValueFrom(
+        this.deviceAuth.user$.pipe(
+          filter((user): user is NonNullable<typeof user> & { sub: string } => !!user?.sub),
+          take(1),
+        ),
+      );
+      const apiUser = await firstValueFrom(
+        this.userService.getAuth0User(authUser.sub),
+      );
+
+      await this.mediaInput.initialize();
+      if (this.mediaInput.snapshot.selection.videoDeviceId) {
+        await this.refreshPreview();
+      }
+
+      const token = await firstValueFrom(
+        this.streamService.ensureReady(this.channelName),
+      );
+      await this.rtcStreamService.join(
+        token.appId,
+        this.channelName,
+        token.rtcToken,
+        apiUser.agoraUserId,
+      );
+      this.isReady = true;
+      this.initializeChat();
+    } catch {
+      this.mediaInput.stopPreview();
+      this.clearVideoElement();
+      try {
+        await this.rtcStreamService.leave();
+      } catch {
+        // Preserve the actionable setup error even if Agora cleanup also fails.
+      }
+      this.workflowError =
+        'The stream could not be prepared. Check your connection and retry.';
+      this.isReady = false;
+      this.channelName = undefined;
+    } finally {
+      this.isInitializing = false;
     }
   }
 
-  toggleAiMagic(): void {
-    this.aiMagicEnabled = !this.aiMagicEnabled;
+  private initializeChat(): void {
+    try {
+      this.socket.connect();
+      this.socket.joinRoom(this.channelName!);
+      this.socket.chatMessage$
+        .pipe(takeUntil(this.destroy$))
+        .subscribe((message) => this.onChatMessage(message));
+    } catch {
+      // Chat is supplemental and must not invalidate a ready media session.
+    }
   }
 
-  async stopWebcam(openDialog: boolean = true) {
-    console.log('stopped got called');
-    await this.rtcStreamService.stopPublish();
-    var response = await this.streamService.stop(this.channelName!);
-    console.log('response', response);
-    if (!openDialog) return;
+  retrySetup(): Promise<void> {
+    return this.init();
+  }
 
-    if (!response.filename) {
-      const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
-        data: {
-          title: 'Nice work.',
-          body: `We're saving your stream; it'll land on your profile shortly. Go live again!`
+  login(): Promise<boolean> {
+    return this.router.navigate(['/login'], {
+      queryParams: { returnUrl: this.router.url },
+    });
+  }
+
+  selectVideo(deviceId: string): Promise<void> {
+    return this.queueInputChange(async () => {
+      const wasLive = this.rtcStreamService.isLive$.value;
+      try {
+        this.mediaInput.selectVideo(deviceId || null);
+        const stream = await this.mediaInput.refreshPrimaryVideo();
+        if (!stream) return;
+        await this.mediaInput.refreshOverlayVideo();
+        await this.mediaInput.refreshAudioSources();
+        if (this.rtcStreamService.isLive$.value) {
+          await this.rtcStreamService.replacePublishedVideo(stream);
         }
-      });
-
-      const timeout = setTimeout(() => dialogRef.close(), 3000);
-      dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
-      return;
-    }
-
-    if (this.aiMagicEnabled) {
-      this.runAiMagic(response.filename);
-      return;
-    }
-
-    // AI Magic isn't on - ask instead of silently skipping it.
-    const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
-      data: {
-        title: 'AI Magic is off',
-        body: `Your stream has been saved to your profile. Want to turn on AI Magic to automatically enhance this video?`,
-        confirmBtnText: 'Yes, enable it',
-        cancelBtnText: 'No thanks'
-      }
-    });
-
-    dialogRef.afterClosed().subscribe((enable: boolean) => {
-      if (enable) {
-        this.aiMagicEnabled = true;
-        this.runAiMagic(response.filename);
+        this.mediaInput.commitPrimaryVideoRefresh();
+        await this.renderPrimaryPreview(stream);
+      } catch {
+        await this.handleInputChangeFailure(wasLive);
       }
     });
   }
 
-  private runAiMagic(filename: string): void {
-    this.streamService.process(filename);
-    const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
-      data: {
-        title: 'AI Magic running',
-        body: `Your video is being processed. This can take a few minutes. The video will show up in your profile when ready!`,
-        confirmBtnText: 'OK',
+  toggleInputPanel(): void {
+    this.inputPanelOpen = !this.inputPanelOpen;
+  }
+
+  selectOverlayVideo(deviceId: string): Promise<void> {
+    return this.queueInputChange(async () => {
+      const wasLive = this.rtcStreamService.isLive$.value;
+      try {
+        this.mediaInput.selectOverlayVideo(deviceId || null);
+        await this.mediaInput.refreshOverlayVideo();
+      } catch {
+        await this.handleInputChangeFailure(wasLive);
       }
     });
-    const timeout = setTimeout(() => dialogRef.close(), 5000);
-    dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
+  }
+
+  selectGameAudio(deviceId: string): Promise<void> {
+    return this.queueInputChange(async () => {
+      const wasLive = this.rtcStreamService.isLive$.value;
+      try {
+        this.mediaInput.selectGameAudio(deviceId || null);
+        await this.mediaInput.refreshAudioSources();
+      } catch {
+        await this.handleInputChangeFailure(wasLive);
+      }
+    });
+  }
+
+  selectMicrophone(deviceId: string): Promise<void> {
+    return this.queueInputChange(async () => {
+      const wasLive = this.rtcStreamService.isLive$.value;
+      try {
+        this.mediaInput.selectMicrophone(deviceId || null);
+        await this.mediaInput.refreshAudioSources();
+      } catch {
+        await this.handleInputChangeFailure(wasLive);
+      }
+    });
+  }
+
+  setGameLevel(value: string): void {
+    this.mediaInput.setGameLevel(Number(value) / 100);
+  }
+
+  toggleGameMute(): void {
+    this.mediaInput.setGameMuted(!this.mediaInput.audioMixSnapshot.gameMuted);
+  }
+
+  setMicrophoneLevel(value: string): void {
+    this.mediaInput.setMicrophoneLevel(Number(value) / 100);
+  }
+
+  toggleMicrophoneMute(): void {
+    this.mediaInput.setMicrophoneMuted(
+      !this.mediaInput.audioMixSnapshot.microphoneMuted,
+    );
+  }
+
+  swapSources(): Promise<void> {
+    return this.queueInputChange(async () => {
+      const wasLive = this.rtcStreamService.isLive$.value;
+      try {
+        this.mediaInput.swapSources();
+        const stream = await this.mediaInput.refreshPrimaryVideo();
+        await this.mediaInput.refreshOverlayVideo();
+        await this.mediaInput.refreshAudioSources();
+        if (stream && this.rtcStreamService.isLive$.value) {
+          await this.rtcStreamService.replacePublishedVideo(stream);
+        }
+        if (stream) this.mediaInput.commitPrimaryVideoRefresh();
+        if (stream) await this.renderPrimaryPreview(stream);
+      } catch {
+        await this.handleInputChangeFailure(wasLive);
+      }
+    });
+  }
+
+  async toggleFullscreen(): Promise<void> {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+    } else {
+      await this.previewStageElement.nativeElement.requestFullscreen();
+    }
+  }
+
+  async retryInputs(): Promise<void> {
+    this.workflowError = null;
+    await this.mediaInput.initialize();
+    if (this.mediaInput.snapshot.selection.videoDeviceId) {
+      await this.refreshPreview();
+    }
+  }
+
+  async resumeWebcam(): Promise<void> {
+    if (!this.channelName || this.isStarting) {
+      return;
+    }
+
+    this.isStarting = true;
+    this.workflowError = null;
+    try {
+      let stream = this.mediaInput.previewSnapshot.stream;
+      if (!stream || stream.getVideoTracks()[0]?.readyState === 'ended') {
+        stream = await this.refreshPreview();
+      }
+      if (!stream) {
+        throw new Error('No preview stream is available.');
+      }
+
+      await this.mediaInput.resumeAudioContext();
+      await this.rtcStreamService.startPublish(stream);
+      await this.streamService.start(this.channelName);
+    } catch {
+      await this.rtcStreamService.stopPublish();
+      this.mediaInput.stopPreview();
+      this.clearVideoElement();
+      this.workflowError =
+        'Going live failed. Check the selected inputs and try again.';
+    } finally {
+      this.isStarting = false;
+    }
+  }
+
+  async stopWebcam(openDialog = true): Promise<void> {
+    if (!this.channelName) {
+      return;
+    }
+
+    let response: { filename: string } | undefined;
+    let stopFailed = false;
+    let backendStopFailed = false;
+    try {
+      try {
+        await this.rtcStreamService.stopPublish();
+      } catch {
+        stopFailed = true;
+      }
+      try {
+        response = await this.streamService.stop(this.channelName);
+      } catch {
+        stopFailed = true;
+        backendStopFailed = true;
+      }
+    } finally {
+      this.mediaInput.stopPreview();
+      this.clearVideoElement();
+    }
+
+    if (stopFailed) {
+      this.workflowError =
+        'The stream stopped locally, but some shutdown steps failed. Retry before going live again.';
+    }
+    if (openDialog && !backendStopFailed) this.showEndStreamDialog(response);
   }
 
   ngOnDestroy(): void {
     if (this.channelName) this.socket.leaveRoom(this.channelName);
     this.destroy$.next();
     this.destroy$.complete();
-    void this.rtcStreamService.leave();
-  }
-
-  private onChatMessage(msg: ChatMessage): void {
-    if (msg.roomId !== this.channelName) return;
-
-    const entry = { ...msg, key: `${msg.ts}-${Math.random().toString(36).slice(2)}` };
-    this.chatMessages = [...this.chatMessages, entry].slice(-this.CHAT_MAX_VISIBLE);
+    this.mediaInput.stopPreview();
+    this.clearVideoElement();
+    void this.rtcStreamService.leave().catch(() => undefined);
   }
 
   sendChat(): void {
@@ -199,22 +384,133 @@ export class StreamComponent implements AfterViewInit {
     this.chatText = '';
   }
 
-  trackChatMessage(_: number, m: ChatMessage & { key: string }): string {
-    return m.key;
+  trackChatMessage(
+    _: number,
+    message: ChatMessage & { key: string },
+  ): string {
+    return message.key;
   }
 
-  private setUpSeo() {
-    const title = 'skriin AI TV | stream (beta)';
-    const description =
-      "One-click streaming hub: push gameplay, camera or desktop to Twitch, YouTube & skriin Cloud. AI overlays, chat integration, 0.6 s latency.";
-    const keywords =
-      "live game streaming, smart tv streamer, ai overlays, low latency broadcast, twitch youtube stream";
+  private onChatMessage(message: ChatMessage): void {
+    if (message.roomId !== this.channelName) return;
 
+    const entry = {
+      ...message,
+      key: `${message.ts}-${Math.random().toString(36).slice(2)}`,
+    };
+    this.chatMessages = [...this.chatMessages, entry].slice(
+      -this.chatMaxVisible,
+    );
+  }
+
+  private async refreshPreview(): Promise<MediaStream | null> {
+    const stream = await this.mediaInput.startPreview();
+    if (!stream) {
+      this.clearVideoElement();
+      return null;
+    }
+
+    await this.renderPrimaryPreview(stream);
+    return stream;
+  }
+
+  private async renderPrimaryPreview(stream: MediaStream): Promise<void> {
+    const video = this.videoElement.nativeElement;
+    video.muted = true;
+    video.volume = 0;
+    video.srcObject = new MediaStream(stream.getVideoTracks());
+    try {
+      await video.play();
+    } catch {
+      // The stream remains attached; a user gesture can resume autoplay.
+    }
+  }
+
+  private clearVideoElement(): void {
+    if (this.videoElement) {
+      this.videoElement.nativeElement.srcObject = null;
+    }
+  }
+
+  private async handleInputChangeFailure(wasLive: boolean): Promise<void> {
+    if (wasLive) {
+      await this.stopWebcam(false);
+    } else {
+      this.mediaInput.stopPreview();
+      this.clearVideoElement();
+    }
+    this.workflowError =
+      'The selected input could not be applied. Review the available devices and retry.';
+  }
+
+  private queueInputChange(operation: () => Promise<void>): Promise<void> {
+    const queued = this.inputChangeQueue.then(async () => {
+      this.isApplyingInputs = true;
+      try {
+        await operation();
+      } finally {
+        this.isApplyingInputs = false;
+      }
+    });
+    this.inputChangeQueue = queued.catch(() => undefined);
+    return queued;
+  }
+
+  private showEndStreamDialog(response?: { filename: string }): void {
+    if (response?.filename) {
+      const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+        data: {
+          title: 'Nice work.',
+          body:
+            'Your stream has been saved to your profile. Do you want to ' +
+            'automatically process your video?',
+          confirmBtnText: 'Process Video',
+          cancelBtnText: 'No Thanks',
+        },
+      });
+
+      dialogRef.afterClosed().subscribe((confirmed: boolean) => {
+        if (confirmed) {
+          void this.streamService.process(response.filename);
+          const progressDialog = this.dialog.open(ConfirmEndStreamDialog, {
+            data: {
+              title: 'Processing Started',
+              body:
+                'Your video is being processed. This can take a few minutes. ' +
+                'The video will show up in your profile when ready!',
+              confirmBtnText: 'OK',
+            },
+          });
+          const timeout = setTimeout(() => progressDialog.close(), 5000);
+          progressDialog.afterClosed().subscribe(() => clearTimeout(timeout));
+        }
+      });
+      return;
+    }
+
+    const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+      data: {
+        title: 'Nice work.',
+        body:
+          "We're saving your stream; it'll land on your profile shortly. " +
+          'Go live again!',
+      },
+    });
+    const timeout = setTimeout(() => dialogRef.close(), 3000);
+    dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
+  }
+
+  private setUpSeo(): void {
     this.seo.setTags({
-      title,
-      description,
-      keywords,
-      path: "/watch",
+      title: 'skriin AI TV | stream (beta)',
+      description:
+        'One-click streaming hub: push gameplay, camera or both to ' +
+        'Twitch, YouTube & skriin Cloud. AI overlays, chat integration, ' +
+        '0.6 s latency.',
+      keywords:
+        'live game streaming, smart tv streamer, ai overlays, low latency ' +
+        'broadcast, twitch youtube stream',
+      path: '/watch',
     });
   }
 }

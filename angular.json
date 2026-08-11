@@ -99,6 +99,13 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true
+            },
+            "e2e": {
+              "browser": "src/main.e2e.ts",
+              "tsConfig": "tsconfig.e2e-app.json",
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
             }
           },
           "defaultConfiguration": "production"
@@ -111,6 +118,9 @@
             },
             "development": {
               "buildTarget": "skriin:build:development"
+            },
+            "e2e": {
+              "buildTarget": "skriin:build:e2e"
             }
           },
           "defaultConfiguration": "development"
@@ -130,10 +140,20 @@
             ],
             "tsConfig": "tsconfig.spec.json",
             "inlineStyleLanguage": "scss",
+            "stylePreprocessorOptions": {
+              "includePaths": [
+                "src/styles"
+              ]
+            },
             "assets": [
               "src/favicon.ico",
               "src/assets",
-              "src/manifest.webmanifest"
+              "src/manifest.webmanifest",
+              {
+                "glob": "*.webm",
+                "input": "test-data",
+                "output": "/test-data"
+              }
             ],
             "styles": [
               "@angular/material/prebuilt-themes/purple-green.css",
