@@ -599,7 +599,7 @@ export class MediaInputService implements OnDestroy {
     this.pendingPreviousPrimaryVideoStream = previous;
     this.videoCompositor?.setPrimary(capture.stream);
 
-    const audioTrack = this.audioDestination?.stream.getAudioTracks()[0];
+    const audioTrack = this.activeMixerTrack();
     const stream = this.environment.createMediaStream([
       ...(this.videoCompositor?.track
         ? [this.videoCompositor.track]
@@ -1068,13 +1068,20 @@ export class MediaInputService implements OnDestroy {
       return;
     }
     const videoTracks = this.previewSnapshot.stream.getVideoTracks();
-    const audioTrack = this.audioDestination?.stream.getAudioTracks()[0];
+    const audioTrack = this.activeMixerTrack();
     const stream = this.environment.createMediaStream([
       ...videoTracks,
       ...(audioTrack ? [audioTrack] : []),
     ]);
     this.patchPreview({ stream });
     this.attachTrackListeners(stream);
+  }
+
+  private activeMixerTrack(): MediaStreamTrack | undefined {
+    const { gameAudioDeviceId, microphoneDeviceId } =
+      this.snapshot.consoleSelection;
+    if (!gameAudioDeviceId && !microphoneDeviceId) return undefined;
+    return this.audioDestination?.stream.getAudioTracks()[0];
   }
 
   private errorName(error: unknown): string {

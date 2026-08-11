@@ -19,8 +19,8 @@ const SUPPORTED_EXACT_MODES = [
 ] as const;
 
 const BOUNDED_BEST_CONSTRAINTS = {
-  width: { min: 1280, ideal: 1920, max: 1920 },
-  height: { min: 720, ideal: 1080, max: 1080 },
+  width: { ideal: 1920, max: 1920 },
+  height: { ideal: 1080, max: 1080 },
   frameRate: { ideal: 60, max: 60 },
   resizeMode: { ideal: 'none' },
 } as MediaTrackConstraints;

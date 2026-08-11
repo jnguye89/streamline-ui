@@ -135,6 +135,69 @@ export class RtcStreamService implements OnDestroy {
     }
   }
 
+  async syncPublishedAudio(stream: MediaStream): Promise<void> {
+    if (!this.joined || !this.isLive$.value) {
+      throw new Error('A live Agora publication is required to replace tracks.');
+    }
+
+    const client = await this.clientPromise;
+    const sourceAudio = stream.getAudioTracks()[0];
+    const previousAudio = this.localTracks.find(
+      (track) => track.trackMediaType === 'audio',
+    );
+
+    if (previousAudio && this.trackSources.get(previousAudio) === sourceAudio) {
+      return;
+    }
+
+    if (!sourceAudio) {
+      if (!previousAudio) return;
+      await client.unpublish(previousAudio);
+      this.localTracks = this.localTracks.filter(
+        (track) => track !== previousAudio,
+      );
+      this.closeTracks([previousAudio]);
+      return;
+    }
+
+    const replacementAudio = await this.agora.createCustomAudioTrack({
+      mediaStreamTrack: sourceAudio,
+    });
+    this.trackSources.set(replacementAudio, sourceAudio);
+
+    if (!previousAudio) {
+      try {
+        await client.publish(replacementAudio);
+        this.localTracks.unshift(replacementAudio);
+      } catch (error: unknown) {
+        this.closeTracks([replacementAudio]);
+        throw error;
+      }
+      return;
+    }
+
+    let previousAudioUnpublished = false;
+    try {
+      await client.unpublish(previousAudio);
+      previousAudioUnpublished = true;
+      await client.publish(replacementAudio);
+      this.localTracks = this.localTracks.map((track) =>
+        track === previousAudio ? replacementAudio : track,
+      );
+      this.closeTracks([previousAudio]);
+    } catch (error: unknown) {
+      this.closeTracks([replacementAudio]);
+      if (previousAudioUnpublished) {
+        try {
+          await client.publish(previousAudio);
+        } catch {
+          this.isLive$.next(false);
+        }
+      }
+      throw error;
+    }
+  }
+
   async stopPublish(): Promise<void> {
     if (this.isLive$.value && this.localTracks.length > 0) {
       try {

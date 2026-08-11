@@ -183,6 +183,66 @@ describe('RtcStreamService', () => {
     expect(service.isLive$.value).toBeTrue();
   });
 
+  it('adds audio to an active video-only publication', async () => {
+    const sourceVideo = browserTrack('video');
+    const customVideo = agoraTrack('video') as ILocalVideoTrack;
+    const sourceAudio = browserTrack('audio');
+    const customAudio = agoraTrack('audio') as ILocalAudioTrack;
+    adapter.createCustomVideoTrack.and.resolveTo(customVideo);
+    adapter.createCustomAudioTrack.and.resolveTo(customAudio);
+    await join();
+    await service.startPublish(browserStream([sourceVideo]));
+    client.publish.calls.reset();
+
+    await service.syncPublishedAudio(browserStream([sourceVideo, sourceAudio]));
+
+    expect(adapter.createCustomAudioTrack).toHaveBeenCalledWith({
+      mediaStreamTrack: sourceAudio,
+    });
+    expect(client.publish).toHaveBeenCalledWith(customAudio);
+    expect(client.unpublish).not.toHaveBeenCalled();
+  });
+
+  it('replaces published audio without interrupting video', async () => {
+    const sourceVideo = browserTrack('video');
+    const firstSourceAudio = browserTrack('audio');
+    const nextSourceAudio = browserTrack('audio');
+    const customVideo = agoraTrack('video') as ILocalVideoTrack;
+    const firstCustomAudio = agoraTrack('audio') as ILocalAudioTrack;
+    const nextCustomAudio = agoraTrack('audio') as ILocalAudioTrack;
+    adapter.createCustomVideoTrack.and.resolveTo(customVideo);
+    adapter.createCustomAudioTrack.and.resolveTo(firstCustomAudio);
+    await join();
+    await service.startPublish(browserStream([sourceVideo, firstSourceAudio]));
+    adapter.createCustomAudioTrack.and.resolveTo(nextCustomAudio);
+
+    await service.syncPublishedAudio(
+      browserStream([sourceVideo, nextSourceAudio]),
+    );
+
+    expect(client.unpublish).toHaveBeenCalledWith(firstCustomAudio);
+    expect(client.publish).toHaveBeenCalledWith(nextCustomAudio);
+    expect(firstCustomAudio.close).toHaveBeenCalled();
+    expect(customVideo.close).not.toHaveBeenCalled();
+  });
+
+  it('removes published audio when both inputs are disabled', async () => {
+    const sourceVideo = browserTrack('video');
+    const sourceAudio = browserTrack('audio');
+    const customVideo = agoraTrack('video') as ILocalVideoTrack;
+    const customAudio = agoraTrack('audio') as ILocalAudioTrack;
+    adapter.createCustomVideoTrack.and.resolveTo(customVideo);
+    adapter.createCustomAudioTrack.and.resolveTo(customAudio);
+    await join();
+    await service.startPublish(browserStream([sourceVideo, sourceAudio]));
+
+    await service.syncPublishedAudio(browserStream([sourceVideo]));
+
+    expect(client.unpublish).toHaveBeenCalledWith(customAudio);
+    expect(customAudio.close).toHaveBeenCalled();
+    expect(customVideo.close).not.toHaveBeenCalled();
+  });
+
   it('closes a custom video track when custom audio creation fails', async () => {
     const sourceVideo = browserTrack('video');
     const sourceAudio = browserTrack('audio');

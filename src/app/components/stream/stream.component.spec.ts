@@ -121,10 +121,18 @@ describe('StreamComponent', () => {
     isLive$ = new BehaviorSubject(false);
     rtc = jasmine.createSpyObj<RtcStreamService>(
       'RtcStreamService',
-      ['join', 'startPublish', 'replacePublishedVideo', 'stopPublish', 'leave'],
+      [
+        'join',
+        'startPublish',
+        'replacePublishedVideo',
+        'syncPublishedAudio',
+        'stopPublish',
+        'leave',
+      ],
       { isLive$ },
     );
     rtc.join.and.resolveTo();
+    rtc.syncPublishedAudio.and.resolveTo();
     rtc.stopPublish.and.resolveTo();
     rtc.leave.and.resolveTo();
     streamService = jasmine.createSpyObj<StreamService>('StreamService', [
@@ -246,6 +254,19 @@ describe('StreamComponent', () => {
 
     expect(mediaInput.selectMicrophone).toHaveBeenCalledWith('audio-1');
     expect(mediaInput.refreshAudioSources).toHaveBeenCalled();
+  });
+
+  it('publishes a newly selected audio source while live', async () => {
+    const publishStream = {} as MediaStream;
+    Object.defineProperty(mediaInput, 'previewSnapshot', {
+      get: () => ({ ...idlePreview, stream: publishStream }),
+    });
+    isLive$.next(true);
+
+    await fixture.componentInstance.selectMicrophone('audio-1');
+
+    expect(mediaInput.refreshAudioSources).toHaveBeenCalled();
+    expect(rtc.syncPublishedAudio).toHaveBeenCalledWith(publishStream);
   });
 
   it('serializes complete input changes so their capture steps cannot interleave', async () => {

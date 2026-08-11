@@ -597,7 +597,7 @@ describe('MediaInputService', () => {
     expect(service.previewSnapshot.status).toBe('ready');
   });
 
-  it('keeps the mixer output track stable when audio sources change', async () => {
+  it('omits mixer output when every audio source is disabled', async () => {
     const videoTrack = track('video');
     const firstAudioTrack = track('audio');
     mediaDevices.devices = [
@@ -611,17 +611,38 @@ describe('MediaInputService', () => {
         constraints.video ? stream([videoTrack]) : stream([firstAudioTrack]),
     );
     const preview = await service.startPreview();
-    const mixerTrack = preview?.getAudioTracks()[0];
+    expect(preview?.getAudioTracks()).toHaveSize(1);
 
     service.selectGameAudio(null);
     await service.refreshAudioSources();
 
-    expect(service.previewSnapshot.stream?.getAudioTracks()[0]).toBe(
-      mixerTrack,
-    );
+    expect(service.previewSnapshot.stream?.getAudioTracks()).toEqual([]);
     expect(previewAudioContexts).toHaveSize(1);
     expect(previewAudioContexts[0].close).not.toHaveBeenCalled();
     expect(firstAudioTrack.stop).toHaveBeenCalled();
+  });
+
+  it('retains mixer output when the selected audio source is muted', async () => {
+    const videoTrack = track('video');
+    const audioTrack = track('audio');
+    mediaDevices.devices = [
+      device('videoinput', 'video-1', 'Capture card'),
+      device('audioinput', 'audio-1', 'Capture audio'),
+    ];
+    configurePreview();
+    await service.initialize();
+    mediaDevices.getUserMedia.and.callFake(
+      async (constraints: MediaStreamConstraints): Promise<MediaStream> =>
+        constraints.video ? stream([videoTrack]) : stream([audioTrack]),
+    );
+    const preview = await service.startPreview();
+    const mixerTrack = preview?.getAudioTracks()[0];
+
+    service.setGameMuted(true);
+
+    expect(service.previewSnapshot.stream?.getAudioTracks()[0]).toBe(
+      mixerTrack,
+    );
   });
 
   it('keeps the previous primary source alive until replacement commits', async () => {
@@ -699,8 +720,8 @@ describe('MediaInputService', () => {
     expect(mediaDevices.getUserMedia).toHaveBeenCalledWith({
       video: {
         deviceId: { exact: 'video-1' },
-        width: { min: 1280, ideal: 1920, max: 1920 },
-        height: { min: 720, ideal: 1080, max: 1080 },
+        width: { ideal: 1920, max: 1920 },
+        height: { ideal: 1080, max: 1080 },
         frameRate: { ideal: 60, max: 60 },
         resizeMode: { ideal: 'none' },
       },

@@ -203,6 +203,7 @@ export class StreamComponent
         await this.mediaInput.refreshAudioSources();
         if (this.rtcStreamService.isLive$.value) {
           await this.rtcStreamService.replacePublishedVideo(stream);
+          await this.syncPublishedAudio();
         }
         this.mediaInput.commitPrimaryVideoRefresh();
         await this.renderPrimaryPreview(stream);
@@ -234,6 +235,7 @@ export class StreamComponent
       try {
         this.mediaInput.selectGameAudio(deviceId || null);
         await this.mediaInput.refreshAudioSources();
+        await this.syncPublishedAudio();
       } catch {
         await this.handleInputChangeFailure(wasLive);
       }
@@ -246,6 +248,7 @@ export class StreamComponent
       try {
         this.mediaInput.selectMicrophone(deviceId || null);
         await this.mediaInput.refreshAudioSources();
+        await this.syncPublishedAudio();
       } catch {
         await this.handleInputChangeFailure(wasLive);
       }
@@ -280,6 +283,7 @@ export class StreamComponent
         await this.mediaInput.refreshAudioSources();
         if (stream && this.rtcStreamService.isLive$.value) {
           await this.rtcStreamService.replacePublishedVideo(stream);
+          await this.syncPublishedAudio();
         }
         if (stream) this.mediaInput.commitPrimaryVideoRefresh();
         if (stream) await this.renderPrimaryPreview(stream);
@@ -287,6 +291,12 @@ export class StreamComponent
         await this.handleInputChangeFailure(wasLive);
       }
     });
+  }
+
+  private async syncPublishedAudio(): Promise<void> {
+    if (!this.rtcStreamService.isLive$.value) return;
+    const stream = this.mediaInput.previewSnapshot.stream;
+    if (stream) await this.rtcStreamService.syncPublishedAudio(stream);
   }
 
   async toggleFullscreen(): Promise<void> {
