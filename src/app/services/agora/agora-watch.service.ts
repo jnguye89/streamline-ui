@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import AgoraRTC, { IAgoraRTCClient, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
+import type { IAgoraRTCClient, IAgoraRTCRemoteUser } from 'agora-rtc-sdk-ng';
 import { HttpClient } from '@angular/common/http';
 import { AgoraTokenResponse } from '../../models/agora/agora.model';
 import { environment } from '../../../environments/environment';
@@ -17,9 +17,8 @@ export class AgoraWatchService {
     }
 
     async watch(channelName: string, containerEl: HTMLElement) {
+        const { default: AgoraRTC } = await import('agora-rtc-sdk-ng');
         this.clearContainer();
-        // Always leave any previous channel before joining a new one
-        // var random = Math.floor(Math.random() * 100000);
         await this.stop();
 
         this.containerEl = containerEl;
@@ -47,15 +46,15 @@ export class AgoraWatchService {
             return;
         }
 
-        try {
-            this.client.off('user-published', this.onUserPublished);
-            this.client.off('user-unpublished', this.onUserUnpublished);
-            this.client.off('user-left', this.onUserLeft);
-        } catch { }
+        this.client.off('user-published', this.onUserPublished);
+        this.client.off('user-unpublished', this.onUserUnpublished);
+        this.client.off('user-left', this.onUserLeft);
 
         try {
             await this.client.leave();
-        } catch { }
+        } catch {
+            // Leaving an already disconnected audience client is harmless.
+        }
 
         this.client = null;
         this.clearContainer();
