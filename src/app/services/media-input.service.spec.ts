@@ -93,6 +93,14 @@ class FakeGainNode extends FakeAudioNode {
   };
 }
 
+class FakeAnalyserNode extends FakeAudioNode {
+  fftSize = 2048;
+  smoothingTimeConstant = 0;
+  getByteTimeDomainData(samples: Uint8Array): void {
+    samples.fill(128);
+  }
+}
+
 class FakeAudioContext {
   state: AudioContextState = 'suspended';
   currentTime = 1;
@@ -122,6 +130,10 @@ class FakeAudioContext {
     const gain = new FakeGainNode();
     this.gains.push(gain);
     return gain as unknown as GainNode;
+  }
+
+  createAnalyser(): AnalyserNode {
+    return new FakeAnalyserNode() as unknown as AnalyserNode;
   }
 }
 
@@ -1008,7 +1020,7 @@ describe('MediaInputService', () => {
       }),
     );
     expect(audioContext.gains.map(({ gain }) => gain.value)).toEqual([
-      0.625, 1,
+      0.625, 1, 1, 1,
     ]);
 
     service.setGameMuted(false);
@@ -1019,7 +1031,7 @@ describe('MediaInputService', () => {
       1,
       0.02,
     );
-    expect(audioContext.gains[1].gain.setTargetAtTime).toHaveBeenCalledWith(
+    expect(audioContext.gains[3].gain.setTargetAtTime).toHaveBeenCalledWith(
       0,
       1,
       0.02,

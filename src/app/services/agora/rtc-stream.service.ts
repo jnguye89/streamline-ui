@@ -146,7 +146,15 @@ export class RtcStreamService implements OnDestroy {
       (track) => track.trackMediaType === 'audio',
     );
 
-    if (previousAudio && this.trackSources.get(previousAudio) === sourceAudio) {
+    const previousSourceAudio = previousAudio
+      ? this.trackSources.get(previousAudio)
+      : undefined;
+    if (
+      previousSourceAudio &&
+      sourceAudio &&
+      (previousSourceAudio === sourceAudio ||
+        (!!previousSourceAudio.id && previousSourceAudio.id === sourceAudio.id))
+    ) {
       return;
     }
 

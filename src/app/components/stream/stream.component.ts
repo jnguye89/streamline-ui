@@ -70,6 +70,7 @@ export class StreamComponent
   readonly mediaState$ = this.mediaInput.state$;
   readonly previewState$ = this.mediaInput.preview$;
   readonly audioMix$ = this.mediaInput.audioMix$;
+  readonly audioMeter$ = this.mediaInput.audioMeter$;
 
   isAuthenticated = false;
   isLive = this.rtcStreamService.isLive$.value;
@@ -271,6 +272,16 @@ export class StreamComponent
     this.mediaInput.setMicrophoneMuted(
       !this.mediaInput.audioMixSnapshot.microphoneMuted,
     );
+  }
+
+  meterScale(loudness: number): number {
+    return Math.min(1, Math.max(0, (loudness + 60) / 60));
+  }
+
+  meterBand(loudness: number): 'green' | 'yellow' | 'red' {
+    if (loudness > -3) return 'red';
+    if (loudness > -12) return 'yellow';
+    return 'green';
   }
 
   swapSources(): Promise<void> {

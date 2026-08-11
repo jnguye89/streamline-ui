@@ -85,6 +85,8 @@
     </p>
 
     <ng-container *ngIf="audioMix$ | async as mix">
+      <ng-container *ngIf="audioMeter$ | async as meter">
+      <div class="source-layout">
       <fieldset class="source-group">
         <legend>Main stream</legend>
         <div class="input-field">
@@ -182,6 +184,9 @@
           >
             <mat-icon>{{ mix.gameMuted ? 'volume_off' : 'volume_up' }}</mat-icon>
           </button>
+          <div class="audio-meter" [class.muted]="mix.gameMuted" [class.clipping]="meter.game >= 0" [attr.data-band]="meterBand(meter.game)" role="meter" aria-label="Main audio activity" aria-valuemin="-60" aria-valuemax="0" [attr.aria-valuenow]="meter.game | number: '1.0-0'">
+            <span [style.transform]="'scaleX(' + meterScale(meter.game) + ')'" ></span>
+          </div>
         </div>
       </fieldset>
 
@@ -311,8 +316,13 @@
               mix.microphoneMuted ? 'volume_off' : 'volume_up'
             }}</mat-icon>
           </button>
+          <div class="audio-meter" [class.muted]="mix.microphoneMuted" [class.clipping]="meter.microphone >= 0" [attr.data-band]="meterBand(meter.microphone)" role="meter" aria-label="Facecam audio activity" aria-valuemin="-60" aria-valuemax="0" [attr.aria-valuenow]="meter.microphone | number: '1.0-0'">
+            <span [style.transform]="'scaleX(' + meterScale(meter.microphone) + ')'" ></span>
+          </div>
         </div>
       </fieldset>
+      </div>
+      </ng-container>
     </ng-container>
 
     <p class="status-message" *ngIf="media.videoInputs.length === 0">

@@ -95,21 +95,39 @@ Microphone capture leaves the browser’s normal audio processing available.
 The two captured streams enter a shared Web Audio graph:
 
 ```text
-Game MediaStreamAudioSourceNode ── GainNode ──┐
-                                              ├─ MediaStreamDestination
-Mic MediaStreamAudioSourceNode ─── GainNode ──┘
+Game source ── Level gain ── Analyser ── Mute gain ──┐
+                                                     ├─ MediaStreamDestination
+Mic source ─── Level gain ── Analyser ── Mute gain ──┘
 ```
 
-The gain nodes implement:
+Each source has a separate level and mute stage:
 
-- Independent game and microphone levels
-- Independent mute states
+- The level gain applies the source's volume slider.
+- The analyser measures the post-level signal that would enter the mix.
+- The mute gain is `0` when muted and `1` when unmuted.
+- The analyser remains active while muted because mute is applied after it.
 
 The destination produces one mixed audio `MediaStreamTrack`. The raw game and microphone tracks are never published separately.
 
-The graph is assembled in [media-input.service.ts](/home/bryan/projects/streamline-ui/src/app/services/media-input.service.ts:918).
+The graph is assembled by `connectAudioMixer()` in [audio-mixer.service.ts](/home/bryan/projects/streamline-ui/src/app/services/audio-mixer.service.ts).
 
-3. Agora conversion and publication
+3. Source metering
+
+Each analyser samples its post-level signal and reports an RMS-based dBFS estimate. This is not a standards-compliant LUFS measurement: it does not apply K-weighting, gating, or integrated loudness windows.
+
+The meter uses a −60 to 0 dB display range and these bands:
+
+| Band | Level | Meaning |
+| --- | ---: | --- |
+| Green | ≤ −12 dB | Normal operating range |
+| Yellow | > −12 to −3 dB | Loud; approaching the ceiling |
+| Red | > −3 dB | Excessively loud |
+
+A vertical marker at −1 dB indicates the recommended ceiling. A clip indicator to the right of the meter activates when the measured level reaches 0 dB.
+
+Moving a volume slider changes the measured level naturally because its gain node precedes the analyser. Muting changes the meter's styling but does not suppress its activity, making it possible to verify that a muted source is still receiving audio.
+
+4. Agora conversion and publication
 
 At initial publication, `RtcStreamService` takes the mixer destination track and wraps it with:
 
@@ -121,7 +139,7 @@ AgoraRTC.createCustomAudioTrack({
 
 Agora therefore receives one mixed audio track alongside the composed video track.
 
-4. Live audio changes
+5. Live audio changes
 
 When either audio selector changes:
 
@@ -137,3 +155,5 @@ It supports:
 - Replacing the published mixer track
 - Removing the published audio track
 - Leaving the video publication undisturbed
+
+When both audio devices are disabled, the combined preview omits audio and Agora unpublishes its audio track. When selected sources are merely muted, the mixer track remains published with zero output so unmuting is immediate.

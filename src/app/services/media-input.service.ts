@@ -9,6 +9,7 @@ import {
 import { BehaviorSubject } from 'rxjs';
 import {
   AudioChannel,
+  AudioMeterState,
   AudioMixState,
   ConsoleInputSelection,
   MediaInputDevice,
@@ -21,6 +22,7 @@ import {
 } from '../models/media-input.models';
 export type { MediaInputEnvironment } from '../models/media-input.models';
 import {
+  AudioMixerChannelNodes,
   applyAudioMixState,
   connectAudioMixer,
 } from './audio-mixer.service';
@@ -102,6 +104,11 @@ const INITIAL_AUDIO_MIX_STATE: AudioMixState = {
   microphoneMuted: false,
 };
 
+const INITIAL_AUDIO_METER_STATE: AudioMeterState = {
+  game: -60,
+  microphone: -60,
+};
+
 const PERMISSION_DENIAL_ERRORS = new Set([
   'NotAllowedError',
   'SecurityError',
@@ -124,6 +131,9 @@ export class MediaInputService implements OnDestroy {
   private readonly audioMixSubject = new BehaviorSubject<AudioMixState>(
     INITIAL_AUDIO_MIX_STATE,
   );
+  private readonly audioMeterSubject = new BehaviorSubject<AudioMeterState>(
+    INITIAL_AUDIO_METER_STATE,
+  );
   private readonly isBrowser: boolean;
   private listeningForDeviceChanges = false;
   private destroyed = false;
@@ -137,8 +147,9 @@ export class MediaInputService implements OnDestroy {
   private audioContext: AudioContext | null = null;
   private gameSourceNode: MediaStreamAudioSourceNode | null = null;
   private microphoneSourceNode: MediaStreamAudioSourceNode | null = null;
-  private gameGainNode: GainNode | null = null;
-  private microphoneGainNode: GainNode | null = null;
+  private gameAudioChannel: AudioMixerChannelNodes | null = null;
+  private microphoneAudioChannel: AudioMixerChannelNodes | null = null;
+  private meterAnimationFrame: number | null = null;
   private audioDestination: MediaStreamAudioDestinationNode | null = null;
   private videoCompositor: VideoCompositorSession | null = null;
   private readonly disabledConsoleSelections = new Set<
@@ -152,6 +163,7 @@ export class MediaInputService implements OnDestroy {
   readonly state$ = this.stateSubject.asObservable();
   readonly preview$ = this.previewSubject.asObservable();
   readonly audioMix$ = this.audioMixSubject.asObservable();
+  readonly audioMeter$ = this.audioMeterSubject.asObservable();
 
   private readonly handleDeviceChange = async (): Promise<void> => {
     const previousSelection = this.snapshot.selection;
@@ -703,6 +715,7 @@ export class MediaInputService implements OnDestroy {
     this.stateSubject.complete();
     this.previewSubject.complete();
     this.audioMixSubject.complete();
+    this.audioMeterSubject.complete();
   }
 
   private canUseMediaDevices(): boolean {
@@ -931,8 +944,9 @@ export class MediaInputService implements OnDestroy {
       },
       this.audioMixSnapshot,
     );
-    this.gameGainNode = gains.game;
-    this.microphoneGainNode = gains.microphone;
+    this.gameAudioChannel = gains.game;
+    this.microphoneAudioChannel = gains.microphone;
+    this.startAudioMeters();
   }
 
   private createAudioSourceNode(
@@ -944,11 +958,16 @@ export class MediaInputService implements OnDestroy {
   }
 
   private disconnectAudioSources(): void {
+    this.stopAudioMeters();
     [
       this.gameSourceNode,
       this.microphoneSourceNode,
-      this.gameGainNode,
-      this.microphoneGainNode,
+      this.gameAudioChannel?.level,
+      this.gameAudioChannel?.analyser,
+      this.gameAudioChannel?.mute,
+      this.microphoneAudioChannel?.level,
+      this.microphoneAudioChannel?.analyser,
+      this.microphoneAudioChannel?.mute,
     ].forEach((node) => {
       try {
         node?.disconnect();
@@ -958,8 +977,46 @@ export class MediaInputService implements OnDestroy {
     });
     this.gameSourceNode = null;
     this.microphoneSourceNode = null;
-    this.gameGainNode = null;
-    this.microphoneGainNode = null;
+    this.gameAudioChannel = null;
+    this.microphoneAudioChannel = null;
+  }
+
+  private startAudioMeters(): void {
+    const requestFrame = this.environment.requestAnimationFrame;
+    if (!requestFrame || (!this.gameAudioChannel && !this.microphoneAudioChannel)) {
+      return;
+    }
+    const sample = (): void => {
+      this.audioMeterSubject.next({
+        game: this.readAudioLoudness(this.gameAudioChannel?.analyser ?? null),
+        microphone: this.readAudioLoudness(
+          this.microphoneAudioChannel?.analyser ?? null,
+        ),
+      });
+      this.meterAnimationFrame = requestFrame(sample);
+    };
+    this.meterAnimationFrame = requestFrame(sample);
+  }
+
+  private stopAudioMeters(): void {
+    if (this.meterAnimationFrame !== null) {
+      this.environment.cancelAnimationFrame?.(this.meterAnimationFrame);
+      this.meterAnimationFrame = null;
+    }
+    this.audioMeterSubject.next(INITIAL_AUDIO_METER_STATE);
+  }
+
+  private readAudioLoudness(analyser: AnalyserNode | null): number {
+    if (!analyser) return -60;
+    const samples = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(samples);
+    let sum = 0;
+    samples.forEach((sample) => {
+      const normalized = (sample - 128) / 128;
+      sum += normalized * normalized;
+    });
+    const rms = Math.sqrt(sum / samples.length);
+    return rms > 0 ? Math.max(-60, 20 * Math.log10(rms)) : -60;
   }
 
   private setAudioLevel(channel: AudioChannel, level: number): void {
@@ -981,7 +1038,7 @@ export class MediaInputService implements OnDestroy {
     if (this.audioContext) {
       applyAudioMixState(
         this.audioContext,
-        { game: this.gameGainNode, microphone: this.microphoneGainNode },
+        { game: this.gameAudioChannel, microphone: this.microphoneAudioChannel },
         this.audioMixSnapshot,
         true,
       );

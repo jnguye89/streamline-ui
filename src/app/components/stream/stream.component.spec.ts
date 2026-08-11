@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { BehaviorSubject, Subject, of, throwError } from 'rxjs';
 import {
   AudioMixState,
+  AudioMeterState,
   MediaInputState,
   MediaPreviewState,
 } from '../../models/media-input.models';
@@ -65,6 +66,7 @@ describe('StreamComponent', () => {
   let state$: BehaviorSubject<MediaInputState>;
   let preview$: BehaviorSubject<MediaPreviewState>;
   let audioMix$: BehaviorSubject<AudioMixState>;
+  let audioMeter$: BehaviorSubject<AudioMeterState>;
   let mediaInput: jasmine.SpyObj<MediaInputService>;
   let rtc: jasmine.SpyObj<RtcStreamService>;
   let streamService: jasmine.SpyObj<StreamService>;
@@ -80,6 +82,10 @@ describe('StreamComponent', () => {
       gameMuted: false,
       microphoneLevel: 1,
       microphoneMuted: false,
+    });
+    audioMeter$ = new BehaviorSubject<AudioMeterState>({
+      game: 0,
+      microphone: 0,
     });
     mediaInput = jasmine.createSpyObj<MediaInputService>(
       'MediaInputService',
@@ -106,6 +112,7 @@ describe('StreamComponent', () => {
         state$: state$.asObservable(),
         preview$: preview$.asObservable(),
         audioMix$: audioMix$.asObservable(),
+        audioMeter$: audioMeter$.asObservable(),
         snapshot: readyState,
         previewSnapshot: idlePreview,
         audioMixSnapshot: audioMix$.value,
@@ -194,6 +201,7 @@ describe('StreamComponent', () => {
     state$.complete();
     preview$.complete();
     audioMix$.complete();
+    audioMeter$.complete();
     chatMessage$.complete();
   });
 
@@ -267,6 +275,31 @@ describe('StreamComponent', () => {
 
     expect(mediaInput.refreshAudioSources).toHaveBeenCalled();
     expect(rtc.syncPublishedAudio).toHaveBeenCalledWith(publishStream);
+  });
+
+  it('shows source activity at the selected level while preserving muted activity', () => {
+    audioMeter$.next({ game: -18, microphone: -14 });
+    audioMix$.next({
+      ...audioMix$.value,
+      gameLevel: 0.5,
+      gameMuted: true,
+    });
+    fixture.detectChanges();
+
+    const meter = fixture.nativeElement.querySelector(
+      '[aria-label="Main audio activity"]',
+    ) as HTMLElement;
+    expect(meter.classList).toContain('muted');
+    expect((meter.firstElementChild as HTMLElement).style.transform).toBe(
+      'scaleX(0.7)',
+    );
+    expect(meter.dataset['band']).toBe('green');
+    expect(fixture.componentInstance.meterBand(-8)).toBe('yellow');
+    expect(fixture.componentInstance.meterBand(-2)).toBe('red');
+
+    audioMeter$.next({ game: 0, microphone: -60 });
+    fixture.detectChanges();
+    expect(meter.classList).toContain('clipping');
   });
 
   it('serializes complete input changes so their capture steps cannot interleave', async () => {

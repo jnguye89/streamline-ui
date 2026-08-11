@@ -54,6 +54,7 @@ function createLocalTrack(source: MediaStreamTrack): ILocalTrack {
   state.tracks.push(record);
 
   return {
+    trackMediaType: source.kind,
     stop: () => {
       record.stopCalls += 1;
     },
@@ -71,22 +72,39 @@ const client = {
     state.joins += 1;
     return 101;
   },
-  publish: async (tracks: ILocalTrack[]) => {
+  publish: async (trackOrTracks: ILocalTrack | ILocalTrack[]) => {
     state.publishes += 1;
-    state.receivedKinds = tracks.map(
-      (track) =>
-        (track as unknown as { __e2eSource: MediaStreamTrack }).__e2eSource
-          .kind,
-    );
-    state.receivedTrackIds = tracks.map(
-      (track) =>
-        (track as unknown as { __e2eSource: MediaStreamTrack }).__e2eSource.id,
-    );
+    const tracks = Array.isArray(trackOrTracks) ? trackOrTracks : [trackOrTracks];
+    tracks.forEach((track) => {
+      const source = (
+        track as unknown as { __e2eSource: MediaStreamTrack }
+      ).__e2eSource;
+      if (!state.receivedTrackIds.includes(source.id)) {
+        state.receivedKinds.push(source.kind);
+        state.receivedTrackIds.push(source.id);
+      }
+    });
   },
-  unpublish: async () => {
+  unpublish: async (trackOrTracks?: ILocalTrack | ILocalTrack[]) => {
     state.unpublishes += 1;
-    state.receivedKinds = [];
-    state.receivedTrackIds = [];
+    if (!trackOrTracks) {
+      state.receivedKinds = [];
+      state.receivedTrackIds = [];
+      return;
+    }
+    const tracks = Array.isArray(trackOrTracks) ? trackOrTracks : [trackOrTracks];
+    const removedIds = new Set(
+      tracks.map(
+        (track) =>
+          (track as unknown as { __e2eSource: MediaStreamTrack }).__e2eSource.id,
+      ),
+    );
+    state.receivedKinds = state.receivedKinds.filter(
+      (_, index) => !removedIds.has(state.receivedTrackIds[index]),
+    );
+    state.receivedTrackIds = state.receivedTrackIds.filter(
+      (id) => !removedIds.has(id),
+    );
   },
   leave: async () => {
     state.leaves += 1;

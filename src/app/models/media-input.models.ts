@@ -56,6 +56,11 @@ export interface AudioMixState {
   microphoneMuted: boolean;
 }
 
+export interface AudioMeterState {
+  game: number;
+  microphone: number;
+}
+
 export interface MediaInputError {
   code: MediaInputErrorCode;
   message: string;

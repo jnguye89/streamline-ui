@@ -5,9 +5,15 @@ export interface AudioMixerSources {
   microphone: AudioNode | null;
 }
 
-export interface AudioMixerGains {
-  game: GainNode | null;
-  microphone: GainNode | null;
+export interface AudioMixerChannelNodes {
+  level: GainNode;
+  analyser: AnalyserNode;
+  mute: GainNode;
+}
+
+export interface AudioMixerChannels {
+  game: AudioMixerChannelNodes | null;
+  microphone: AudioMixerChannelNodes | null;
 }
 
 export function connectAudioMixer(
@@ -15,26 +21,33 @@ export function connectAudioMixer(
   destination: AudioNode,
   sources: AudioMixerSources,
   state: AudioMixState,
-): AudioMixerGains {
-  const gains: AudioMixerGains = {
+): AudioMixerChannels {
+  const channels: AudioMixerChannels = {
     game: connectSource(context, destination, sources.game),
     microphone: connectSource(context, destination, sources.microphone),
   };
-  applyAudioMixState(context, gains, state, false);
-  return gains;
+  applyAudioMixState(context, channels, state, false);
+  return channels;
 }
 
 export function applyAudioMixState(
   context: BaseAudioContext,
-  gains: AudioMixerGains,
+  channels: AudioMixerChannels,
   state: AudioMixState,
   ramp: boolean,
 ): void {
-  setGain(context, gains.game, state.gameMuted ? 0 : state.gameLevel, ramp);
+  setGain(context, channels.game?.level ?? null, state.gameLevel, ramp);
+  setGain(context, channels.game?.mute ?? null, state.gameMuted ? 0 : 1, ramp);
   setGain(
     context,
-    gains.microphone,
-    state.microphoneMuted ? 0 : state.microphoneLevel,
+    channels.microphone?.level ?? null,
+    state.microphoneLevel,
+    ramp,
+  );
+  setGain(
+    context,
+    channels.microphone?.mute ?? null,
+    state.microphoneMuted ? 0 : 1,
     ramp,
   );
 }
@@ -43,12 +56,18 @@ function connectSource(
   context: BaseAudioContext,
   destination: AudioNode,
   source: AudioNode | null,
-): GainNode | null {
+): AudioMixerChannelNodes | null {
   if (!source) return null;
-  const gain = context.createGain();
-  source.connect(gain);
-  gain.connect(destination);
-  return gain;
+  const level = context.createGain();
+  const analyser = context.createAnalyser();
+  const mute = context.createGain();
+  analyser.fftSize = 2048;
+  analyser.smoothingTimeConstant = 0.75;
+  source.connect(level);
+  level.connect(analyser);
+  analyser.connect(mute);
+  mute.connect(destination);
+  return { level, analyser, mute };
 }
 
 function setGain(
