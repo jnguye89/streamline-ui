@@ -8,6 +8,7 @@
   --panel-muted-surface: rgba(255, 255, 255, 0.12);
   --panel-error: #ffb4ab;
   --panel-note: #ffe082;
+  --panel-edit: #ffd54f;
   --panel-muted-text: #d0d0d0;
   color-scheme: dark;
 }
@@ -21,6 +22,7 @@
     --panel-muted-surface: rgba(0, 0, 0, 0.08);
     --panel-error: #9f1d17;
     --panel-note: #624f00;
+    --panel-edit: #745500;
     --panel-muted-text: #555;
     color-scheme: light;
   }
@@ -118,6 +120,7 @@
     border: 1px solid var(--panel-border);
     border-radius: 8px;
     color: var(--panel-text);
+
     background: var(--panel-control);
     color-scheme: inherit;
     font: inherit;

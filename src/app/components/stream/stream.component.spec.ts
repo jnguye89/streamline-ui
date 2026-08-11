@@ -186,7 +186,11 @@ describe('StreamComponent', () => {
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
         {
           provide: GamepadNavigationService,
-          useValue: { register: () => undefined, unregister: () => undefined },
+          useValue: {
+            register: () => undefined,
+            unregister: () => undefined,
+            setBackAction: () => undefined,
+          },
         },
       ],
     }).compileComponents();

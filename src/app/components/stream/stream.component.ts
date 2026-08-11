@@ -26,6 +26,7 @@ import {
 import { DeviceAuthService } from "../../services/device-auth.service";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 import { ChatColorPipe } from "../../pipes/chat-color.pipe";
+import { GamepadNavigationService } from "../../services/gamepad-navigation.service";
 import { MediaInputService } from "../../services/media-input.service";
 import { RtcStreamService } from "../../services/agora/rtc-stream.service";
 import { SeoService } from "../../services/seo.service";
@@ -92,6 +93,7 @@ export class StreamComponent
     public readonly deviceAuth: DeviceAuthService,
     private readonly seo: SeoService,
     private readonly router: Router,
+    private readonly gamepadNavigation: GamepadNavigationService,
     private readonly rtcStreamService: RtcStreamService,
     private readonly userService: UserService,
     private readonly socket: RecordingSocketService,
@@ -99,6 +101,11 @@ export class StreamComponent
   ) {}
 
   ngOnInit(): void {
+    this.gamepadNavigation.setBackAction(() => {
+      if (!this.inputPanelOpen) return false;
+      this.inputPanelOpen = false;
+      return true;
+    });
     this.isAuthenticated$
       .pipe(takeUntil(this.destroy$))
       .subscribe((isAuthenticated) => {
@@ -392,6 +399,7 @@ export class StreamComponent
 
   ngOnDestroy(): void {
     if (this.channelName) this.socket.leaveRoom(this.channelName);
+    this.gamepadNavigation.setBackAction(null);
     this.destroy$.next();
     this.destroy$.complete();
     this.mediaInput.stopPreview();
