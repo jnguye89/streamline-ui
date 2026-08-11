@@ -21,7 +21,8 @@
               "sdp",
               "webrtc-adapter",
               "agora-rtm-sdk",
-              "agora-rtc-sdk-ng"
+              "agora-rtc-sdk-ng",
+              "qrcode"
             ],
             "stylePreprocessorOptions": {
               "includePaths": [

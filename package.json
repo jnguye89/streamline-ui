@@ -6,7 +6,8 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test",
+    "test": "ng test --watch=false --browsers=ChromeHeadless",
+    "test:e2e": "playwright test",
     "serve:ssr:skriin": "node dist/skriin/server/server.mjs"
   },
   "private": true,

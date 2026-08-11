@@ -10,7 +10,7 @@
       <label class="user" *ngFor="let u of (users$ | async)" [class.self]="u.auth0UserId == (user$ | async)?.sub">
         <input type="checkbox" [(ngModel)]="selected[u.agoraUserId]"
           [disabled]="u.auth0UserId == (user$ | async)?.sub || (!canSelect(u.agoraUserId) && !selected[u.agoraUserId])" />
-        <span class="user__avatar" aria-hidden="true">{{ u.username?.[0] || 'U' }}</span>
+        <span class="user__avatar" aria-hidden="true">{{ u.username[0] || 'U' }}</span>
         <span class="user__name">{{ u.username }}</span>
         <span class="user__presence" [class.online]="online(u.agoraUserId)"></span>
       </label>

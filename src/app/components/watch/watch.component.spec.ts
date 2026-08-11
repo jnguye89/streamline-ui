@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WatchComponent } from './watch.component';
+import { TEST_PROVIDERS } from '../../../testing/test-providers';
 
 describe('WatchComponent', () => {
   let component: WatchComponent;
@@ -8,10 +9,10 @@ describe('WatchComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [WatchComponent]
-    })
-    .compileComponents();
-    
+      imports: [WatchComponent],
+      providers: TEST_PROVIDERS,
+    }).compileComponents();
+
     fixture = TestBed.createComponent(WatchComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
