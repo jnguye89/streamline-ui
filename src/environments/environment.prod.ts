@@ -1,5 +1,7 @@
+import { runtimeApiBaseUrl } from '../runtime-config';
+
 export const environment = {
-  baseUrl: "https://api.skriin.com",
+  baseUrl: runtimeApiBaseUrl("https://api.skriin.com"),
   // streamUrl: "https://3b7d4b5b28f6.us-west-2.playback.live-video.net/api/video/v1/us-west-2.578074109079.channel.kqI34tnoji5s.m3u8",
   auth0: {
     domain: "auth.skriin.com",

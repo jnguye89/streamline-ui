@@ -1,0 +1,119 @@
+x-api-environment: &api-environment
+  PORT: "3000"
+  UI_ORIGIN: ${UI_ORIGIN:?set UI_ORIGIN, for example https://demo.example.com}
+  RDS_HOSTNAME: mysql
+  RDS_PORT: "3306"
+  RDS_USERNAME: ${RDS_USERNAME:?set RDS_USERNAME}
+  RDS_PASSWORD: ${RDS_PASSWORD:?set RDS_PASSWORD}
+  STREAMLINE_DB_NAME: ${STREAMLINE_DB_NAME:-streamline}
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  AUTH0_DOMAIN: ${AUTH0_DOMAIN:?set AUTH0_DOMAIN}
+  AUTH0_ISSUER: ${AUTH0_ISSUER:?set AUTH0_ISSUER}
+  AUTH0_AUDIENCE: ${AUTH0_AUDIENCE:?set AUTH0_AUDIENCE}
+  AUTH0_TV_CLIENT_ID: ${AUTH0_TV_CLIENT_ID:?set AUTH0_TV_CLIENT_ID}
+  AGORA_APP_ID: ${AGORA_APP_ID:?set AGORA_APP_ID}
+  AGORA_APP_CERT: ${AGORA_APP_CERT:?set AGORA_APP_CERT}
+  AGORA_CLOUD_RECORDING_ENABLED: ${AGORA_CLOUD_RECORDING_ENABLED:-false}
+  AWS_REGION: ${AWS_REGION:-us-east-1}
+  AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+  ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+  ELEVENLABS_AGENT_ID: ${ELEVENLABS_AGENT_ID:-}
+
+services:
+  ui:
+    image: ${UI_IMAGE:-ghcr.io/jnguye89/streamline-ui:demo}
+    environment:
+      API_BASE_URL: ${API_BASE_URL:?set API_BASE_URL, for example https://api.demo.example.com}
+    networks: [demo]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  api:
+    image: ${API_IMAGE:-ghcr.io/jnguye89/streamline-api:demo}
+    environment: *api-environment
+    networks: [demo]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+
+  worker:
+    image: ${API_IMAGE:-ghcr.io/jnguye89/streamline-api:demo}
+    command: ["node", "dist/worker.js"]
+    healthcheck:
+      disable: true
+    environment: *api-environment
+    networks: [demo]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: ${STREAMLINE_DB_NAME:-streamline}
+      MYSQL_USER: ${RDS_USERNAME:?set RDS_USERNAME}
+      MYSQL_PASSWORD: ${RDS_PASSWORD:?set RDS_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks: [demo]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: ["node.hostname == ${DATA_NODE_HOST:-ds-1}"]
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks: [demo]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints: ["node.hostname == ${DATA_NODE_HOST:-ds-1}"]
+
+  tunnel:
+    image: ${CLOUDFLARED_IMAGE:-cloudflare/cloudflared@sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf}
+    command: ["tunnel", "--no-autoupdate", "run", "--token-file", "/run/secrets/cloudflare_tunnel_token"]
+    secrets:
+      - cloudflare_tunnel_token
+    networks: [demo]
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+networks:
+  demo:
+    driver: overlay
+
+volumes:
+  mysql_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${REMOTE_BASE_PATH:-/mnt/swarm}/data/${STACK_NAME:-streamline-demo}/mysql
+  redis_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${REMOTE_BASE_PATH:-/mnt/swarm}/data/${STACK_NAME:-streamline-demo}/redis
+
+secrets:
+  cloudflare_tunnel_token:
+    external: true
+    name: ${TUNNEL_SECRET_NAME:-cloudflare_tunnel_token}

@@ -40,6 +40,7 @@
             "assets": [
               "src/favicon.ico",
               "src/assets",
+              "src/runtime-config.js",
               "src/manifest.webmanifest"
             ],
             "styles": [
