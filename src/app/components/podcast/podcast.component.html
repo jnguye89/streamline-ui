@@ -30,7 +30,7 @@
         <input type="checkbox"
                [(ngModel)]="selected[u.agoraUserId]"
                [disabled]="u.auth0UserId == (user$ | async)?.sub || (!canSelect(u.agoraUserId) && !selected[u.agoraUserId])" />
-        <span class="user__avatar">{{ u.username?.[0] || 'U' }}</span>
+        <span class="user__avatar">{{ u.username[0] || 'U' }}</span>
         <span class="user__name">{{ u.username }}</span>
         <span class="user__presence" [class.online]="online(u.agoraUserId)"></span>
       </label>

@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/e2e-app",
+    "types": [
+      "node"
+    ]
+  },
+  "files": [
+    "src/main.e2e.ts"
+  ],
+  "include": [
+    "playwright.config.ts",
+    "src/**/*.d.ts"
+  ]
+}

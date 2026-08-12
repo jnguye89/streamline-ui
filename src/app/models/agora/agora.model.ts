@@ -4,4 +4,5 @@ export interface AgoraTokenResponse {
     rtcToken: string;
     rtmToken: string;
     expireAt: number;
+    agoraUid?: number;
 }

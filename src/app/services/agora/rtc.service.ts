@@ -1,6 +1,7 @@
 // rtc.service.ts
 import { Injectable } from '@angular/core';
-import AgoraRTC, {
+import type AgoraRTCModule from 'agora-rtc-sdk-ng';
+import type {
     IAgoraRTCClient,
     ILocalAudioTrack,
     ILocalVideoTrack,
@@ -10,11 +11,11 @@ import AgoraRTC, {
 import { BehaviorSubject } from 'rxjs';
 import { RecordingSocketService } from '../socket/recording.service';
 
-AgoraRTC.setLogLevel(0);
-
 @Injectable({ providedIn: 'root' })
 export class RtcService {
-    private client: IAgoraRTCClient = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+    private agora?: typeof AgoraRTCModule;
+    private client?: IAgoraRTCClient;
+    private clientPromise?: Promise<IAgoraRTCClient>;
     private localAudio?: ILocalAudioTrack;
     private localVideo?: ILocalVideoTrack;
 
@@ -25,49 +26,68 @@ export class RtcService {
 
     /** Optional: automatically hang up when alone */
     autoHangupAfterMs = 1000; // set 0 to disable, or tweak (e.g., 3000–8000)
-    private aloneTimer: any = null;
+    private aloneTimer: ReturnType<typeof setTimeout> | null = null;
     private everHadRemote = false; // only auto-hang if we previously had someone
 
     onUserJoined?: (user: IAgoraRTCRemoteUser) => void;
     onUserLeft?: (uid: UID) => void;
 
-    constructor(private socket: RecordingSocketService) {
-        // this.client
-        // Subscribe when new publications happen AFTER you're already in
-        this.client.on('user-published', async (user, mediaType) => {
-            await this.subscribeAndRender(user, mediaType);
-            this.onUserJoined?.(user);
-        });
+    constructor(private socket: RecordingSocketService) {}
 
-        this.client.on('user-unpublished', (user, mediaType) => {
-            // Optional: if video unpublished, you can remove their tile
-            const el = document.getElementById(`remote-${user.uid}`);
-            if (el && mediaType === 'video') el.remove();
-            if (!user.audioTrack && !user.videoTrack) {
-                this.remotes.delete(user.uid);
-                this.flushRemoteCount();
-            }
-            this.flushRemoteCount();
-            this.onUserLeft?.(user.uid);
-        });
+    private async getClient(): Promise<IAgoraRTCClient> {
+        if (this.client) return this.client;
+        if (this.clientPromise) return this.clientPromise;
 
-        this.client.on('user-left', (user) => {
-            const el = document.getElementById(`remote-${user.uid}`);
-            if (el) el.remove();
-            this.remotes.delete(user.uid);
-            this.flushRemoteCount();
-            this.onUserLeft?.(user.uid);
-        });
+        this.clientPromise = import('agora-rtc-sdk-ng')
+          .then(({ default: AgoraRTC }) => {
+              AgoraRTC.setLogLevel(0);
+              this.agora = AgoraRTC;
+              const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+
+              client.on('user-published', async (user, mediaType) => {
+                  await this.subscribeAndRender(user, mediaType);
+                  this.onUserJoined?.(user);
+              });
+
+              client.on('user-unpublished', (user, mediaType) => {
+                  const el = document.getElementById(`remote-${user.uid}`);
+                  if (el && mediaType === 'video') el.remove();
+                  if (!user.audioTrack && !user.videoTrack) {
+                      this.remotes.delete(user.uid);
+                      this.flushRemoteCount();
+                  }
+                  this.flushRemoteCount();
+                  this.onUserLeft?.(user.uid);
+              });
+
+              client.on('user-left', (user) => {
+                  const el = document.getElementById(`remote-${user.uid}`);
+                  if (el) el.remove();
+                  this.remotes.delete(user.uid);
+                  this.flushRemoteCount();
+                  this.onUserLeft?.(user.uid);
+              });
+
+              this.client = client;
+              return client;
+          })
+          .catch((error) => {
+              this.clientPromise = undefined;
+              throw error;
+          });
+
+        return this.clientPromise;
     }
 
 
     async watchStream(appId: string, channelName: string, token: string, uid: number) {
+        const client = await this.getClient();
         // Audience = receive only
-        await this.client.setClientRole("audience");
-        await this.client.join(appId, channelName, token, uid);
+        await client.setClientRole("audience");
+        await client.join(appId, channelName, token, uid);
 
-        this.client.on("user-published", async (user, mediaType) => {
-            await this.client.subscribe(user, mediaType);
+        client.on("user-published", async (user, mediaType) => {
+            await client.subscribe(user, mediaType);
 
             if (mediaType === "video") {
                 user.videoTrack?.play("remote-player");
@@ -77,7 +97,7 @@ export class RtcService {
             }
         });
 
-        this.client.on("user-unpublished", (user, mediaType) => {
+        client.on("user-unpublished", (user, mediaType) => {
             if (mediaType === "video") {
                 // optional: clear your UI
                 const el = document.getElementById("remote-player");
@@ -106,12 +126,13 @@ export class RtcService {
     }
 
     private async subscribeAndRender(user: IAgoraRTCRemoteUser, mediaType?: 'audio' | 'video' | 'datachannel') {
+        const client = await this.getClient();
         // If mediaType provided (from event), subscribe to that one; otherwise subscribe to both that exist.
         if (mediaType) {
-            await this.client.subscribe(user, mediaType);
+            await client.subscribe(user, mediaType);
         } else {
-            if (user.audioTrack) await this.client.subscribe(user, 'audio');
-            if (user.videoTrack) await this.client.subscribe(user, 'video');
+            if (user.audioTrack) await client.subscribe(user, 'audio');
+            if (user.videoTrack) await client.subscribe(user, 'video');
         }
         // Track presence when they publish anything (audio/video)
         this.remotes.set(user.uid, user);
@@ -140,56 +161,53 @@ export class RtcService {
             this.aloneTimer = setTimeout(() => {
                 this.aloneTimer = null;
                 // leave only if still alone
-                if (this.remotes.size === 0) this.leave();
+                if (this.remotes.size === 0) {
+                    void this.leave().catch(() => undefined);
+                }
             }, this.autoHangupAfterMs);
         }
     }
 
     async join(appId: string, channel: string, uid: UID, token: string, withVideo = true) {
-        await this.socket.joinRoom(channel);
-        await this.client.join(appId, channel, token, uid);
+        const client = await this.getClient();
+        const agora = this.agora;
+        if (!agora) throw new Error('Agora RTC is unavailable.');
+        this.socket.joinRoom(channel);
+        await client.join(appId, channel, token, uid);
 
-        this.localAudio = await AgoraRTC.createMicrophoneAudioTrack();
-        if (withVideo) this.localVideo = await AgoraRTC.createCameraVideoTrack();
+        this.localAudio = await agora.createMicrophoneAudioTrack();
+        if (withVideo) this.localVideo = await agora.createCameraVideoTrack();
 
         const tracks = [this.localAudio, this.localVideo].filter(
             Boolean
         ) as (ILocalAudioTrack | ILocalVideoTrack)[];
         if (tracks.length) {
-            await this.client.publish(tracks);
-            console.log('published');
+            await client.publish(tracks);
         }
 
-        // 🔹 LOCAL VIDEO AS A NORMAL TILE
         if (this.localVideo) {
             const container = document.getElementById('remote-container');
             if (container) {
-                const elId = `remote-${uid}`; // same pattern as remotes
+                const elId = `remote-${uid}`;
 
                 let tile = document.getElementById(elId) as HTMLDivElement | null;
                 if (!tile) {
                     tile = document.createElement('div');
                     tile.id = elId;
-                    tile.classList.add('remote-tile'); // 👈 same class as remote videos
+                    tile.classList.add('remote-tile');
                     container.appendChild(tile);
                 }
 
-                // You can pass the element or the element id string; both work
                 this.localVideo.play(tile);
-                // or: this.localVideo.play(elId);
             }
         }
 
-        // 👇 subscribe to users who were already published before you arrived
-        for (const u of this.client.remoteUsers) {
-            console.log('u.videoTrack', u.videoTrack);
+        // Subscribe to users who published before this client joined.
+        for (const u of client.remoteUsers) {
             if (u.videoTrack) {
-                console.log('inside if u.videoTrack', u.videoTrack);
-                await this.client.subscribe(u, 'video');
+                await client.subscribe(u, 'video');
                 const elId = `remote-${u.uid}`;
-                console.log('elId', elId);
                 if (!document.getElementById(elId)) {
-                    console.log('creating div');
                     const div = document.createElement('div');
                     div.id = elId;
                     div.classList.add('remote-tile');
@@ -198,20 +216,20 @@ export class RtcService {
                 u.videoTrack.play(elId);
             }
             if (u.audioTrack) {
-                await this.client.subscribe(u, 'audio');
+                await client.subscribe(u, 'audio');
                 u.audioTrack.play();
             }
         }
 
-        console.log(`✅ Joined channel ${channel} as ${uid}`);
     }
 
 
     isConnected() {
-        return this.client.connectionState === 'CONNECTED';
+        return this.client?.connectionState === 'CONNECTED';
     }
 
     async leave() {
+        if (!this.client) return;
         try {
             await this.client.unpublish();
         } catch (e) {
@@ -222,7 +240,6 @@ export class RtcService {
             this.localAudio = undefined;
             this.localVideo = undefined;
             await this.client.leave();
-            console.log('👋 Left RTC channel');
         }
     }
 

@@ -1,4 +1,10 @@
-import { AfterViewInit, Directive, ElementRef, OnDestroy } from '@angular/core';
+import {
+  AfterViewInit,
+  Directive,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+} from '@angular/core';
 import { GamepadNavigationService } from '../services/gamepad-navigation.service';
 
 /**
@@ -39,5 +45,22 @@ export class GamepadFocusableDirective implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.target) this.gamepadNav.unregister(this.target);
+  }
+
+  @HostListener('focus', ['$event.currentTarget'])
+  syncFocus(target: EventTarget | null): void {
+    if (target instanceof HTMLElement) {
+      this.gamepadNav.requestFocus(target);
+    }
+  }
+
+  @HostListener('keydown', ['$event'])
+  preserveNativeSelectKeys(event: KeyboardEvent): void {
+    if (
+      event.currentTarget instanceof HTMLSelectElement &&
+      !['w', 'a', 's', 'd'].includes(event.key.toLowerCase())
+    ) {
+      event.stopPropagation();
+    }
   }
 }

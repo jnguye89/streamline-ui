@@ -1,5 +1,6 @@
 import { Inject, Injectable, NgZone, OnDestroy, PLATFORM_ID } from '@angular/core';
 import { Location, isPlatformBrowser } from '@angular/common';
+import { Router } from '@angular/router';
 
 type Direction = 'up' | 'down' | 'left' | 'right';
 
@@ -7,12 +8,19 @@ type Direction = 'up' | 'down' | 'left' | 'right';
 // 0 = Cross (X), 1 = Circle, 12-15 = D-pad up/down/left/right.
 const BUTTON_ACTIVATE = 0;
 const BUTTON_BACK = 1;
+const BUTTONS_PREVIOUS_ROUTE = [4, 6];
+const BUTTONS_NEXT_ROUTE = [5, 7];
 const BUTTON_DPAD_UP = 12;
 const BUTTON_DPAD_DOWN = 13;
 const BUTTON_DPAD_LEFT = 14;
 const BUTTON_DPAD_RIGHT = 15;
 
 const AXIS_DEADZONE = 0.5;
+const BUTTON_PRESS_THRESHOLD = 0.5;
+const FALLBACK_DPAD_X_AXIS = 6;
+const FALLBACK_DPAD_Y_AXIS = 7;
+const FALLBACK_DPAD_HAT_AXIS = 9;
+const PAGE_ROUTES = ['/podcast', '/stream', '/watch', '/yap'];
 const REPEAT_DELAY_MS = 420;
 const REPEAT_RATE_MS = 150;
 const SCROLL_STEP_PX = 240;
@@ -36,13 +44,20 @@ export class GamepadNavigationService implements OnDestroy {
   private heldDirection: Direction | null = null;
   private heldSince = 0;
   private lastRepeatAt = 0;
+  private inputWindowActive = false;
 
   private dpadActions: Partial<Record<Direction, () => void>> = {};
+  private backAction: (() => boolean) | null = null;
+  private selectMode: HTMLSelectElement | null = null;
+  private selectInitialIndex = -1;
+  private rangeMode: HTMLInputElement | null = null;
+  private rangeInitialValue = '';
 
   constructor(
     @Inject(PLATFORM_ID) platformId: object,
     private zone: NgZone,
-    private location: Location
+    private location: Location,
+    private router: Router,
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
   }
@@ -76,6 +91,10 @@ export class GamepadNavigationService implements OnDestroy {
     this.dpadActions = {};
   }
 
+  setBackAction(action: (() => boolean) | null): void {
+    this.backAction = action;
+  }
+
   register(el: HTMLElement): void {
     this.focusables.add(el);
     if (!this.currentEl) this.focusElement(el);
@@ -83,6 +102,8 @@ export class GamepadNavigationService implements OnDestroy {
 
   unregister(el: HTMLElement): void {
     this.focusables.delete(el);
+    if (this.selectMode === el) this.exitSelectMode(false);
+    if (this.rangeMode === el) this.exitRangeMode(false);
     if (this.currentEl === el) {
       el.classList.remove(FOCUS_CLASS);
       this.currentEl = null;
@@ -97,7 +118,6 @@ export class GamepadNavigationService implements OnDestroy {
   }
 
   requestFocus(el: HTMLElement): void {
-    console.log('request focus', el);
     this.focusElement(el);
   }
 
@@ -175,13 +195,34 @@ export class GamepadNavigationService implements OnDestroy {
   };
 
   private pollGamepad(): void {
-    const pad = Array.from(navigator.getGamepads()).find((p) => !!p);
-    if (!pad) return;
+    if (!this.canProcessInput()) {
+      this.resetInputState();
+      return;
+    }
 
-    const buttons = pad.buttons.map((b) => b.pressed);
+    const pad = Array.from(navigator.getGamepads()).find((p) => !!p);
+    if (!pad) {
+      this.resetInputState();
+      return;
+    }
+
+    const buttons = pad.buttons.map(
+      (button) => button.pressed || button.value >= BUTTON_PRESS_THRESHOLD,
+    );
+    if (!this.inputWindowActive) {
+      this.inputWindowActive = true;
+      this.prevButtons = buttons;
+      return;
+    }
 
     if (buttons[BUTTON_ACTIVATE] && !this.prevButtons[BUTTON_ACTIVATE]) this.activateCurrent();
     if (buttons[BUTTON_BACK] && !this.prevButtons[BUTTON_BACK]) this.goBack();
+    if (this.anyButtonPressed(buttons, this.prevButtons, BUTTONS_PREVIOUS_ROUTE)) {
+      this.changeRoute(-1);
+    }
+    if (this.anyButtonPressed(buttons, this.prevButtons, BUTTONS_NEXT_ROUTE)) {
+      this.changeRoute(1);
+    }
 
     // Fire page-specific D-pad overrides on the leading edge only.
     const dpadMap: [number, Direction][] = [
@@ -199,17 +240,50 @@ export class GamepadNavigationService implements OnDestroy {
     this.prevButtons = buttons;
   }
 
+  private canProcessInput(): boolean {
+    return document.visibilityState === 'visible' && document.hasFocus();
+  }
+
+  private resetInputState(): void {
+    this.inputWindowActive = false;
+    this.prevButtons = [];
+    this.heldDirection = null;
+    this.heldSince = 0;
+    this.lastRepeatAt = 0;
+  }
+
   private getDirection(pad: Gamepad, buttons: boolean[]): Direction | null {
     if (buttons[BUTTON_DPAD_UP] && !this.dpadActions['up']) return 'up';
     if (buttons[BUTTON_DPAD_DOWN] && !this.dpadActions['down']) return 'down';
     if (buttons[BUTTON_DPAD_LEFT] && !this.dpadActions['left']) return 'left';
     if (buttons[BUTTON_DPAD_RIGHT] && !this.dpadActions['right']) return 'right';
 
-    const [x, y] = pad.axes;
+    const [x = 0, y = 0] = pad.axes;
     if (x <= -AXIS_DEADZONE) return 'left';
     if (x >= AXIS_DEADZONE) return 'right';
     if (y <= -AXIS_DEADZONE) return 'up';
     if (y >= AXIS_DEADZONE) return 'down';
+
+    // Some Bluetooth/driver combinations expose an otherwise standard Xbox
+    // D-pad as a pair of hat axes instead of buttons 12–15. Browsers that
+    // advertise the standard mapping have already normalized those axes.
+    if (pad.mapping !== 'standard' || pad.axes.length > 4) {
+      const dpadX = pad.axes[FALLBACK_DPAD_X_AXIS] ?? 0;
+      const dpadY = pad.axes[FALLBACK_DPAD_Y_AXIS] ?? 0;
+      if (dpadX <= -AXIS_DEADZONE) return 'left';
+      if (dpadX >= AXIS_DEADZONE) return 'right';
+      if (dpadY <= -AXIS_DEADZONE) return 'up';
+      if (dpadY >= AXIS_DEADZONE) return 'down';
+
+      const hat = pad.axes[FALLBACK_DPAD_HAT_AXIS];
+      if (hat !== undefined && hat >= -1.1 && hat <= 1.1) {
+        const sector = Math.round((hat + 1) * 3.5) % 8;
+        if (sector === 0 || sector === 1 || sector === 7) return 'up';
+        if (sector === 2 || sector === 3) return 'right';
+        if (sector === 4 || sector === 5) return 'down';
+        return 'left';
+      }
+    }
     return null;
   }
 
@@ -218,6 +292,24 @@ export class GamepadNavigationService implements OnDestroy {
 
     if (!direction) {
       this.heldDirection = null;
+      return;
+    }
+
+    if (this.selectMode || this.rangeMode) {
+      if (direction !== this.heldDirection) {
+        this.heldDirection = direction;
+        this.heldSince = now;
+        this.lastRepeatAt = now;
+        this.adjustActiveControl(direction);
+        return;
+      }
+      const heldDuration = now - this.heldSince;
+      const interval =
+        heldDuration < REPEAT_DELAY_MS ? REPEAT_DELAY_MS : REPEAT_RATE_MS;
+      if (now - this.lastRepeatAt >= interval) {
+        this.lastRepeatAt = now;
+        this.adjustActiveControl(direction);
+      }
       return;
     }
 
@@ -351,10 +443,131 @@ export class GamepadNavigationService implements OnDestroy {
 
   private activateCurrent(): void {
     if (!this.currentEl) return;
+    if (this.currentEl instanceof HTMLSelectElement) {
+      if (this.selectMode === this.currentEl) {
+        this.exitSelectMode(true);
+        return;
+      }
+      this.selectMode = this.currentEl;
+      this.selectInitialIndex = this.currentEl.selectedIndex;
+      this.currentEl.size = Math.min(6, this.currentEl.options.length);
+      this.currentEl.classList.add('gamepad-selecting');
+      this.currentEl.setAttribute('aria-expanded', 'true');
+      return;
+    }
+    if (
+      this.currentEl instanceof HTMLInputElement &&
+      this.currentEl.type === 'range'
+    ) {
+      if (this.rangeMode === this.currentEl) {
+        this.exitRangeMode(true);
+        return;
+      }
+      this.rangeMode = this.currentEl;
+      this.rangeInitialValue = this.currentEl.value;
+      this.currentEl.classList.add('gamepad-adjusting');
+      return;
+    }
     this.zone.run(() => this.currentEl?.click());
   }
 
   private goBack(): void {
+    if (this.selectMode) {
+      this.exitSelectMode(false);
+      return;
+    }
+    if (this.rangeMode) {
+      this.exitRangeMode(false);
+      return;
+    }
+    let handled = false;
+    if (this.backAction) {
+      this.zone.run(() => {
+        handled = this.backAction?.() ?? false;
+      });
+    }
+    if (handled) return;
     this.zone.run(() => this.location.back());
+  }
+
+  private changeRoute(offset: -1 | 1): void {
+    const currentPath = '/' + this.router.url.split(/[?#]/, 1)[0].split('/')[1];
+    const currentIndex = PAGE_ROUTES.indexOf(currentPath);
+    const nextIndex =
+      (Math.max(0, currentIndex) + offset + PAGE_ROUTES.length) %
+      PAGE_ROUTES.length;
+    this.zone.run(() => void this.router.navigateByUrl(PAGE_ROUTES[nextIndex]));
+  }
+
+  private changeSelectOption(direction: Direction): void {
+    const select = this.selectMode;
+    if (!select || (direction !== 'up' && direction !== 'down')) return;
+    const offset = direction === 'up' ? -1 : 1;
+    const nextIndex = Math.min(
+      select.options.length - 1,
+      Math.max(0, select.selectedIndex + offset),
+    );
+    if (nextIndex === select.selectedIndex) return;
+    select.selectedIndex = nextIndex;
+    select.options[nextIndex]?.scrollIntoView({ block: 'nearest' });
+  }
+
+  private adjustActiveControl(direction: Direction): void {
+    if (this.selectMode) {
+      this.changeSelectOption(direction);
+      return;
+    }
+    const range = this.rangeMode;
+    if (!range || (direction !== 'left' && direction !== 'right')) return;
+    const minimum = Number(range.min || 0);
+    const maximum = Number(range.max || 100);
+    const offset = direction === 'left' ? -5 : 5;
+    const nextValue = Math.min(
+      maximum,
+      Math.max(minimum, Number(range.value) + offset),
+    );
+    if (nextValue === Number(range.value)) return;
+    range.value = String(nextValue);
+    this.zone.run(() =>
+      range.dispatchEvent(new Event('input', { bubbles: true })),
+    );
+  }
+
+  private exitSelectMode(commit: boolean): void {
+    const select = this.selectMode;
+    if (!select) return;
+    if (!commit && this.selectInitialIndex >= 0) {
+      select.selectedIndex = this.selectInitialIndex;
+    }
+    select.size = 0;
+    select.classList.remove('gamepad-selecting');
+    select.removeAttribute('aria-expanded');
+    if (commit && select.selectedIndex !== this.selectInitialIndex) {
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    this.selectMode = null;
+    this.selectInitialIndex = -1;
+  }
+
+  private exitRangeMode(commit: boolean): void {
+    const range = this.rangeMode;
+    if (!range) return;
+    if (!commit && this.rangeInitialValue !== '') {
+      range.value = this.rangeInitialValue;
+      this.zone.run(() =>
+        range.dispatchEvent(new Event('input', { bubbles: true })),
+      );
+    }
+    range.classList.remove('gamepad-adjusting');
+    this.rangeMode = null;
+    this.rangeInitialValue = '';
+  }
+
+  private anyButtonPressed(
+    buttons: boolean[],
+    previousButtons: boolean[],
+    indexes: number[],
+  ): boolean {
+    return indexes.some((index) => buttons[index] && !previousButtons[index]);
   }
 }

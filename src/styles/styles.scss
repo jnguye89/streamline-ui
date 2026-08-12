@@ -103,6 +103,37 @@ body {
   z-index: 1;
 }
 
+app-stream {
+  select.gamepad-selecting {
+    outline: 3px solid var(--panel-edit);
+    outline-offset: 2px;
+    background-color: color-mix(
+      in srgb,
+      var(--panel-control) 80%,
+      var(--panel-edit)
+    );
+  }
+
+  input.gamepad-adjusting {
+    outline: 3px solid var(--panel-edit);
+    outline-offset: 4px;
+    accent-color: var(--panel-edit);
+  }
+
+  .volume-control:has(input.gamepad-adjusting) label {
+    color: var(--panel-edit);
+
+    &::after {
+      margin-left: 10px;
+      content: "ADJUSTING · ← → volume · A done · B cancel";
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+  }
+}
+
 .spotlight-panel {
   border-radius: 14px !important;
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.7), 0 0 0 0.5px rgba(255,255,255,0.08) !important;

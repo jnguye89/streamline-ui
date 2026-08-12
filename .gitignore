@@ -56,3 +56,8 @@ baseline.json
 
 # Ignore cache created with the Angular CLI.
 .angular/
+
+/playwright-report/
+/test-results/
+/out-tsc/
+/tasks/
