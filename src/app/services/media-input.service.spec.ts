@@ -262,6 +262,53 @@ describe('MediaInputService', () => {
     );
   });
 
+  it('projects supported labels and removes browser alias devices', async () => {
+    mediaDevices.devices = [
+      device('videoinput', 'console-video', 'SC0710 PCI, Video 01 Capture'),
+      device('videoinput', 'default-video', 'Default - USB Camera'),
+      device(
+        'audioinput',
+        'console-audio',
+        'SC0710 PCI, Analog 02 Audio (SC0710 PCI)',
+      ),
+      device(
+        'audioinput',
+        'microphone',
+        'Microphone (Realtek(R) Audio)',
+      ),
+      device(
+        'audioinput',
+        'communications',
+        'Communications - USB Headset',
+      ),
+    ];
+    configure();
+
+    await service.initialize();
+
+    expect(service.snapshot.videoInputs).toEqual([
+      jasmine.objectContaining({
+        deviceId: 'console-video',
+        displayLabel: 'Console Video 1',
+      }),
+    ]);
+    expect(
+      service.snapshot.audioInputs.map(({ deviceId, displayLabel }) => ({
+        deviceId,
+        displayLabel,
+      })),
+    ).toEqual([
+      {
+        deviceId: 'console-audio',
+        displayLabel: 'Console Audio 2',
+      },
+      {
+        deviceId: 'microphone',
+        displayLabel: 'Skriin Microphone',
+      },
+    ]);
+  });
+
   it('pairs Console and Facecam inputs by device group', async () => {
     mediaDevices.devices = [
       device('videoinput', 'camera', 'Webcam', 'webcam-group'),

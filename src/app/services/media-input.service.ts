@@ -20,6 +20,7 @@ import {
   MediaPreviewState,
   NegotiatedVideoSettings,
 } from '../models/media-input.models';
+import { projectMediaInputDevice } from './media-input-device-projection';
 export type { MediaInputEnvironment } from '../models/media-input.models';
 import {
   AudioMixerChannelNodes,
@@ -737,12 +738,8 @@ export class MediaInputService implements OnDestroy {
   ): MediaInputDevice[] {
     return devices
       .filter((device) => device.kind === kind && device.deviceId !== '')
-      .map((device) => ({
-        deviceId: device.deviceId,
-        groupId: device.groupId,
-        kind,
-        displayLabel: device.label,
-      }));
+      .map(projectMediaInputDevice)
+      .filter((device): device is MediaInputDevice => device !== null);
   }
 
   private reconcileConsoleSelection(
