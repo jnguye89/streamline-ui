@@ -1,0 +1,251 @@
+:host {
+  // Centers the board within whatever box the parent flex layout actually
+  // allocates (chess-game.component's `.board` - flex:1; min-height:0;),
+  // rather than the board guessing its own size from vh math disconnected
+  // from that layout. That guess (`calc(100vh - 220px)`) is what produced a
+  // board sized larger than the real available height on-screen, spilling
+  // the bottom ranks past whatever ancestor clips overflow - the "missing
+  // rows" bug.
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.chess-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  // Fills the host's height, and derives width from that via aspect-ratio
+  // (width: auto); max-width then re-clamps both dimensions together if the
+  // host is narrower than it is tall, so the board is always the largest
+  // square that actually fits.
+  //
+  // Plain `height: 100%` turned out to be unbounded in the real app: the
+  // flex/absolute-positioned ancestor chain up through chess-game's :host
+  // apparently doesn't resolve to a tightly viewport-bound height the way
+  // it does in isolation, so a bare 100% grew the board past the viewport
+  // entirely (pieces from the top ranks rendering above the visible page).
+  // min() adds back a 100vh-relative ceiling as a hard safety cap - the
+  // same kind of guard the original `calc(100vh - 220px)` formula existed
+  // for - while still using the real flex-allocated height whenever that's
+  // the smaller (and therefore correct) constraint.
+  width: auto;
+  height: min(100%, calc(100vh - 200px));
+  max-width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #1c2333;
+  // A soft outer glow in the app's own primary blue (--c-primary, see
+  // src/styles/styles.scss) instead of a generic drop shadow, plus a
+  // hairline border so the board reads as a distinct, deliberately-designed
+  // surface rather than a flat image dropped onto the page.
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 0 40px rgba(14, 82, 255, 0.12);
+}
+
+.square {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  // Pieces are sized as a percentage of the square itself now (see .piece
+  // below), not by font-size - this remains purely as the sizing basis for
+  // the `em`-based coordinate labels near the bottom of this file. min() of
+  // vw and vh keeps it tracking the board's own size regardless of which
+  // dimension (width or height) ends up constraining it above.
+  font-size: clamp(22px, min(5vw, 7.5vh), 58px);
+  line-height: 1;
+  transition: background-color 0.1s ease;
+  // Grid items default to `min-width/min-height: auto`, which lets a
+  // square's own content (a large piece glyph) set an automatic minimum
+  // size bigger than its fair 1/8 share of the board. With the board's
+  // overall size fixed (aspect-ratio above), that pushed occupied rows
+  // taller and squeezed empty rows shorter instead of all 8 rows staying
+  // equal. Overriding both to 0 forces every square back to a strict 1fr,
+  // regardless of what's on it.
+  min-width: 0;
+  min-height: 0;
+  // The app-wide `.gamepad-focusable` class (added by GamepadFocusableDirective
+  // for TV d-pad focus styling, in src/styles/styles.scss) sets its own
+  // border-radius on every element it's applied to, chess squares included.
+  // That's what made each square render as a separate rounded pill instead
+  // of a seamless grid. Reset it here.
+  border-radius: 0;
+
+  // A cool slate-blue pairing (instead of the generic tournament green) to
+  // sit naturally on the app's black/blue-accented chrome rather than
+  // looking like an unrelated widget dropped on the page.
+  &.light {
+    background: #e8e6df;
+  }
+
+  &.dark {
+    background: #3d4f6c;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  &:not(:disabled):hover {
+    &.light {
+      background: #f2f0e6;
+    }
+
+    &.dark {
+      background: #48597a;
+    }
+  }
+
+  &.selected {
+    box-shadow: inset 0 0 0 3px rgba(3, 218, 198, 0.95);
+  }
+
+  &.gamepad-focused {
+    outline: 3px solid #fff;
+    outline-offset: -3px;
+    z-index: 1;
+  }
+
+  // Any square you click gets native browser focus, which (via
+  // GamepadFocusableDirective's focus listener, not just actual gamepad use)
+  // adds the app-wide `.gamepad-focused` class from src/styles/styles.scss.
+  // That global rule sets `background-color: rgba(255,255,255,0.08) !important`
+  // for its usual case (a plain dark panel button), which stomps this
+  // square's own light/dark background - and since nothing opaque sits
+  // behind it, what's left showing through is essentially the page's black
+  // backdrop. That's the "still highlighted/black square" after every move:
+  // it's just whichever square was last clicked, retaining focus. The white
+  // outline above is enough of a focus indicator on a checkerboard; restate
+  // each variant's real color with matching !important + higher specificity
+  // so the square's own color always wins here instead.
+  &.light.gamepad-focused {
+    background-color: #e8e6df !important;
+  }
+
+  &.dark.gamepad-focused {
+    background-color: #3d4f6c !important;
+  }
+}
+
+// Each piece is its own small SVG (viewBox 0 0 45 45, the standard chess-set
+// proportions), built from a shared base/collar/shadow plus a body shape
+// specific to that piece type (see the *ngSwitch in the template) - a
+// pedestal, a material gradient fill, and a matching stroke outline read as
+// an actual object with volume, instead of a flat colored character.
+.piece {
+  width: 78%;
+  height: 78%;
+  user-select: none;
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45));
+
+  .p-shadow {
+    fill: rgba(0, 0, 0, 0.22);
+  }
+
+  .p-base, .p-collar, .p-body, .p-head, .p-crenellation,
+  .p-crown, .p-bead, .p-cross, .p-snout, .p-ear, .p-mane {
+    stroke-width: 1;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .p-slit {
+    fill: none;
+    stroke-width: 1;
+    stroke-linecap: round;
+  }
+
+  // Warm ivory/wood gradient for white, deep ebony gradient for black (both
+  // defined once in the template's shared <defs> and referenced here) -
+  // this is what actually gives the pieces a "real material" look, plus a
+  // dark/light contrasting stroke so the silhouette edge stays crisp at
+  // small sizes.
+  &.white-piece {
+    .p-base, .p-collar, .p-body, .p-head, .p-crenellation,
+    .p-crown, .p-bead, .p-cross, .p-snout, .p-ear, .p-mane {
+      fill: url(#whitePieceGradient);
+      stroke: rgba(15, 15, 20, 0.55);
+    }
+
+    .p-slit {
+      stroke: rgba(0, 0, 0, 0.35);
+    }
+
+    .p-eye {
+      fill: rgba(0, 0, 0, 0.55);
+    }
+  }
+
+  &.black-piece {
+    .p-base, .p-collar, .p-body, .p-head, .p-crenellation,
+    .p-crown, .p-bead, .p-cross, .p-snout, .p-ear, .p-mane {
+      fill: url(#blackPieceGradient);
+      stroke: rgba(255, 255, 255, 0.2);
+    }
+
+    .p-slit {
+      stroke: rgba(255, 255, 255, 0.25);
+    }
+
+    .p-eye {
+      fill: rgba(255, 255, 255, 0.35);
+    }
+  }
+}
+
+.target-dot {
+  position: absolute;
+  width: 26%;
+  height: 26%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(3, 218, 198, 0.65) 0%, rgba(3, 218, 198, 0.35) 70%, transparent 100%);
+  pointer-events: none;
+}
+
+.square.legal-capture {
+  box-shadow: inset 0 0 0 4px rgba(3, 218, 198, 0.75);
+}
+
+// Lichess/chess.com-style rank (1-8) and file (a-h) labels along the
+// board's outer edge - small and low-contrast so they read as a detail,
+// not a distraction, and always colored to sit on whichever square they
+// land on (light square = dark label, dark square = light label).
+.coord {
+  position: absolute;
+  font-size: 0.22em;
+  font-weight: 700;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+  z-index: 1;
+
+  &.rank {
+    top: 4px;
+    left: 5px;
+  }
+
+  &.file {
+    bottom: 3px;
+    right: 6px;
+  }
+}
+
+.square.light .coord {
+  color: rgba(61, 79, 108, 0.55);
+}
+
+.square.dark .coord {
+  color: rgba(232, 230, 223, 0.55);
+}

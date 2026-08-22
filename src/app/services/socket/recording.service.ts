@@ -3,6 +3,7 @@ import { BehaviorSubject, Subject } from "rxjs";
 import { io, Socket } from "socket.io-client";
 import { environment } from "../../../environments/environment";
 import { DeviceAuthService } from "../device-auth.service";
+import { ChessAck, ChessEndedPayload, ChessJoinedPayload, ChessMovePayload } from "../../models/chess/chess-game.model";
 
 export interface RoomUserJoined {
     userId: string;
@@ -39,6 +40,12 @@ export class RecordingSocketService implements OnDestroy {
     recordingStarted$ = new Subject<RecordingEvent>();
     recordingStopped$ = new Subject<RecordingEvent>();
     chatMessage$ = new Subject<ChatMessage>();
+    // Chess uses this same '/ws' connection - ChessGateway is a separate
+    // gateway class on the same namespace (see chess.gateway.ts on the API),
+    // so there's no second socket to manage on the client either.
+    chessMove$ = new Subject<ChessMovePayload>();
+    chessEnded$ = new Subject<ChessEndedPayload>();
+    chessJoined$ = new Subject<ChessJoinedPayload>();
 
     constructor(private deviceAuth: DeviceAuthService) { }
 
@@ -83,6 +90,18 @@ export class RecordingSocketService implements OnDestroy {
         this.socket.on('chat:message', (payload: ChatMessage) => {
             this.chatMessage$.next(payload);
         });
+
+        this.socket.on('chess:move', (payload: ChessMovePayload) => {
+            this.chessMove$.next(payload);
+        });
+
+        this.socket.on('chess:ended', (payload: ChessEndedPayload) => {
+            this.chessEnded$.next(payload);
+        });
+
+        this.socket.on('chess:joined', (payload: ChessJoinedPayload) => {
+            this.chessJoined$.next(payload);
+        });
     }
 
     joinRoom(roomId: string): void {
@@ -125,6 +144,20 @@ export class RecordingSocketService implements OnDestroy {
 
         this.socket.emit('chat:send', { roomId, text }, (ack: any) => {
             console.log('[WS] chat:send ack', ack);
+        });
+    }
+
+    // Resolves to an ack rather than throwing, so ChessGameComponent can show
+    // "illegal move" / "not your turn" inline instead of an unhandled error.
+    // Resigning goes over plain REST instead (ChessService.resign) - it's
+    // not latency-sensitive the way a move is, and the API broadcasts the
+    // result to the room itself either way.
+    sendChessMove(gameId: number, from: string, to: string, promotion?: string): Promise<ChessAck> {
+        return new Promise(resolve => {
+            if (!this.socket) { resolve({ ok: false, error: 'Not connected' }); return; }
+            this.socket.emit('chess:move', { gameId, from, to, promotion }, (ack: ChessAck) => {
+                resolve(ack);
+            });
         });
     }
 

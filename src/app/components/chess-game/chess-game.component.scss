@@ -1,0 +1,142 @@
+:host {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #000;
+  box-sizing: border-box;
+  // Top padding clears app.component's own persistent header (.buttons in
+  // app.component.scss: `position: absolute; top: 10px; z-index: 100`,
+  // the podcast/live/watch/yap nav + profile/search icons) - it overlays
+  // every route from OUTSIDE the router-outlet, so no padding on this
+  // component's own ancestors ever accounted for it. Shrinking this to
+  // near-zero in pursuit of a bigger board put .chess-meta directly
+  // underneath that header: same z-index-100-overlay problem the bottom
+  // padding below already exists to avoid, just on the other edge, and one
+  // this component previously got away with only because its default state
+  // (waiting/no game) rendered so little that the overlap went unnoticed.
+  // Restored to a real clearance instead of guessing small again.
+  //
+  // Bottom padding keeps the board clear of WatchComponent's own persistent
+  // bottom-actions overlay row (nav/profile/like), which renders on top of
+  // this component at z-index 10 regardless of what's currently playing.
+  padding: clamp(70px, 10vh, 100px) 8px clamp(90px, 14vh, 140px);
+}
+
+// The template's actual root element is this div (`:host` itself has no
+// layout properties of its own - see above), so the flex column that
+// centers .chess-meta/.board/.chess-error and gives .board a real
+// percentage-resolvable height has to live HERE, not on :host. Previously
+// none of this was set at all: .chess-game was a plain unstyled block div,
+// which meant (a) it sized itself via shrink-to-fit against its own
+// children - including .board, whose own 100%-height/width chain depends
+// on ITS parent having a definite size, a circular reference that percentage
+// values resolve as if 'auto' (i.e. effectively unconstrained/zero) per the
+// CSS spec - and (b) .chess-meta's supposedly-centered position was really
+// just wherever normal block flow put it, not the deliberately centered
+// layout the comments elsewhere in this file assume. Giving .chess-game a
+// definite width/height (100% of :host's own padded box) and the flex rules
+// that used to live on :host fixes both: .board's percentage chain now has
+// a real number to resolve against, and .chess-meta/.chess-actions get the
+// intended flex-centered stacking.
+.chess-game {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.chess-meta {
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: auto;
+  // Belt-and-suspenders: never let this collapse to zero height no matter
+  // what .board's own sizing resolves to - the player names/status/buttons
+  // must always take up real, visible space.
+  flex-shrink: 0;
+}
+
+.players {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(13px, 1.8vh, 17px);
+  font-weight: 600;
+
+  .player {
+    opacity: 0.55;
+
+    &.turn {
+      opacity: 1;
+      color: #ffd600;
+    }
+  }
+
+  .vs {
+    opacity: 0.5;
+    font-weight: 400;
+    font-size: 0.85em;
+  }
+}
+
+.status {
+  font-size: clamp(11px, 1.4vh, 14px);
+  opacity: 0.85;
+}
+
+.chess-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.chess-cta {
+  pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 18px;
+  padding: 4px 12px;
+  font-size: 11px;
+  cursor: pointer;
+
+  &.resign {
+    border-color: rgba(255, 71, 87, 0.4);
+    background: rgba(255, 71, 87, 0.15);
+  }
+
+  &.gamepad-focused {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
+}
+
+.board {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  pointer-events: auto;
+}
+
+.chess-error {
+  position: absolute;
+  bottom: clamp(96px, 15vh, 150px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 71, 87, 0.85);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  pointer-events: none;
+}
