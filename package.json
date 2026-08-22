@@ -35,6 +35,7 @@
     "agora-rtm-sdk": "^2.2.2",
     "amazon-ivs-player": "^1.40.0",
     "amazon-ivs-web-broadcast": "^1.24.0",
+    "chess.js": "^1.0.0",
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "~7.8.0",

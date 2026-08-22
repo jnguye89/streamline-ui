@@ -16,6 +16,10 @@
   <div #agoraContainer class="agora-container" [class.is-hidden]="currentItem?.type !== 'live'">
   </div>
 
+  <!-- Chess: no video/Agora surface, so it's only mounted (not just hidden)
+       while a chess item is actually current - see WatchComponent.tryPlayCurrent -->
+  <app-chess-game *ngIf="currentItem?.type === 'chess'" [game]="$any(currentItem)"></app-chess-game>
+
   <!-- Off-screen pool that buffers the next few VODs ahead of time -->
   <div #preloadContainer class="preload-container"></div>
 
@@ -75,6 +79,12 @@
         [disabled]="$any(currentItem).liked" (click)="onLike()" [attr.aria-label]="$any(currentItem).liked ? 'Already liked' : 'Like'">
         <mat-icon>{{ $any(currentItem).liked ? 'favorite' : 'favorite_border' }}</mat-icon>
         <span class="count">{{ $any(currentItem).likeCount ?? 0 | number }}</span>
+      </button>
+
+      <!-- Always available, regardless of what's currently playing -->
+      <button gamepadFocusable class="action play-chess" (click)="startChessGame()" aria-label="Play Chess">
+        <mat-icon>sports_esports</mat-icon>
+        <span class="count">Play Chess</span>
       </button>
     </div>
 

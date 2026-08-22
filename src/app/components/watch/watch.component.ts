@@ -45,6 +45,9 @@ import { DeviceAuthService } from '../../services/device-auth.service';
 import { SafeUrlPipe } from '../../pipes/safe-url.pipe';
 import { ChatColorPipe } from '../../pipes/chat-color.pipe';
 import { environment } from '../../../environments/environment';
+import { ChessGameItem } from '../../models/chess/chess-game.model';
+import { ChessService } from '../../services/chess/chess.service';
+import { ChessGameComponent } from '../chess-game/chess-game.component';
 
 const YOUTUBE_SOURCE = 'YOUTUBE';
 
@@ -62,7 +65,8 @@ const YOUTUBE_SOURCE = 'YOUTUBE';
     GamepadFocusableDirective,
     SafeUrlPipe,
     ChatColorPipe,
-    FormsModule
+    FormsModule,
+    ChessGameComponent
   ],
   providers: [VideoService],
   templateUrl: './watch.component.html',
@@ -83,6 +87,11 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (isTyping) return;
 
     this.onUserActivity();
+    // While a chess game is on screen, arrow keys move the board's own
+    // cursor between squares (via GamepadNavigationService's spatial focus
+    // movement over the board's gamepadFocusable squares - see
+    // syncDpadActionsForCurrentItem) rather than paging the feed.
+    if (this.currentItem?.type === 'chess') return;
     if (e.key === 'ArrowLeft') { e.preventDefault(); this.previous(); }
     if (e.key === 'ArrowRight') { e.preventDefault(); this.next(); }
   }
@@ -122,9 +131,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly RESUME_NEAR_END_S = 15;
   private readonly VOD_PAGE_SIZE = 20;
   private readonly VOD_PREFETCH_THRESHOLD = 5;
-  playlist: (PlayItem | LiveStream)[] = [];
+  playlist: (PlayItem | LiveStream | ChessGameItem)[] = [];
   currentIndex = 0;
-  currentItem: PlayItem | LiveStream | null = null;
+  currentItem: PlayItem | LiveStream | ChessGameItem | null = null;
   get hasMany() { return this.playlist.length > 1; }
 
   // Internal streams
@@ -167,14 +176,12 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private dialog: MatDialog,
     private gamepadNav: GamepadNavigationService,
     private renderer: Renderer2,
-    private deviceAuth: DeviceAuthService
+    private deviceAuth: DeviceAuthService,
+    private chessService: ChessService
   ) { }
 
   ngOnInit() {
-    this.gamepadNav.setDpadActions({
-      left: () => { this.onUserActivity(); this.previous(); },
-      right: () => { this.onUserActivity(); this.next(); },
-    });
+    this.syncDpadActionsForCurrentItem();
     this.setUpSeo();
     this.socket.connect();
 
@@ -205,10 +212,17 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     );
     // const live$ = of([]);
 
+    // 2b) CHESS: same polling pattern as live streams - 'waiting'/'active'
+    // games, public endpoint so anonymous viewers see them too.
+    const chess$ = timer(0, 15000).pipe(
+      switchMap(() => this.chessService.listGames()),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
+
     // 3) Merge without reshuffling; only emit when the merged ids actually change
-    const playlist$ = combineLatest([live$, vod$]).pipe(
+    const playlist$ = combineLatest([live$, chess$, vod$]).pipe(
       // map(([lives, vods]) => [...vods]),
-      map(([lives, vods]) => [...lives, ...vods]),
+      map(([lives, chessGames, vods]) => [...lives, ...chessGames, ...vods]),
       // distinctUntilChanged((a, b) => idsKey(a) === idsKey(b))
     );
 
@@ -353,20 +367,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     await this.agoraWatch.stop();
     this.chatMessages = [];
     this.schedulePreloadWindow();
+    this.syncDpadActionsForCurrentItem();
 
     const el = this.playerRef?.nativeElement;
 
     if (this.currentItem.type === 'live') {
       var curr = this.currentItem as LiveStream;
-      // stop VOD element (if exists)
-      if (el) {
-        try {
-          el.pause();
-          (el as any).srcObject = null;
-          el.removeAttribute('src');
-          el.load();
-        } catch { }
-      }
+      this.releasePlayerElement(el); // stop VOD element (if exists)
 
       // Join Agora as audience and render into container
       const streamId = Number(this.currentItem.id); // your API id: 59
@@ -379,6 +386,15 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         console.warn('Failed to watch live stream:', e);
       }
       this.socket.joinRoom(curr.channelName);
+      return;
+    }
+
+    if (this.currentItem.type === 'chess') {
+      // No <video>/Agora surface for chess - just release whatever was
+      // playing. Board rendering + this game's own socket room membership
+      // are owned by ChessGameComponent, mounted via *ngIf in the template
+      // and keyed to currentItem there.
+      this.releasePlayerElement(el);
       return;
     }
 
@@ -409,10 +425,39 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  // Shared by the live and chess branches above - neither plays through the
+  // <video> element, so whatever it was previously showing (a VOD, or
+  // nothing) needs to be released the same way in both cases.
+  private releasePlayerElement(el: HTMLVideoElement | null | undefined): void {
+    if (!el) return;
+    try {
+      el.pause();
+      (el as any).srcObject = null;
+      el.removeAttribute('src');
+      el.load();
+    } catch { }
+  }
+
+  // A chess game needs all four d-pad directions free to move the board's
+  // own cursor across its gamepadFocusable squares (see
+  // GamepadNavigationService.moveFocus, which runs whenever no dpadActions
+  // override claims a direction) - so left/right are only bound to
+  // prev/next while something other than chess is on screen.
+  private syncDpadActionsForCurrentItem(): void {
+    if (this.currentItem?.type === 'chess') {
+      this.gamepadNav.clearDpadActions();
+    } else {
+      this.gamepadNav.setDpadActions({
+        left: () => { this.onUserActivity(); this.previous(); },
+        right: () => { this.onUserActivity(); this.next(); },
+      });
+    }
+  }
+
   // YouTube exposes no raw playable file - only its <iframe> embed player -
   // so those items skip the <video> element entirely and render through the
   // iframe/safeUrl binding in the template instead.
-  isYouTube(item: PlayItem | LiveStream | null): boolean {
+  isYouTube(item: PlayItem | LiveStream | ChessGameItem | null): boolean {
     return item?.type === 'vod' && item.source === YOUTUBE_SOURCE;
   }
 
@@ -584,12 +629,38 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.videoService.updateProgress(id, timestamp).subscribe({ error: () => { } });
   }
 
+  // Starts a brand-new game regardless of what's currently on screen, and
+  // jumps straight to it rather than waiting for the next 15s chess$ poll.
+  startChessGame(): void {
+    if (!this.deviceAuth.getAccessToken()) {
+      this.router.navigate(['/login']);
+      return;
+    }
+
+    this.chessService.createGame().subscribe({
+      next: (game) => {
+        const item: ChessGameItem = { ...game, type: 'chess' };
+        const exists = this.playlist.some(p => p.type === 'chess' && p.id === item.id);
+        if (!exists) this.playlist = [item, ...this.playlist];
+        const idx = this.playlist.findIndex(p => p.type === 'chess' && p.id === item.id);
+        if (idx >= 0) this.select(idx);
+      },
+      error: () => console.warn('Failed to start a new chess game')
+    });
+  }
+
   goToProfile() {
-    const user =
-      (this.currentItem as any)?.user ??
-      (this.playlist[this.currentIndex] as any)?.user ??
-      '';
-    this.store.set(this.playlist[this.currentIndex])
+    // A chess game has two players (white/black), not one owning profile to
+    // jump to - and PlayerStateService's continue-watching store is typed
+    // for PlayItem | LiveStream only, so chess items are excluded here
+    // rather than widening that store to persist chess as "continue
+    // watching" state (which the same reasoning in applyContinueWatching()
+    // above already argues against).
+    const item = this.playlist[this.currentIndex];
+    if (!item || item.type === 'chess') return;
+
+    const user = (item as any)?.user ?? '';
+    this.store.set(item);
     if (user) this.router.navigate(['/profile', user]);
   }
 
@@ -705,7 +776,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
             this.vodItems$.next([item, ...current]);
           }
 
-          if (this.currentItem?.type !== 'live') {
+          if (this.currentItem?.type !== 'live' && this.currentItem?.type !== 'chess') {
             const idx = this.playlist.findIndex(p => p.type === 'vod' && p.id === item.id);
             if (idx >= 0) {
               this.currentIndex = idx;

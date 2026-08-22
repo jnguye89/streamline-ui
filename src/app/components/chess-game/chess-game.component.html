@@ -1,0 +1,34 @@
+<div class="chess-game">
+  <div class="chess-meta">
+    <div class="players">
+      <span class="player white" [class.turn]="state?.turn === 'white' && state?.status === 'active'">
+        ♔ {{ state?.whiteUser?.username ?? '…' }}
+      </span>
+      <span class="vs">vs</span>
+      <span class="player black" [class.turn]="state?.turn === 'black' && state?.status === 'active'">
+        ♚ {{ state?.blackUser?.username ?? 'open seat' }}
+      </span>
+    </div>
+
+    <div class="status" *ngIf="statusMessage as msg">{{ msg }}</div>
+
+    <div class="chess-actions">
+      <button gamepadFocusable *ngIf="!isLoggedIn && canJoin" class="chess-cta" (click)="goToLogin()">
+        Log in to play
+      </button>
+      <button gamepadFocusable *ngIf="isLoggedIn && canJoin" class="chess-cta" (click)="join()">
+        Join as Black
+      </button>
+      <button gamepadFocusable *ngIf="mySeat && state?.status === 'active'" class="chess-cta resign"
+        (click)="resign()">
+        Resign
+      </button>
+    </div>
+  </div>
+
+  <app-chess-board class="board" [fen]="state?.fen ?? ''" [orientation]="orientation" [interactive]="isMyTurn"
+    (move)="onMoveAttempt($event)">
+  </app-chess-board>
+
+  <div class="chess-error" *ngIf="errorMessage" aria-live="polite">{{ errorMessage }}</div>
+</div>

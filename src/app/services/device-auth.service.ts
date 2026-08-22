@@ -41,6 +41,13 @@ export class DeviceAuthService {
 
   constructor(private http: HttpClient) {}
 
+  // Synchronous access to the logged-in user's Auth0 subject id, for
+  // comparing against a ChessGame's whiteUser/blackUser without setting up
+  // a subscription (e.g. inside a template getter).
+  getCurrentUserId(): string | null {
+    return this._user$.value?.sub ?? null;
+  }
+
   getAccessToken(): string | null {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return null;
