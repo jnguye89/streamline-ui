@@ -87,6 +87,33 @@
   }
 }
 
+.captured-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 18px;
+}
+
+.captured-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  // Lets a long tray (queens/rooks up early) wrap instead of stretching
+  // .chess-meta wider than the board beneath it.
+  flex-wrap: wrap;
+  max-width: 40vw;
+  justify-content: center;
+}
+
+.material-edge {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #03dac6;
+  opacity: 0.9;
+}
+
 .status {
   font-size: clamp(11px, 1.4vh, 14px);
   opacity: 0.85;
@@ -112,10 +139,42 @@
     background: rgba(255, 71, 87, 0.15);
   }
 
+  &.accept {
+    border-color: rgba(3, 218, 198, 0.5);
+    background: rgba(3, 218, 198, 0.18);
+  }
+
+  &.decline {
+    border-color: rgba(255, 71, 87, 0.4);
+    background: rgba(255, 71, 87, 0.15);
+  }
+
+  // Not a real button (no click handler) - just tells the offering player
+  // their offer went out, in the same visual language as the buttons
+  // around it rather than a plain text line.
+  &.pending {
+    opacity: 0.6;
+    cursor: default;
+  }
+
   &.gamepad-focused {
     outline: 2px solid #fff;
     outline-offset: 2px;
   }
+}
+
+// Prominent banner for the player who did NOT make the offer - the accept
+// /decline buttons live in .chess-actions right below this, but the offer
+// itself needs to read as more than just another small pill in that row.
+.draw-banner {
+  color: #fff;
+  background: rgba(3, 218, 198, 0.15);
+  border: 1px solid rgba(3, 218, 198, 0.4);
+  border-radius: 14px;
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
 }
 
 .board {

@@ -1,0 +1,94 @@
+:host {
+  // No box of its own - the <svg> below becomes a direct layout child of
+  // whatever this component is placed inside (a board .square, or the
+  // captured-pieces tray's flex row), exactly as if it were still inline
+  // there. This is what lets .board's 78%-of-parent sizing keep resolving
+  // against .square the same way it did before this was its own component.
+  display: contents;
+}
+
+// Moved here from chess-board.component.scss - each piece is its own small
+// SVG (viewBox 0 0 45 45, standard chess-set proportions), built from a
+// shared base/collar/shadow plus a body shape specific to that piece type
+// (see the *ngSwitch in the template) - a pedestal, a material gradient
+// fill, and a matching stroke outline read as an actual object with volume,
+// instead of a flat colored character.
+.piece {
+  user-select: none;
+  pointer-events: none;
+  position: relative;
+  z-index: 1;
+
+  &.board {
+    width: 78%;
+    height: 78%;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45));
+  }
+
+  // Small and flat for the captured-pieces tray - a drop shadow that reads
+  // fine on a 45-unit board piece just looks like smudge at 18px, and the
+  // ellipse "resting on the board" shadow doesn't make sense off the board.
+  &.tray {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+
+    .p-shadow {
+      display: none;
+    }
+  }
+
+  .p-shadow {
+    fill: rgba(0, 0, 0, 0.22);
+  }
+
+  .p-base, .p-collar, .p-body, .p-head, .p-crenellation,
+  .p-crown, .p-bead, .p-cross, .p-snout {
+    stroke-width: 1;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .p-slit {
+    fill: none;
+    stroke-width: 1;
+    stroke-linecap: round;
+  }
+
+  // Warm ivory/wood gradient for white, deep ebony gradient for black (both
+  // defined once in chess-board.component.html's shared <defs> and
+  // referenced here) - this is what actually gives the pieces a "real
+  // material" look, plus a dark/light contrasting stroke so the silhouette
+  // edge stays crisp at small sizes.
+  &.white-piece {
+    .p-base, .p-collar, .p-body, .p-head, .p-crenellation,
+    .p-crown, .p-bead, .p-cross, .p-snout {
+      fill: url(#whitePieceGradient);
+      stroke: rgba(15, 15, 20, 0.55);
+    }
+
+    .p-slit {
+      stroke: rgba(0, 0, 0, 0.35);
+    }
+
+    .p-eye {
+      fill: rgba(0, 0, 0, 0.55);
+    }
+  }
+
+  &.black-piece {
+    .p-base, .p-collar, .p-body, .p-head, .p-crenellation,
+    .p-crown, .p-bead, .p-cross, .p-snout {
+      fill: url(#blackPieceGradient);
+      stroke: rgba(255, 255, 255, 0.2);
+    }
+
+    .p-slit {
+      stroke: rgba(255, 255, 255, 0.25);
+    }
+
+    .p-eye {
+      fill: rgba(255, 255, 255, 0.35);
+    }
+  }
+}

@@ -36,4 +36,16 @@ export class ChessService {
   resign(id: number): Observable<ChessGame> {
     return this.http.post<ChessGame>(`${this.apiUrl}/chess/${id}/resign`, {});
   }
+
+  offerDraw(id: number): Observable<ChessGame> {
+    return this.http.post<ChessGame>(`${this.apiUrl}/chess/${id}/draw/offer`, {});
+  }
+
+  acceptDraw(id: number): Observable<ChessGame> {
+    return this.http.post<ChessGame>(`${this.apiUrl}/chess/${id}/draw/accept`, {});
+  }
+
+  declineDraw(id: number): Observable<ChessGame> {
+    return this.http.post<ChessGame>(`${this.apiUrl}/chess/${id}/draw/decline`, {});
+  }
 }

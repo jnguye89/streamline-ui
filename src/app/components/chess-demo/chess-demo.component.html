@@ -1,0 +1,21 @@
+<div class="chess-demo">
+  <!-- Small corner badge instead of a false "LIVE" claim - this is a looping
+       auto-play preview, not an actual match, and it says so, but stays out
+       of the way so the board itself still reads as active/alive. -->
+  <div class="demo-badge">
+    <span class="dot"></span>
+    Auto-play preview
+  </div>
+
+  <app-chess-board class="board" [fen]="demoFen" [interactive]="false"></app-chess-board>
+
+  <div class="demo-overlay">
+    <div class="demo-copy">
+      <div class="demo-title">Your move.</div>
+      <div class="demo-subtitle">Play chess now! no setup, no download. </div>
+    </div>
+    <button gamepadFocusable class="demo-cta" (click)="onJoinClick()">
+      Press A to play
+    </button>
+  </div>
+</div>

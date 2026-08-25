@@ -45,11 +45,18 @@ import { DeviceAuthService } from '../../services/device-auth.service';
 import { SafeUrlPipe } from '../../pipes/safe-url.pipe';
 import { ChatColorPipe } from '../../pipes/chat-color.pipe';
 import { environment } from '../../../environments/environment';
-import { ChessGameItem } from '../../models/chess/chess-game.model';
+import { ChessDemoItem, ChessGameItem } from '../../models/chess/chess-game.model';
 import { ChessService } from '../../services/chess/chess.service';
 import { ChessGameComponent } from '../chess-game/chess-game.component';
+import { ChessDemoComponent } from '../chess-demo/chess-demo.component';
 
 const YOUTUBE_SOURCE = 'YOUTUBE';
+
+// Slotted into the playlist in place of any real chess item whenever
+// ChessService.listGames() comes back empty, so the feed always has
+// *something* chess-shaped to discover rather than the feature silently
+// disappearing the moment the last game ends. See ChessDemoComponent.
+const CHESS_DEMO_ITEM: ChessDemoItem = { type: 'chess-demo', id: 'chess-demo' };
 
 @Component({
   selector: 'app-watch',
@@ -66,7 +73,8 @@ const YOUTUBE_SOURCE = 'YOUTUBE';
     SafeUrlPipe,
     ChatColorPipe,
     FormsModule,
-    ChessGameComponent
+    ChessGameComponent,
+    ChessDemoComponent
   ],
   providers: [VideoService],
   templateUrl: './watch.component.html',
@@ -131,9 +139,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly RESUME_NEAR_END_S = 15;
   private readonly VOD_PAGE_SIZE = 20;
   private readonly VOD_PREFETCH_THRESHOLD = 5;
-  playlist: (PlayItem | LiveStream | ChessGameItem)[] = [];
+  playlist: (PlayItem | LiveStream | ChessGameItem | ChessDemoItem)[] = [];
   currentIndex = 0;
-  currentItem: PlayItem | LiveStream | ChessGameItem | null = null;
+  currentItem: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | null = null;
   get hasMany() { return this.playlist.length > 1; }
 
   // Internal streams
@@ -213,9 +221,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // const live$ = of([]);
 
     // 2b) CHESS: same polling pattern as live streams - 'waiting'/'active'
-    // games, public endpoint so anonymous viewers see them too.
+    // games, public endpoint so anonymous viewers see them too. When there
+    // are none at all, fall back to the single synthetic demo item so the
+    // feed always has a chess slot to discover instead of the feature just
+    // vanishing between games (see CHESS_DEMO_ITEM / ChessDemoComponent).
     const chess$ = timer(0, 15000).pipe(
       switchMap(() => this.chessService.listGames()),
+      map((games): (ChessGameItem | ChessDemoItem)[] => games.length ? games : [CHESS_DEMO_ITEM]),
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
@@ -389,11 +401,12 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    if (this.currentItem.type === 'chess') {
-      // No <video>/Agora surface for chess - just release whatever was
-      // playing. Board rendering + this game's own socket room membership
-      // are owned by ChessGameComponent, mounted via *ngIf in the template
-      // and keyed to currentItem there.
+    if (this.currentItem.type === 'chess' || this.currentItem.type === 'chess-demo') {
+      // No <video>/Agora surface for chess (real or the demo placeholder) -
+      // just release whatever was playing. Board rendering + (for a real
+      // game) its own socket room membership are owned by
+      // ChessGameComponent/ChessDemoComponent, mounted via *ngIf in the
+      // template and keyed to currentItem there.
       this.releasePlayerElement(el);
       return;
     }
@@ -457,7 +470,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // YouTube exposes no raw playable file - only its <iframe> embed player -
   // so those items skip the <video> element entirely and render through the
   // iframe/safeUrl binding in the template instead.
-  isYouTube(item: PlayItem | LiveStream | ChessGameItem | null): boolean {
+  isYouTube(item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | null): boolean {
     return item?.type === 'vod' && item.source === YOUTUBE_SOURCE;
   }
 
@@ -652,12 +665,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   goToProfile() {
     // A chess game has two players (white/black), not one owning profile to
     // jump to - and PlayerStateService's continue-watching store is typed
-    // for PlayItem | LiveStream only, so chess items are excluded here
+    // for PlayItem | LiveStream only, so chess items (and the demo
+    // placeholder, which is nobody's profile at all) are excluded here
     // rather than widening that store to persist chess as "continue
     // watching" state (which the same reasoning in applyContinueWatching()
     // above already argues against).
     const item = this.playlist[this.currentIndex];
-    if (!item || item.type === 'chess') return;
+    if (!item || item.type === 'chess' || item.type === 'chess-demo') return;
 
     const user = (item as any)?.user ?? '';
     this.store.set(item);
@@ -776,7 +790,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
             this.vodItems$.next([item, ...current]);
           }
 
-          if (this.currentItem?.type !== 'live' && this.currentItem?.type !== 'chess') {
+          if (this.currentItem?.type !== 'live' && this.currentItem?.type !== 'chess' && this.currentItem?.type !== 'chess-demo') {
             const idx = this.playlist.findIndex(p => p.type === 'vod' && p.id === item.id);
             if (idx >= 0) {
               this.currentIndex = idx;

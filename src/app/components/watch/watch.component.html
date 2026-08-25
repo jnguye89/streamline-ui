@@ -20,6 +20,11 @@
        while a chess item is actually current - see WatchComponent.tryPlayCurrent -->
   <app-chess-game *ngIf="currentItem?.type === 'chess'" [game]="$any(currentItem)"></app-chess-game>
 
+  <!-- Demo placeholder: swapped in by WatchComponent whenever there are no
+       real chess games to show (see CHESS_DEMO_ITEM) - an auto-playing,
+       non-interactive board with a big "start a game" call to action. -->
+  <app-chess-demo *ngIf="currentItem?.type === 'chess-demo'" (join)="startChessGame()"></app-chess-demo>
+
   <!-- Off-screen pool that buffers the next few VODs ahead of time -->
   <div #preloadContainer class="preload-container"></div>
 
