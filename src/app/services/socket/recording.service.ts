@@ -3,7 +3,7 @@ import { BehaviorSubject, Subject } from "rxjs";
 import { io, Socket } from "socket.io-client";
 import { environment } from "../../../environments/environment";
 import { DeviceAuthService } from "../device-auth.service";
-import { ChessAck, ChessEndedPayload, ChessJoinedPayload, ChessMovePayload } from "../../models/chess/chess-game.model";
+import { ChessAck, ChessDrawDeclinedPayload, ChessDrawOfferedPayload, ChessEndedPayload, ChessJoinedPayload, ChessMovePayload } from "../../models/chess/chess-game.model";
 
 export interface RoomUserJoined {
     userId: string;
@@ -46,6 +46,8 @@ export class RecordingSocketService implements OnDestroy {
     chessMove$ = new Subject<ChessMovePayload>();
     chessEnded$ = new Subject<ChessEndedPayload>();
     chessJoined$ = new Subject<ChessJoinedPayload>();
+    chessDrawOffered$ = new Subject<ChessDrawOfferedPayload>();
+    chessDrawDeclined$ = new Subject<ChessDrawDeclinedPayload>();
 
     constructor(private deviceAuth: DeviceAuthService) { }
 
@@ -101,6 +103,14 @@ export class RecordingSocketService implements OnDestroy {
 
         this.socket.on('chess:joined', (payload: ChessJoinedPayload) => {
             this.chessJoined$.next(payload);
+        });
+
+        this.socket.on('chess:draw-offered', (payload: ChessDrawOfferedPayload) => {
+            this.chessDrawOffered$.next(payload);
+        });
+
+        this.socket.on('chess:draw-declined', (payload: ChessDrawDeclinedPayload) => {
+            this.chessDrawDeclined$.next(payload);
         });
     }
 

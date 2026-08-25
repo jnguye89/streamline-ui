@@ -18,6 +18,8 @@ import { Subject, takeUntil } from 'rxjs';
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
 import {
   ChessColor,
+  ChessDrawDeclinedPayload,
+  ChessDrawOfferedPayload,
   ChessEndedPayload,
   ChessGame,
   ChessGameItem,
@@ -28,13 +30,28 @@ import { DeviceAuthService } from '../../services/device-auth.service';
 import { ChessService } from '../../services/chess/chess.service';
 import { RecordingSocketService } from '../../services/socket/recording.service';
 import { ChessBoardComponent } from '../chess-board/chess-board.component';
+import { ChessPieceIconComponent, ChessPieceType } from '../chess-piece-icon/chess-piece-icon.component';
 
 const roomFor = (id: number) => `chess:${id}`;
+
+// A standard army's non-king piece counts - what each side starts with, so
+// "how many are missing right now" (see missingPieces()) is just this minus
+// what's still on the board. The king is never captured, so it's excluded
+// here entirely rather than needing to be filtered out downstream.
+const STARTING_COUNTS: Record<Exclude<ChessPieceType, 'k'>, number> = {
+  p: 8, n: 2, b: 2, r: 2, q: 1,
+};
+// Standard relative piece values, for the material-advantage badge.
+const PIECE_VALUE: Record<Exclude<ChessPieceType, 'k'>, number> = {
+  p: 1, n: 3, b: 3, r: 5, q: 9,
+};
+// Captured-pieces trays conventionally read highest-value first.
+const DISPLAY_ORDER: Exclude<ChessPieceType, 'k'>[] = ['q', 'r', 'b', 'n', 'p'];
 
 @Component({
   selector: 'app-chess-game',
   standalone: true,
-  imports: [CommonModule, ChessBoardComponent, GamepadFocusableDirective],
+  imports: [CommonModule, ChessBoardComponent, ChessPieceIconComponent, GamepadFocusableDirective],
   templateUrl: './chess-game.component.html',
   styleUrl: './chess-game.component.scss',
 })
@@ -64,6 +81,13 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
     // Notifies the creator (sitting on a 'waiting' game) the moment someone
     // else joins, rather than waiting on the next state fetch.
     this.socket.chessJoined$.pipe(takeUntil(this.destroy$)).subscribe((p) => this.onJoined(p));
+    // Draw offer/decline both need to reach the *other* player in realtime
+    // (that's the whole point - a banner with accept/decline shows up
+    // without them refreshing). Acceptance doesn't need its own listener:
+    // it ends the game, which is already the chess:ended broadcast onEnded
+    // below already handles.
+    this.socket.chessDrawOffered$.pipe(takeUntil(this.destroy$)).subscribe((p) => this.onDrawOffered(p));
+    this.socket.chessDrawDeclined$.pipe(takeUntil(this.destroy$)).subscribe((p) => this.onDrawDeclined(p));
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -106,6 +130,69 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
 
   get canJoin(): boolean {
     return !!this.state && this.state.status === 'waiting' && this.mySeat === null;
+  }
+
+  // True only for the seat that does NOT already have an offer standing -
+  // covers both "no offer yet" and "opponent offered, it's your call now"
+  // via the incomingDrawOffer check below taking over the UI in that case.
+  get canOfferDraw(): boolean {
+    return !!this.mySeat && this.state?.status === 'active' && !this.state?.drawOfferedBy;
+  }
+
+  get myDrawOfferPending(): boolean {
+    return !!this.mySeat && this.state?.drawOfferedBy === this.mySeat;
+  }
+
+  get incomingDrawOffer(): boolean {
+    return !!this.mySeat && !!this.state?.drawOfferedBy && this.state.drawOfferedBy !== this.mySeat;
+  }
+
+  // Pieces WHITE has taken off the board - i.e. missing BLACK pieces -
+  // shown near white's name, same convention chess.com/lichess use (your
+  // trophies sit by your own name, in your opponent's color).
+  get capturedByWhite(): ChessPieceType[] {
+    return this.missingPieces('b');
+  }
+
+  get capturedByBlack(): ChessPieceType[] {
+    return this.missingPieces('w');
+  }
+
+  // Positive = white is up material, negative = black is. Purely derived
+  // from the two captured lists above, not tracked separately.
+  get materialDiff(): number {
+    const value = (types: ChessPieceType[]) =>
+      types.reduce((sum, t) => sum + (t === 'k' ? 0 : PIECE_VALUE[t]), 0);
+    return value(this.capturedByWhite) - value(this.capturedByBlack);
+  }
+
+  // Every piece type still missing an instance from `color`'s starting army,
+  // compared against what's actually left on the board right now (parsed
+  // straight from the FEN's piece-placement field - no need for a chess.js
+  // instance just to count letters).
+  private missingPieces(color: 'w' | 'b'): ChessPieceType[] {
+    if (!this.state?.fen) return [];
+    const onBoard = this.pieceCountsOnBoard(color);
+    const missing: ChessPieceType[] = [];
+    for (const type of DISPLAY_ORDER) {
+      const removed = STARTING_COUNTS[type] - (onBoard[type] ?? 0);
+      for (let i = 0; i < removed; i++) missing.push(type);
+    }
+    return missing;
+  }
+
+  private pieceCountsOnBoard(color: 'w' | 'b'): Partial<Record<ChessPieceType, number>> {
+    const placement = this.state?.fen.split(' ')[0] ?? '';
+    const counts: Partial<Record<ChessPieceType, number>> = {};
+    for (const ch of placement) {
+      if (ch === '/' || /\d/.test(ch)) continue;
+      const pieceColor: 'w' | 'b' = ch === ch.toUpperCase() ? 'w' : 'b';
+      if (pieceColor !== color) continue;
+      const type = ch.toLowerCase() as ChessPieceType;
+      if (type === 'k') continue;
+      counts[type] = (counts[type] ?? 0) + 1;
+    }
+    return counts;
   }
 
   get statusMessage(): string | null {
@@ -166,6 +253,42 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
       });
   }
 
+  offerDraw(): void {
+    if (!this.state || !this.canOfferDraw) return;
+
+    this.chessService
+      .offerDraw(this.state.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (state) => this.applyState(state),
+        error: () => this.showError('Could not offer a draw.'),
+      });
+  }
+
+  acceptDraw(): void {
+    if (!this.state || !this.incomingDrawOffer) return;
+
+    this.chessService
+      .acceptDraw(this.state.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (state) => this.applyState(state),
+        error: () => this.showError('Could not accept the draw.'),
+      });
+  }
+
+  declineDraw(): void {
+    if (!this.state || !this.incomingDrawOffer) return;
+
+    this.chessService
+      .declineDraw(this.state.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (state) => this.applyState(state),
+        error: () => this.showError('Could not decline the draw.'),
+      });
+  }
+
   async onMoveAttempt(move: { from: string; to: string; promotion?: string }): Promise<void> {
     if (!this.state || !this.isMyTurn) return;
     const ack = await this.socket.sendChessMove(this.state.id, move.from, move.to, move.promotion);
@@ -216,12 +339,32 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
       turn: payload.turn,
       status: payload.status,
       winner: payload.winner,
+      drawOfferedBy: payload.drawOfferedBy,
     });
   }
 
   private onEnded(payload: ChessEndedPayload): void {
     if (!this.state || payload.gameId !== this.state.id) return;
-    this.applyState({ ...this.state, status: payload.status, winner: payload.winner });
+    this.applyState({ ...this.state, status: payload.status, winner: payload.winner, drawOfferedBy: null });
+  }
+
+  private onDrawOffered(payload: ChessDrawOfferedPayload): void {
+    if (!this.state || payload.gameId !== this.state.id) return;
+    this.applyState({ ...this.state, drawOfferedBy: payload.offeredBy });
+  }
+
+  private onDrawDeclined(payload: ChessDrawDeclinedPayload): void {
+    if (!this.state || payload.gameId !== this.state.id) return;
+    // Capture before clearing - only meaningful for whoever made the offer,
+    // so this has to be checked against the *old* drawOfferedBy value, not
+    // the null applyState is about to set it to.
+    const wasMyOffer = this.mySeat && this.state.drawOfferedBy === this.mySeat;
+    this.applyState({ ...this.state, drawOfferedBy: null });
+    // Tell the offering player plainly rather than leaving their "Draw
+    // offer sent..." pill to just silently vanish.
+    if (wasMyOffer) {
+      this.showError('Draw declined.');
+    }
   }
 
   private onJoined(payload: ChessJoinedPayload): void {

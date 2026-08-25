@@ -15,9 +15,13 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
 import { Chess, Square } from 'chess.js';
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
+import { ChessPieceIconComponent, ChessPieceType } from '../chess-piece-icon/chess-piece-icon.component';
 
 interface BoardPiece {
-  type: string;
+  // Narrowed to ChessPieceType (not a bare string) so this binds straight
+  // into <app-chess-piece-icon>'s [type] input without a cast - chess.js's
+  // own PieceSymbol type is this same 'p'|'n'|'b'|'r'|'q'|'k' set.
+  type: ChessPieceType;
   color: 'w' | 'b';
 }
 
@@ -32,7 +36,7 @@ const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
 @Component({
   selector: 'app-chess-board',
   standalone: true,
-  imports: [CommonModule, GamepadFocusableDirective],
+  imports: [CommonModule, GamepadFocusableDirective, ChessPieceIconComponent],
   templateUrl: './chess-board.component.html',
   styleUrl: './chess-board.component.scss',
 })
@@ -119,7 +123,13 @@ export class ChessBoardComponent implements OnChanges {
         const cell = board[r][f];
         built.push({
           square: `${FILES[f]}${rank}` as Square,
-          isLight: (f + rank) % 2 === 1,
+          // Real chess: a1 is dark, h1 is light ("light on right"), and the
+          // white king's start square (e1) is dark - the opposite of its
+          // own color, per the "queen on her own color" convention (the
+          // white queen's d1 is light). `(f + rank) % 2 === 1` had this
+          // inverted (a1/e1 rendering light, h1 dark) - flipped to `=== 0`
+          // so square colors match a real board.
+          isLight: (f + rank) % 2 === 0,
           piece: cell ? { type: cell.type, color: cell.color } : null,
         });
       }

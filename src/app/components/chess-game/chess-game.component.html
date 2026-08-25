@@ -10,7 +10,28 @@
       </span>
     </div>
 
+    <!-- Pieces each side has taken off the board, shown under its own
+         name in the color it captured (white's trophies are black pieces,
+         and vice versa) - plus a "+N" material-lead badge on whichever
+         tray is currently ahead. -->
+    <div class="captured-row" *ngIf="capturedByWhite.length || capturedByBlack.length">
+      <div class="captured-group">
+        <app-chess-piece-icon *ngFor="let p of capturedByWhite" [type]="p" color="b" size="tray">
+        </app-chess-piece-icon>
+        <span class="material-edge" *ngIf="materialDiff > 0">+{{ materialDiff }}</span>
+      </div>
+      <div class="captured-group">
+        <app-chess-piece-icon *ngFor="let p of capturedByBlack" [type]="p" color="w" size="tray">
+        </app-chess-piece-icon>
+        <span class="material-edge" *ngIf="materialDiff < 0">+{{ -materialDiff }}</span>
+      </div>
+    </div>
+
     <div class="status" *ngIf="statusMessage as msg">{{ msg }}</div>
+
+    <div class="draw-banner" *ngIf="incomingDrawOffer">
+      Your opponent offers a draw
+    </div>
 
     <div class="chess-actions">
       <button gamepadFocusable *ngIf="!isLoggedIn && canJoin" class="chess-cta" (click)="goToLogin()">
@@ -19,10 +40,29 @@
       <button gamepadFocusable *ngIf="isLoggedIn && canJoin" class="chess-cta" (click)="join()">
         Join as Black
       </button>
-      <button gamepadFocusable *ngIf="mySeat && state?.status === 'active'" class="chess-cta resign"
-        (click)="resign()">
-        Resign
-      </button>
+
+      <ng-container *ngIf="mySeat && state?.status === 'active'">
+        <ng-container *ngIf="incomingDrawOffer; else offerOrPending">
+          <button gamepadFocusable class="chess-cta accept" (click)="acceptDraw()">
+            Accept Draw
+          </button>
+          <button gamepadFocusable class="chess-cta decline" (click)="declineDraw()">
+            Decline
+          </button>
+        </ng-container>
+        <ng-template #offerOrPending>
+          <button gamepadFocusable *ngIf="canOfferDraw" class="chess-cta" (click)="offerDraw()">
+            Offer Draw
+          </button>
+          <span class="chess-cta pending" *ngIf="myDrawOfferPending">
+            Draw offer sent…
+          </span>
+        </ng-template>
+
+        <button gamepadFocusable class="chess-cta resign" (click)="resign()">
+          Resign
+        </button>
+      </ng-container>
     </div>
   </div>
 

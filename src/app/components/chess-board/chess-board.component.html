@@ -24,71 +24,8 @@
     [class.legal-capture]="legalTargets.has(sq.square) && !!sq.piece"
     [disabled]="!interactive" [attr.aria-label]="sq.square" (click)="onSquareClick(sq)">
 
-    <svg *ngIf="sq.piece" class="piece" [class.white-piece]="sq.piece.color === 'w'"
-      [class.black-piece]="sq.piece.color === 'b'" viewBox="0 0 45 45">
-      <ng-container [ngSwitch]="sq.piece.type">
-
-        <g *ngSwitchCase="'p'">
-          <ellipse class="p-shadow" cx="22.5" cy="38.5" rx="12.5" ry="2.3" />
-          <path class="p-base" d="M13 37 L32 37 L29.5 30.5 L15.5 30.5 Z" />
-          <ellipse class="p-collar" cx="22.5" cy="30" rx="7.5" ry="1.6" />
-          <path class="p-body" d="M19 30 L19 21 C19 18.5 21 18 21 15.5 L24 15.5 C24 18 26 18.5 26 21 L26 30 Z" />
-          <circle class="p-head" cx="22.5" cy="11.5" r="4.3" />
-        </g>
-
-        <g *ngSwitchCase="'r'">
-          <ellipse class="p-shadow" cx="22.5" cy="38.5" rx="12.5" ry="2.3" />
-          <path class="p-base" d="M13 37 L32 37 L29.5 30.5 L15.5 30.5 Z" />
-          <ellipse class="p-collar" cx="22.5" cy="30" rx="7.5" ry="1.6" />
-          <path class="p-body" d="M14.5 30 L14.5 17 L30.5 17 L30.5 30 Z" />
-          <path class="p-crenellation"
-            d="M13.5 17 L13.5 11 L17.5 11 L17.5 14 L20.3 14 L20.3 11 L24.7 11 L24.7 14 L27.5 14 L27.5 11 L31.5 11 L31.5 17 Z" />
-        </g>
-
-        <g *ngSwitchCase="'b'">
-          <ellipse class="p-shadow" cx="22.5" cy="38.5" rx="12.5" ry="2.3" />
-          <path class="p-base" d="M13 37 L32 37 L29.5 30.5 L15.5 30.5 Z" />
-          <ellipse class="p-collar" cx="22.5" cy="30" rx="7.5" ry="1.6" />
-          <path class="p-body"
-            d="M22.5 30 C16.5 30 15 27 16 23 C17 19.5 19.5 17.5 19.5 14.5 C18 13 18 10.8 19.5 9.3 C20.5 8.3 24.5 8.3 25.5 9.3 C27 10.8 27 13 25.5 14.5 C25.5 17.5 28 19.5 29 23 C30 27 28.5 30 22.5 30 Z" />
-          <circle class="p-head" cx="22.5" cy="6.5" r="2.3" />
-          <path class="p-slit" d="M18.5 17 L26.5 21" />
-        </g>
-
-        <g *ngSwitchCase="'n'">
-          <ellipse class="p-shadow" cx="22.5" cy="38.5" rx="12.5" ry="2.3" />
-          <path class="p-base" d="M13 37 L32 37 L29.5 30.5 L15.5 30.5 Z" />
-          <ellipse class="p-collar" cx="22.5" cy="30" rx="7.5" ry="1.6" />
-          <path class="p-body"
-            d="M16.5 30 L16.5 24.5 C16.5 20 18.3 17 21 15 C19.8 13 20.3 10.3 22.5 8.7 C24.3 7.4 26.8 7.3 28.5 8.5 C29.8 9.4 30.3 11 29.6 12.3 C30.9 13.4 31.7 15.2 31.5 17.2 C31.2 20.3 29 23 27 24.3 L27 30 Z" />
-          <path class="p-snout"
-            d="M16.5 24.5 C14 24.5 12.4 23 12.4 21 C12.4 19.8 13.4 19 14.7 19.2 C15.9 19.4 16.7 20.3 16.7 21.5 Z" />
-          <circle class="p-eye" cx="24" cy="13" r="0.9" />
-        </g>
-
-        <g *ngSwitchCase="'q'">
-          <ellipse class="p-shadow" cx="22.5" cy="38.5" rx="12.5" ry="2.3" />
-          <path class="p-base" d="M13 37 L32 37 L29.5 30.5 L15.5 30.5 Z" />
-          <ellipse class="p-collar" cx="22.5" cy="30" rx="7.5" ry="1.6" />
-          <path class="p-body" d="M16 30 C16 25 17.3 21 19 18 L26 18 C27.7 21 29 25 29 30 Z" />
-          <path class="p-crown" d="M13.5 18 L15.5 9.5 L19.3 15 L22.5 7.5 L25.7 15 L29.5 9.5 L31.5 18 Z" />
-          <circle class="p-bead" cx="15.5" cy="9.5" r="1.7" />
-          <circle class="p-bead" cx="22.5" cy="7.5" r="1.7" />
-          <circle class="p-bead" cx="29.5" cy="9.5" r="1.7" />
-        </g>
-
-        <g *ngSwitchCase="'k'">
-          <ellipse class="p-shadow" cx="22.5" cy="38.5" rx="12.5" ry="2.3" />
-          <path class="p-base" d="M13 37 L32 37 L29.5 30.5 L15.5 30.5 Z" />
-          <ellipse class="p-collar" cx="22.5" cy="30" rx="7.5" ry="1.6" />
-          <path class="p-body" d="M16 30 C16 25 17.3 21 19 18 L26 18 C27.7 21 29 25 29 30 Z" />
-          <path class="p-crown" d="M14.5 18 L14.5 13.5 L30.5 13.5 L30.5 18 Z" />
-          <path class="p-cross"
-            d="M21.3 12.5 L21.3 9.3 L18.3 9.3 L18.3 7.1 L21.3 7.1 L21.3 3.5 L23.7 3.5 L23.7 7.1 L26.7 7.1 L26.7 9.3 L23.7 9.3 L23.7 12.5 Z" />
-        </g>
-
-      </ng-container>
-    </svg>
+    <app-chess-piece-icon *ngIf="sq.piece" [type]="sq.piece.type" [color]="sq.piece.color" size="board">
+    </app-chess-piece-icon>
 
     <span class="target-dot" *ngIf="legalTargets.has(sq.square) && !sq.piece"></span>
     <!-- Coordinate labels along the board's outer edge, lichess/chess.com-style.
