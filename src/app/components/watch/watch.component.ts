@@ -166,6 +166,26 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly PRELOAD_DELAY_MS = 3 * 1000;
   private preloadTimerRef: ReturnType<typeof setTimeout> | null = null;
 
+  // YouTube embeds have to autoplay muted (browser policy), then get
+  // unmuted through the IFrame Player API once loaded - see
+  // onYoutubeIframeLoad()/loadYoutubeIframeApi() and youtubeEmbedSrc's
+  // comment for why. `any`-typed: this project doesn't carry YouTube's
+  // IFrame API type definitions, and the API itself is loaded from a
+  // plain <script> tag rather than an npm package.
+  private youtubePlayer: any = null;
+  private youtubeApiReady$: Promise<void> | null = null;
+  // Which item's video the current this.youtubePlayer was created for, so
+  // onYoutubeIframeLoad() can tell "the user navigated to a new video" apart
+  // from "the IFrame API just did its own internal navigation on the iframe
+  // it's bound to" - both fire the iframe's (load) event, but only the
+  // former should tear down and recreate the player. Left unguarded, this
+  // was a reload loop: binding a fresh YT.Player to an *existing* iframe
+  // makes the API itself repoint that iframe's src as part of its handshake,
+  // which fires another (load) event, which recreated the player again,
+  // forever - visible in the network tab as an endless stream of canceled
+  // player_embed/next requests and the video never actually rendering.
+  private youtubePlayerItemId: string | number | null = null;
+
   // Live chat (floating overlay, TikTok-style): fixed-size buffer, oldest
   // message drops off as a new one comes in.
   private readonly CHAT_MAX_VISIBLE = 12;
@@ -220,14 +240,31 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     );
     // const live$ = of([]);
 
-    // 2b) CHESS: same polling pattern as live streams - 'waiting'/'active'
-    // games, public endpoint so anonymous viewers see them too. When there
-    // are none at all, fall back to the single synthetic demo item so the
-    // feed always has a chess slot to discover instead of the feature just
-    // vanishing between games (see CHESS_DEMO_ITEM / ChessDemoComponent).
+    // 2b) CHESS: same polling pattern as live streams, but only ever one
+    // slot in the feed (not one per open/active game) - pick whichever
+    // single item is most useful to a visitor who just arrived:
+    //   1. A game with its black seat still open - join it directly.
+    //   2. Otherwise, the synthetic demo placeholder - start a new one.
+    // The one exception is a game the viewer is actually seated in: once a
+    // second player joins, a game flips 'waiting' -> 'active' and stops
+    // being an "open seat", which would otherwise make it fall out of both
+    // buckets above and vanish from underneath the two people playing it
+    // the moment this poll refreshes. See ChessGameComponent.mySeat for the
+    // same identity check used to gate the resign/draw-offer controls.
     const chess$ = timer(0, 15000).pipe(
       switchMap(() => this.chessService.listGames()),
-      map((games): (ChessGameItem | ChessDemoItem)[] => games.length ? games : [CHESS_DEMO_ITEM]),
+      map((games): (ChessGameItem | ChessDemoItem)[] => {
+        const openSeat = games.find(g => g.status === 'waiting' && !g.blackUser);
+        if (openSeat) return [openSeat];
+
+        const uid = this.deviceAuth.getCurrentUserId();
+        const mine = uid
+          ? games.find(g => g.whiteUser?.auth0UserId === uid || g.blackUser?.auth0UserId === uid)
+          : undefined;
+        if (mine) return [mine];
+
+        return [CHESS_DEMO_ITEM];
+      }),
       shareReplay({ bufferSize: 1, refCount: true })
     );
 
@@ -298,6 +335,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sendProgress(true);
     this.clearAutoHide();
     if (this.preloadTimerRef) { clearTimeout(this.preloadTimerRef); this.preloadTimerRef = null; }
+    this.youtubePlayer?.destroy?.();
     this.gamepadNav.clearDpadActions();
     this.destroy$.next();
     this.destroy$.complete();
@@ -382,6 +420,16 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.syncDpadActionsForCurrentItem();
 
     const el = this.playerRef?.nativeElement;
+
+    // Tear down any YouTube player wrapper left over from the previous item
+    // whenever the new one isn't also a YouTube embed - otherwise it just
+    // sits there holding a postMessage channel open to an iframe that's
+    // about to be repointed at something else entirely.
+    if (this.youtubePlayer && !this.isYouTube(this.currentItem)) {
+      this.youtubePlayer.destroy?.();
+      this.youtubePlayer = null;
+      this.youtubePlayerItemId = null;
+    }
 
     if (this.currentItem.type === 'live') {
       var curr = this.currentItem as LiveStream;
@@ -482,8 +530,70 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     const separator = url.includes('?') ? '&' : '?';
     // mute is required for autoplay to be allowed by browsers; playsinline
     // keeps it from forcing fullscreen on mobile, matching the <video
-    // playsinline> behavior used for regular VODs.
-    return `${url}${separator}autoplay=1&mute=1&playsinline=1`;
+    // playsinline> behavior used for regular VODs. enablejsapi+origin are
+    // what let onYoutubeIframeLoad() below actually unmute this after it
+    // starts playing - without enablejsapi, the postMessage-based IFrame
+    // Player API has no permission to control an iframe it didn't create,
+    // so the mute=1 here would otherwise never get undone (that was the
+    // actual bug: YouTube embeds played, but stayed muted forever, unlike
+    // regular VODs which explicitly unmute in onVideoLoaded()).
+    const origin = encodeURIComponent(window.location.origin);
+    return `${url}${separator}autoplay=1&mute=1&playsinline=1&enablejsapi=1&origin=${origin}`;
+  }
+
+  // Fires on every iframe (load) event - which includes both a genuine
+  // navigation to a new video (Angular's [src] binding pointing the iframe
+  // somewhere new) AND the IFrame API's own internal navigation on the
+  // iframe it's bound to as part of attaching itself. Only the first should
+  // tear down and recreate the player - reacting to the second the same way
+  // recreates the player, which re-triggers the API's internal navigation,
+  // which fires (load) again, forever (see youtubePlayerItemId above). The
+  // item id (not the iframe element, which never changes) is what tells
+  // these two cases apart.
+  async onYoutubeIframeLoad(): Promise<void> {
+    if (!this.isYouTube(this.currentItem)) return;
+    const itemId = (this.currentItem as { id: string | number }).id;
+    if (this.youtubePlayer && this.youtubePlayerItemId === itemId) return;
+
+    await this.loadYoutubeIframeApi();
+    this.youtubePlayer?.destroy?.();
+    this.youtubePlayerItemId = itemId;
+    this.youtubePlayer = new (window as any).YT.Player('watch-youtube-player', {
+      events: {
+        onReady: (e: { target: { unMute: () => void; playVideo: () => void } }) => {
+          e.target.unMute();
+          e.target.playVideo();
+        },
+      },
+    });
+  }
+
+  // Injects YouTube's IFrame Player API script at most once and resolves
+  // once it's ready to use - safe to call on every video load, subsequent
+  // calls just await the same cached promise instead of re-injecting it.
+  private loadYoutubeIframeApi(): Promise<void> {
+    if (this.youtubeApiReady$) return this.youtubeApiReady$;
+
+    const w = window as any;
+    const ready = new Promise<void>((resolve) => {
+      if (w.YT?.Player) {
+        resolve();
+        return;
+      }
+      const previous = w.onYouTubeIframeAPIReady;
+      w.onYouTubeIframeAPIReady = () => {
+        previous?.();
+        resolve();
+      };
+      if (!document.getElementById('youtube-iframe-api-script')) {
+        const script = document.createElement('script');
+        script.id = 'youtube-iframe-api-script';
+        script.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(script);
+      }
+    });
+    this.youtubeApiReady$ = ready;
+    return ready;
   }
 
   private schedulePreloadWindow(): void {
@@ -640,6 +750,23 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.videoService.updateProgress(id, timestamp).subscribe({ error: () => { } });
+  }
+
+  // Gates the bottom-bar "Play Chess" button (see startChessGame below):
+  // shown on the demo placeholder (nobody to interrupt) and while
+  // spectating a real game, but hidden once you're actually seated in the
+  // one currently on screen - clicking it there would abandon your own
+  // game to start a second one, which is never what a seated player wants.
+  get canPlayChess(): boolean {
+    if (this.currentItem?.type === 'chess-demo') return true;
+    if (this.currentItem?.type !== 'chess') return false;
+
+    const uid = this.deviceAuth.getCurrentUserId();
+    if (!uid) return true; // not logged in - can't possibly be seated yet
+
+    const game = this.currentItem;
+    const isSeated = game.whiteUser?.auth0UserId === uid || game.blackUser?.auth0UserId === uid;
+    return !isSeated;
   }
 
   // Starts a brand-new game regardless of what's currently on screen, and

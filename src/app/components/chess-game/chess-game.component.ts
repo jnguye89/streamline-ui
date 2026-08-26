@@ -214,6 +214,8 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
         return 'Draw';
       case 'resigned':
         return `${this.capitalize(this.state.winner)} wins by resignation`;
+      case 'timeout':
+        return `${this.capitalize(this.state.winner)} wins by timeout`;
       case 'abandoned':
         return 'Game was cancelled';
       default:
