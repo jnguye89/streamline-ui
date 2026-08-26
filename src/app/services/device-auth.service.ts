@@ -44,8 +44,25 @@ export class DeviceAuthService {
   // Synchronous access to the logged-in user's Auth0 subject id, for
   // comparing against a ChessGame's whiteUser/blackUser without setting up
   // a subscription (e.g. inside a template getter).
+  //
+  // Deliberately decodes the ACCESS token here, not the id token backing
+  // _user$/user$: the API stamps whiteUser/blackUser.auth0UserId from
+  // `request.user.sub`, which passport-jwt populates from whatever JWT rode
+  // in the Authorization header - i.e. the access token (see
+  // ChessController + UserDecorator). Auth0 access and id tokens usually
+  // carry the same `sub`, but they're issued separately and aren't
+  // guaranteed to match (or even both be decodable JWTs) for every
+  // connection/flow, so comparing against the id token's `sub` here was a
+  // silent seat-detection mismatch waiting to happen - it made both this
+  // getter and ChessGameComponent.mySeat (which calls this same method)
+  // unreliable for telling "am I one of the two seated players" without a
+  // logged build error, just a wrong answer. Reading it straight off the
+  // access token guarantees this always matches what the server used to
+  // populate those columns in the first place.
   getCurrentUserId(): string | null {
-    return this._user$.value?.sub ?? null;
+    const token = this.getAccessToken();
+    if (!token) return null;
+    return this.decodeJwt(token).sub ?? null;
   }
 
   getAccessToken(): string | null {

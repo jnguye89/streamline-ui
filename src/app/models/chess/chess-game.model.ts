@@ -7,7 +7,12 @@ export type ChessGameStatus =
   | 'stalemate'
   | 'draw'
   | 'resigned'
-  | 'abandoned';
+  | 'abandoned'
+  // Auto-assigned by the API's ChessTimeoutSchedulerService when a player
+  // goes quiet on their own turn past the configurable timeout - distinct
+  // from 'resigned' so the UI can say "wins by timeout" rather than
+  // implying the other player chose to give up.
+  | 'timeout';
 
 export type ChessColor = 'white' | 'black';
 export type ChessWinner = 'white' | 'black' | 'draw';

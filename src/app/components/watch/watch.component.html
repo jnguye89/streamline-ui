@@ -7,10 +7,13 @@
     playsinline controls>
   </video>
 
-  <!-- YouTube exposes no raw playable file, only its iframe embed player -->
+  <!-- YouTube exposes no raw playable file, only its iframe embed player.
+       Autoplay requires starting muted (see youtubeEmbedSrc); (load) is
+       what hands control to the IFrame Player API to unmute it right after,
+       the same way (loadedmetadata) does for the native <video> above. -->
   <iframe *ngIf="isYouTube(currentItem)" id="watch-youtube-player" [src]="youtubeEmbedSrc | safeUrl"
     allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-    allowfullscreen>
+    allowfullscreen (load)="onYoutubeIframeLoad()">
   </iframe>
 
   <div #agoraContainer class="agora-container" [class.is-hidden]="currentItem?.type !== 'live'">
@@ -86,8 +89,12 @@
         <span class="count">{{ $any(currentItem).likeCount ?? 0 | number }}</span>
       </button>
 
-      <!-- Always available, regardless of what's currently playing -->
-      <button gamepadFocusable class="action play-chess" (click)="startChessGame()" aria-label="Play Chess">
+      <!-- Only on the chess page itself (a real game or the no-games-yet
+           demo placeholder), not on regular videos/live - and not even
+           there if you're already seated in the game currently on screen
+           (see canPlayChess). -->
+      <button *ngIf="canPlayChess" gamepadFocusable class="action play-chess" (click)="startChessGame()"
+        aria-label="Play Chess">
         <mat-icon>sports_esports</mat-icon>
         <span class="count">Play Chess</span>
       </button>
