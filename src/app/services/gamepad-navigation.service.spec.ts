@@ -3,6 +3,15 @@ import { Location } from '@angular/common';
 import { Router } from '@angular/router';
 import { GamepadNavigationService } from './gamepad-navigation.service';
 
+function makePad(pressedIndexes: number[] = []): Gamepad {
+  const buttons = Array.from({ length: 17 }, (_, index) => ({
+    pressed: pressedIndexes.includes(index),
+    value: pressedIndexes.includes(index) ? 1 : 0,
+    touched: false,
+  })) as GamepadButton[];
+  return { axes: [0, 0], buttons, mapping: 'standard' } as unknown as Gamepad;
+}
+
 describe('GamepadNavigationService', () => {
   let service: GamepadNavigationService;
   let location: jasmine.SpyObj<Location>;
@@ -189,6 +198,117 @@ describe('GamepadNavigationService', () => {
 
     expect(range.value).toBe('55');
     expect(range.classList).not.toContain('gamepad-adjusting');
+  });
+
+  it('routes a bound LB press to its aux action instead of page-swipe, while LT keeps swiping', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    const poll = (pressed: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad(pressed)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    const lb = jasmine.createSpy('lb');
+    service.setAuxButtonActions({ lb });
+
+    poll([]); // arms the input window - no edge yet
+    poll([4]); // LB leading edge
+
+    expect(lb).toHaveBeenCalledTimes(1);
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+
+    poll([]);
+    poll([6]); // LT leading edge - untouched, still page-swipes
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/podcast');
+  });
+
+  it('restores LB page-swipe once its aux action is cleared', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    const poll = (pressed: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad(pressed)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    service.setAuxButtonActions({ lb: jasmine.createSpy('lb') });
+    service.clearAuxButtonActions();
+
+    poll([]);
+    poll([4]);
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/podcast');
+  });
+
+  it('fires the Y aux action on each leading edge press', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    const poll = (pressed: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad(pressed)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    const y = jasmine.createSpy('y');
+    service.setAuxButtonActions({ y });
+
+    poll([]);
+    poll([3]);
+    expect(y).toHaveBeenCalledTimes(1);
+
+    poll([]);
+    poll([3]);
+    expect(y).toHaveBeenCalledTimes(2);
+  });
+
+  it('fires the Q/E/Y keyboard equivalents of the LB/RB/Y aux buttons', () => {
+    const lb = jasmine.createSpy('lb');
+    const rb = jasmine.createSpy('rb');
+    const y = jasmine.createSpy('y');
+    service.setAuxButtonActions({ lb, rb, y });
+
+    const dispatch = (key: string) =>
+      (
+        service as unknown as { onKeyDown(e: KeyboardEvent): void }
+      ).onKeyDown({
+        key,
+        target: document.body,
+        preventDefault: () => undefined,
+      } as unknown as KeyboardEvent);
+
+    dispatch('q');
+    expect(lb).toHaveBeenCalledTimes(1);
+
+    dispatch('e');
+    expect(rb).toHaveBeenCalledTimes(1);
+
+    dispatch('y');
+    expect(y).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores the Q/E/Y aux shortcuts while typing in a text field', () => {
+    const lb = jasmine.createSpy('lb');
+    service.setAuxButtonActions({ lb });
+    const input = document.createElement('input');
+    input.type = 'text';
+
+    (
+      service as unknown as { onKeyDown(e: KeyboardEvent): void }
+    ).onKeyDown({
+      key: 'q',
+      target: input,
+      preventDefault: () => undefined,
+    } as unknown as KeyboardEvent);
+
+    expect(lb).not.toHaveBeenCalled();
   });
 
   it('restores the original range value when B cancels adjustment mode', () => {

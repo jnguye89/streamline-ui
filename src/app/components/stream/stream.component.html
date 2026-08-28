@@ -33,38 +33,22 @@
     </div>
   </div>
 
-  <section
-    id="stream-input-panel"
-    class="input-panel"
-    *ngIf="isAuthenticated && inputPanelOpen"
-    aria-labelledby="input-panel-title"
+  <div
+    class="status-banner"
+    *ngIf="
+      isAuthenticated &&
+      (media.error || workflowError || previewState.error)
+    "
+    role="alert"
   >
-    <div class="input-panel-header">
-      <h1 id="input-panel-title">Stream inputs</h1>
-      <button
-        gamepadFocusable
-        class="panel-toggle"
-        type="button"
-        aria-label="Close stream inputs"
-        (click)="toggleInputPanel()"
-      >
-        <mat-icon>close</mat-icon>
-      </button>
-    </div>
-
-    <p
-      class="status-message error"
-      *ngIf="media.error"
-      role="alert"
-    >
+    <p class="status-message error" *ngIf="media.error">
       {{ media.error.message }}
     </p>
-    <p
-      class="status-message error"
-      *ngIf="workflowError"
-      role="alert"
-    >
+    <p class="status-message error" *ngIf="workflowError">
       {{ workflowError }}
+    </p>
+    <p class="status-message error" *ngIf="previewState.error as previewError">
+      {{ previewError.message }}
     </p>
     <button
       gamepadFocusable
@@ -76,262 +60,6 @@
     >
       Retry setup
     </button>
-    <p
-      class="status-message error"
-      *ngIf="previewState.error as previewError"
-      role="alert"
-    >
-      {{ previewError.message }}
-    </p>
-
-    <ng-container *ngIf="audioMix$ | async as mix">
-      <ng-container *ngIf="audioMeter$ | async as meter">
-      <div class="source-layout">
-      <fieldset class="source-group">
-        <legend>Main stream</legend>
-        <div class="input-field">
-          <label for="stream-video-input">Video</label>
-          <select
-            gamepadFocusable
-            id="stream-video-input"
-            aria-label="Main stream video"
-            [disabled]="
-              isStarting ||
-              media.status === 'loading' ||
-              media.videoInputs.length === 0
-            "
-            (change)="selectVideo($any($event.target).value)"
-          >
-            <option value="" *ngIf="media.videoInputs.length === 0">
-              No video inputs found
-            </option>
-            <option
-              *ngFor="let input of media.videoInputs; let index = index"
-              [value]="input.deviceId"
-              [selected]="input.deviceId === media.selection.videoDeviceId"
-            >
-              {{ input.displayLabel || 'Video input ' + (index + 1) }}
-            </option>
-          </select>
-          <p
-            class="negotiated-format"
-            *ngIf="previewState.videoSettings as videoSettings"
-            aria-live="polite"
-          >
-            Main stream: {{ videoSettings.width || 'unknown' }}×{{
-              videoSettings.height || 'unknown'
-            }}
-            &#64;
-            <ng-container *ngIf="videoSettings.frameRate; else unknownMainRate">
-              {{ videoSettings.frameRate | number: '1.0-2' }} fps
-            </ng-container>
-            <ng-template #unknownMainRate>unknown fps</ng-template>
-            <span
-              class="compatibility-note"
-              *ngIf="videoSettings.fallbackTier === 'bounded'"
-            >
-              — best compatible format available
-            </span>
-          </p>
-        </div>
-        <div class="input-field">
-          <label for="game-audio-input">Audio</label>
-          <select
-            gamepadFocusable
-            id="game-audio-input"
-            aria-label="Main stream audio"
-            [disabled]="isStarting"
-            (change)="selectGameAudio($any($event.target).value)"
-          >
-            <option
-              value=""
-              [selected]="!media.consoleSelection.gameAudioDeviceId"
-            >
-              Disabled
-            </option>
-            <option
-              *ngFor="let input of media.audioInputs"
-              [value]="input.deviceId"
-              [selected]="
-                input.deviceId === media.consoleSelection.gameAudioDeviceId
-              "
-            >
-              {{ input.displayLabel || 'Audio input' }}
-            </option>
-          </select>
-        </div>
-        <div class="volume-control">
-          <label for="game-audio-level">Main audio level: {{ mix.gameLevel * 100 | number: '1.0-0' }}%</label>
-          <input
-            gamepadFocusable
-            id="game-audio-level"
-            type="range"
-            min="0"
-            max="100"
-            step="0.5"
-            [value]="mix.gameLevel * 100"
-            (input)="setGameLevel($any($event.target).value)"
-          />
-          <button
-            gamepadFocusable
-            class="audio-mute"
-            type="button"
-            [attr.aria-label]="
-              mix.gameMuted ? 'Unmute main audio' : 'Mute main audio'
-            "
-            [attr.aria-pressed]="mix.gameMuted"
-            (click)="toggleGameMute()"
-          >
-            <mat-icon>{{ mix.gameMuted ? 'volume_off' : 'volume_up' }}</mat-icon>
-          </button>
-          <div class="audio-meter" [class.muted]="mix.gameMuted" [class.clipping]="meter.game >= 0" [attr.data-band]="meterBand(meter.game)" role="meter" aria-label="Main audio activity" aria-valuemin="-60" aria-valuemax="0" [attr.aria-valuenow]="meter.game | number: '1.0-0'">
-            <span [style.transform]="'scaleX(' + meterScale(meter.game) + ')'" ></span>
-          </div>
-        </div>
-      </fieldset>
-
-      <div class="swap-sources-row">
-        <button
-          gamepadFocusable
-          class="swap-sources"
-          type="button"
-          aria-label="Swap Main stream and Facecam sources"
-          [disabled]="
-            isStarting ||
-            isApplyingInputs ||
-            !media.selection.videoDeviceId ||
-            !media.consoleSelection.overlayVideoDeviceId
-          "
-          (click)="swapSources()"
-        >
-          <mat-icon>swap_vert</mat-icon>
-        </button>
-      </div>
-
-      <fieldset class="source-group">
-        <legend>Facecam</legend>
-        <div class="input-field">
-          <label for="overlay-video-input">Video</label>
-          <select
-            gamepadFocusable
-            id="overlay-video-input"
-            aria-label="Facecam video"
-            [disabled]="isStarting"
-            (change)="selectOverlayVideo($any($event.target).value)"
-          >
-            <option
-              value=""
-              [selected]="!media.consoleSelection.overlayVideoDeviceId"
-            >
-              Disabled
-            </option>
-            <option
-              *ngFor="let input of media.videoInputs"
-              [hidden]="
-                input.deviceId === media.selection.videoDeviceId
-              "
-              [value]="input.deviceId"
-              [selected]="
-                input.deviceId === media.consoleSelection.overlayVideoDeviceId
-              "
-            >
-              {{ input.displayLabel || 'Webcam' }}
-            </option>
-          </select>
-          <p
-            class="negotiated-format"
-            *ngIf="previewState.overlayVideoSettings as videoSettings"
-            aria-live="polite"
-          >
-            Facecam: {{ videoSettings.width || 'unknown' }}×{{
-              videoSettings.height || 'unknown'
-            }}
-            &#64;
-            <ng-container *ngIf="videoSettings.frameRate; else unknownFacecamRate">
-              {{ videoSettings.frameRate | number: '1.0-2' }} fps
-            </ng-container>
-            <ng-template #unknownFacecamRate>unknown fps</ng-template>
-            <span
-              class="compatibility-note"
-              *ngIf="videoSettings.fallbackTier === 'bounded'"
-            >
-              — best compatible format available
-            </span>
-          </p>
-        </div>
-        <div class="input-field">
-          <label for="microphone-input">Audio</label>
-          <select
-            gamepadFocusable
-            id="microphone-input"
-            aria-label="Facecam audio"
-            [disabled]="isStarting"
-            (change)="selectMicrophone($any($event.target).value)"
-          >
-            <option
-              value=""
-              [selected]="!media.consoleSelection.microphoneDeviceId"
-            >
-              Disabled
-            </option>
-            <option
-              *ngFor="let input of media.audioInputs"
-              [hidden]="
-                input.deviceId === media.consoleSelection.gameAudioDeviceId
-              "
-              [value]="input.deviceId"
-              [selected]="
-                input.deviceId === media.consoleSelection.microphoneDeviceId
-              "
-            >
-              {{ input.displayLabel || 'Audio input' }}
-            </option>
-          </select>
-        </div>
-        <div class="volume-control">
-          <label for="microphone-level">Facecam audio level: {{ mix.microphoneLevel * 100 | number: '1.0-0' }}%</label>
-          <input
-            gamepadFocusable
-            id="microphone-level"
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            [value]="mix.microphoneLevel * 100"
-            (input)="setMicrophoneLevel($any($event.target).value)"
-          />
-          <button
-            gamepadFocusable
-            class="audio-mute"
-            type="button"
-            [attr.aria-label]="
-              mix.microphoneMuted
-                ? 'Unmute Facecam audio'
-                : 'Mute Facecam audio'
-            "
-            [attr.aria-pressed]="mix.microphoneMuted"
-            (click)="toggleMicrophoneMute()"
-          >
-            <mat-icon>{{
-              mix.microphoneMuted ? 'volume_off' : 'volume_up'
-            }}</mat-icon>
-          </button>
-          <div class="audio-meter" [class.muted]="mix.microphoneMuted" [class.clipping]="meter.microphone >= 0" [attr.data-band]="meterBand(meter.microphone)" role="meter" aria-label="Facecam audio activity" aria-valuemin="-60" aria-valuemax="0" [attr.aria-valuenow]="meter.microphone | number: '1.0-0'">
-            <span [style.transform]="'scaleX(' + meterScale(meter.microphone) + ')'" ></span>
-          </div>
-        </div>
-      </fieldset>
-      </div>
-      </ng-container>
-    </ng-container>
-
-    <p class="status-message" *ngIf="media.videoInputs.length === 0">
-      Connect a camera or capture input, then retry.
-    </p>
-    <p class="status-message" *ngIf="media.audioInputs.length === 0">
-      No audio input is available. Video-only preview remains supported.
-    </p>
-
     <button
       gamepadFocusable
       mat-flat-button
@@ -345,9 +73,7 @@
     >
       Retry inputs
     </button>
-
-  </section>
-
+  </div>
 </ng-container>
 
 <ng-container *ngIf="isReady">
@@ -390,33 +116,6 @@
 
 <div class="stream-toolbar">
   <ng-container *ngIf="isAuthenticated; else loginControl">
-    <span
-      class="stream-toolbar__status"
-      [class.stream-toolbar__status--live]="isLive"
-      aria-live="polite"
-    >
-      <i class="stream-toolbar__dot"></i>
-      {{ isLive ? 'LIVE' : 'OFFLINE' }}
-    </span>
-
-    <div class="stream-toolbar__separator"></div>
-
-    <button
-      gamepadFocusable
-      class="stream-toolbar__button stream-toolbar__button--inputs"
-      [class.stream-toolbar__button--active]="inputPanelOpen"
-      type="button"
-      [attr.aria-label]="inputPanelOpen ? 'Hide stream inputs' : 'Show stream inputs'"
-      [attr.aria-expanded]="inputPanelOpen"
-      aria-controls="stream-input-panel"
-      (click)="toggleInputPanel()"
-    >
-      <mat-icon>tune</mat-icon>
-      INPUTS
-    </button>
-
-    <div class="stream-toolbar__separator"></div>
-
     <button
       gamepadFocusable
       class="stream-toolbar__button stream-toolbar__button--live"
@@ -432,20 +131,115 @@
             !mediaInput.snapshot.selection.videoDeviceId))
       "
     >
-      <span
-        *ngIf="audioMeter$ | async as meter"
-        class="stream-toolbar__mix-meter"
-        [attr.data-band]="meterBand(meter.output)"
-        role="meter"
-        aria-label="Final mix level"
-        aria-valuemin="-60"
-        aria-valuemax="0"
-        [attr.aria-valuenow]="meter.output | number: '1.0-0'"
-      >
-        <i [style.transform]="'scaleY(' + meterScale(meter.output) + ')'"></i>
-      </span>
-      {{ isLive ? 'STOP' : 'GO LIVE' }}
+      {{ isLive ? 'End stream' : 'Go live' }}
     </button>
+
+    <div class="stream-toolbar__separator"></div>
+
+    <div class="mode-group" role="group" aria-label="Video source">
+      <button
+        gamepadFocusable
+        class="mode-btn"
+        type="button"
+        [class.mode-btn--active]="displayMode === 'webcam'"
+        [disabled]="!webcamDeviceId || isApplyingInputs || isStarting"
+        aria-label="Show webcam only"
+        (click)="selectWebcamMode()"
+      >
+        <mat-icon>videocam</mat-icon>
+        <span class="mode-btn__label">Webcam</span>
+      </button>
+      <button
+        gamepadFocusable
+        class="mode-btn"
+        type="button"
+        [class.mode-btn--active]="displayMode === 'screen'"
+        [disabled]="!screenDeviceId || isApplyingInputs || isStarting"
+        aria-label="Show screen only"
+        (click)="selectScreenMode()"
+      >
+        <mat-icon>desktop_windows</mat-icon>
+        <span class="mode-btn__label">Screen</span>
+      </button>
+      <button
+        gamepadFocusable
+        class="mode-btn mode-btn--primary"
+        type="button"
+        [class.mode-btn--active]="displayMode === 'screen-cam'"
+        [disabled]="!webcamDeviceId || !screenDeviceId || isApplyingInputs || isStarting"
+        aria-label="Show screen and webcam"
+        (click)="selectScreenCamMode()"
+      >
+        <mat-icon>picture_in_picture</mat-icon>
+        <span class="mode-btn__label">Screen + cam</span>
+      </button>
+    </div>
+
+    <div class="mode-swap" *ngIf="displayMode === 'screen-cam'">
+      <span
+        class="mode-avatar mode-avatar--webcam"
+        [class.mode-avatar--active]="isWebcamPrimary"
+        aria-hidden="true"
+      >W</span>
+      <button
+        gamepadFocusable
+        class="mode-swap-btn"
+        type="button"
+        aria-label="Swap main display and facecam (or press Y)"
+        [disabled]="isApplyingInputs || isStarting"
+        (click)="swapSources()"
+      >
+        <mat-icon>swap_horiz</mat-icon>
+        <span class="mode-swap-btn__hint">Y</span>
+      </button>
+      <span
+        class="mode-avatar mode-avatar--screen"
+        [class.mode-avatar--active]="!isWebcamPrimary"
+        aria-hidden="true"
+      >S</span>
+    </div>
+
+    <div class="stream-toolbar__separator"></div>
+
+    <ng-container *ngIf="audioMix$ | async as mix">
+      <div class="audio-group">
+        <span class="audio-group__label">Mic</span>
+        <button
+          gamepadFocusable
+          class="audio-toggle"
+          type="button"
+          [class.audio-toggle--muted]="mix.microphoneMuted"
+          [attr.aria-pressed]="!mix.microphoneMuted"
+          [attr.aria-label]="
+            (mix.microphoneMuted ? 'Unmute microphone' : 'Mute microphone') +
+            ' (or press LB)'
+          "
+          (click)="toggleMicrophoneMute()"
+        >
+          <mat-icon>{{ mix.microphoneMuted ? 'mic_off' : 'mic' }}</mat-icon>
+          LB
+        </button>
+      </div>
+
+      <div class="audio-group">
+        <span class="audio-group__label">Screen Audio</span>
+        <button
+          gamepadFocusable
+          class="audio-toggle"
+          type="button"
+          [class.audio-toggle--muted]="mix.gameMuted"
+          [attr.aria-pressed]="!mix.gameMuted"
+          [attr.aria-label]="
+            (mix.gameMuted ? 'Unmute screen audio' : 'Mute screen audio') +
+            ' (or press RB)'
+          "
+          (click)="toggleGameMute()"
+        >
+          <mat-icon>{{ mix.gameMuted ? 'volume_off' : 'volume_up' }}</mat-icon>
+          RB
+        </button>
+      </div>
+    </ng-container>
   </ng-container>
 
   <ng-template #loginControl>

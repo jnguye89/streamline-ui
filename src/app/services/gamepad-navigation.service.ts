@@ -8,12 +8,26 @@ type Direction = 'up' | 'down' | 'left' | 'right';
 // 0 = Cross (X), 1 = Circle, 12-15 = D-pad up/down/left/right.
 const BUTTON_ACTIVATE = 0;
 const BUTTON_BACK = 1;
-const BUTTONS_PREVIOUS_ROUTE = [4, 6];
-const BUTTONS_NEXT_ROUTE = [5, 7];
+const BUTTON_X = 2;
+const BUTTON_Y = 3;
+const BUTTON_LB = 4;
+const BUTTON_RB = 5;
+const BUTTON_LT = 6;
+const BUTTON_RT = 7;
+const BUTTONS_PREVIOUS_ROUTE = [BUTTON_LB, BUTTON_LT];
+const BUTTONS_NEXT_ROUTE = [BUTTON_RB, BUTTON_RT];
 const BUTTON_DPAD_UP = 12;
 const BUTTON_DPAD_DOWN = 13;
 const BUTTON_DPAD_LEFT = 14;
 const BUTTON_DPAD_RIGHT = 15;
+
+type AuxButton = 'x' | 'y' | 'lb' | 'rb';
+const AUX_BUTTON_INDEXES: Record<AuxButton, number> = {
+  x: BUTTON_X,
+  y: BUTTON_Y,
+  lb: BUTTON_LB,
+  rb: BUTTON_RB,
+};
 
 const AXIS_DEADZONE = 0.5;
 const BUTTON_PRESS_THRESHOLD = 0.5;
@@ -47,6 +61,7 @@ export class GamepadNavigationService implements OnDestroy {
   private inputWindowActive = false;
 
   private dpadActions: Partial<Record<Direction, () => void>> = {};
+  private auxActions: Partial<Record<AuxButton, () => void>> = {};
   private backAction: (() => boolean) | null = null;
   private selectMode: HTMLSelectElement | null = null;
   private selectInitialIndex = -1;
@@ -89,6 +104,22 @@ export class GamepadNavigationService implements OnDestroy {
 
   clearDpadActions(): void {
     this.dpadActions = {};
+  }
+
+  /**
+   * Page-specific shortcuts for the X/Y face buttons and the LB/RB shoulder
+   * buttons. LB and RB double as global previous/next-page swipe (see
+   * BUTTONS_PREVIOUS_ROUTE/BUTTONS_NEXT_ROUTE) - setting an override here
+   * for 'lb' or 'rb' suppresses that button's page-swipe for as long as the
+   * override is active (LT/RT keep working as the page-swipe fallback), so
+   * only bind them for actions worth losing that swipe gesture for.
+   */
+  setAuxButtonActions(actions: Partial<Record<AuxButton, () => void>>): void {
+    this.auxActions = { ...actions };
+  }
+
+  clearAuxButtonActions(): void {
+    this.auxActions = {};
   }
 
   setBackAction(action: (() => boolean) | null): void {
@@ -160,6 +191,16 @@ export class GamepadNavigationService implements OnDestroy {
       return;
     }
 
+    // Keyboard equivalents of the LB/RB/Y aux buttons - Q/E is the
+    // standard "shoulder button" convention, Y matches its on-screen hint.
+    const auxKeyMap: Record<string, AuxButton> = { q: 'lb', e: 'rb', y: 'y' };
+    const auxKey = auxKeyMap[e.key.toLowerCase()];
+    if (auxKey && this.auxActions[auxKey]) {
+      e.preventDefault();
+      this.zone.run(() => this.auxActions[auxKey]!());
+      return;
+    }
+
     if (e.key === 'Enter') {
       e.preventDefault();
       this.activateCurrent();
@@ -217,10 +258,27 @@ export class GamepadNavigationService implements OnDestroy {
 
     if (buttons[BUTTON_ACTIVATE] && !this.prevButtons[BUTTON_ACTIVATE]) this.activateCurrent();
     if (buttons[BUTTON_BACK] && !this.prevButtons[BUTTON_BACK]) this.goBack();
-    if (this.anyButtonPressed(buttons, this.prevButtons, BUTTONS_PREVIOUS_ROUTE)) {
+
+    for (const key of Object.keys(AUX_BUTTON_INDEXES) as AuxButton[]) {
+      const index = AUX_BUTTON_INDEXES[key];
+      const action = this.auxActions[key];
+      if (action && buttons[index] && !this.prevButtons[index]) {
+        this.zone.run(() => action());
+      }
+    }
+
+    // LB/RB only page-swipe when nothing on the current page has claimed
+    // them via setAuxButtonActions(); LT/RT always page-swipe regardless.
+    const previousRouteButtons = this.auxActions.lb
+      ? [BUTTON_LT]
+      : BUTTONS_PREVIOUS_ROUTE;
+    const nextRouteButtons = this.auxActions.rb
+      ? [BUTTON_RT]
+      : BUTTONS_NEXT_ROUTE;
+    if (this.anyButtonPressed(buttons, this.prevButtons, previousRouteButtons)) {
       this.changeRoute(-1);
     }
-    if (this.anyButtonPressed(buttons, this.prevButtons, BUTTONS_NEXT_ROUTE)) {
+    if (this.anyButtonPressed(buttons, this.prevButtons, nextRouteButtons)) {
       this.changeRoute(1);
     }
 
