@@ -15,7 +15,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { MatIconModule } from "@angular/material/icon";
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from "@angular/router";
-import { MediaPreviewState } from '../../models/media-input.models';
+import { MediaInputState, MediaPreviewState } from '../../models/media-input.models';
 import {
   Subject,
   filter,
@@ -36,6 +36,14 @@ import {
   RecordingSocketService,
 } from "../../services/socket/recording.service";
 import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
+
+/**
+ * Which video source(s) are currently feeding the stream. This mirrors the
+ * "Main stream" (primary) / "Facecam" (overlay) pairing MediaInputService
+ * already tracks internally - it's just a friendlier, TV-remote-sized
+ * control surface on top of that same state.
+ */
+type DisplayMode = 'webcam' | 'screen' | 'screen-cam';
 
 @Component({
   selector: "app-stream",
@@ -70,7 +78,6 @@ export class StreamComponent
   readonly mediaState$ = this.mediaInput.state$;
   readonly previewState$ = this.mediaInput.preview$;
   readonly audioMix$ = this.mediaInput.audioMix$;
-  readonly audioMeter$ = this.mediaInput.audioMeter$;
 
   isAuthenticated = false;
   isLive = this.rtcStreamService.isLive$.value;
@@ -81,9 +88,18 @@ export class StreamComponent
   isApplyingInputs = false;
   channelName: string | undefined;
   workflowError: string | null = null;
-  inputPanelOpen = false;
   chatMessages: (ChatMessage & { key: string })[] = [];
   chatText = '';
+
+  /** The video source quick-picker's current mode; defaults to both on. */
+  displayMode: DisplayMode = 'screen-cam';
+  /** Device id for whichever video source is currently treated as "the screen" (main). */
+  screenDeviceId: string | null = null;
+  /** Device id for whichever video source is currently treated as "the webcam" (facecam). */
+  webcamDeviceId: string | null = null;
+  /** True once media has offered a primary+overlay pair to remember for Screen + cam mode. */
+  isWebcamPrimary = false;
+  private capturedDefaultDevices = false;
 
   private readonly chatMaxVisible = 12;
 
@@ -99,11 +115,6 @@ export class StreamComponent
   ) {}
 
   ngOnInit(): void {
-    this.gamepadNavigation.setBackAction(() => {
-      if (!this.inputPanelOpen) return false;
-      this.inputPanelOpen = false;
-      return true;
-    });
     this.isAuthenticated$
       .pipe(takeUntil(this.destroy$))
       .subscribe((isAuthenticated) => {
@@ -120,6 +131,73 @@ export class StreamComponent
     this.previewState$
       .pipe(takeUntil(this.destroy$))
       .subscribe((previewState) => (this.previewState = previewState));
+    this.mediaState$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((media) => this.onMediaState(media));
+
+    // Y swaps the primary/facecam pairing (only meaningful, and only
+    // wired up on-screen, while Screen + cam is active). LB/RB mute the
+    // mic/screen audio - this claims those two buttons away from their
+    // normal app-wide previous/next-page swipe for as long as this page
+    // is active; LT/RT still page-swipe as the fallback.
+    this.gamepadNavigation.setAuxButtonActions({
+      y: () => {
+        if (this.displayMode === 'screen-cam') void this.swapSources();
+      },
+      lb: () => this.toggleMicrophoneMute(),
+      rb: () => this.toggleGameMute(),
+    });
+  }
+
+  /**
+   * Whichever device MediaInputService happens to enumerate first becomes
+   * "primary" by default, and that's arbitrary hardware ordering - not a
+   * real preference. The first time both roles are known - which can be on
+   * the very first device list, or later, if a camera (e.g. Continuity
+   * Camera) enumerates after a "devicechange" event - flip the underlying
+   * selection state synchronously so Screen + cam starts out
+   * webcam-forward. The state flip itself is synchronous and side-effect
+   * free, so it never races refreshPreview()'s getUserMedia call; only if
+   * a preview/publish is already running (the late-arrival case) do we
+   * also kick off the async refresh needed to update the live stream.
+   */
+  private onMediaState(media: MediaInputState): void {
+    const primary = media.selection.videoDeviceId;
+    const overlay = media.consoleSelection.overlayVideoDeviceId;
+
+    if (!this.capturedDefaultDevices && primary && overlay) {
+      // Two video sources are available - normalize into an explicit
+      // screen/webcam pairing so Screen + cam starts out webcam-forward,
+      // regardless of which one MediaInputService happened to default to.
+      this.screenDeviceId = primary;
+      this.webcamDeviceId = overlay;
+      this.capturedDefaultDevices = true;
+      this.displayMode = 'screen-cam';
+
+      this.mediaInput.selectVideo(overlay);
+      this.mediaInput.selectOverlayVideo(primary);
+
+      if (this.isReady) {
+        // The second source only became known after the preview/publish
+        // was already running (e.g. it enumerated late) - refresh the
+        // live stream to match, not just the idle selection.
+        void this.selectVideo(overlay).then(() =>
+          this.selectOverlayVideo(primary),
+        );
+      }
+    } else if (!this.capturedDefaultDevices && primary && !this.webcamDeviceId) {
+      // Only one video source exists so far - there's nothing to pair it
+      // with as "the screen" yet, so treat it as the webcam and stay in
+      // single-source mode. If a second source shows up later (a camera
+      // that enumerates late), the branch above takes over from here.
+      this.webcamDeviceId = primary;
+      this.screenDeviceId = null;
+      this.displayMode = 'webcam';
+    }
+
+    this.isWebcamPrimary =
+      !!media.selection.videoDeviceId &&
+      media.selection.videoDeviceId === this.webcamDeviceId;
   }
 
   ngAfterViewInit(): void {
@@ -199,6 +277,31 @@ export class StreamComponent
     });
   }
 
+  /** Webcam becomes the main display; screen is turned off. */
+  async selectWebcamMode(): Promise<void> {
+    if (this.displayMode === 'webcam' || !this.webcamDeviceId) return;
+    this.displayMode = 'webcam';
+    await this.selectVideo(this.webcamDeviceId);
+    await this.selectOverlayVideo('');
+  }
+
+  /** Screen becomes the main display; webcam is turned off. */
+  async selectScreenMode(): Promise<void> {
+    if (this.displayMode === 'screen' || !this.screenDeviceId) return;
+    this.displayMode = 'screen';
+    await this.selectVideo(this.screenDeviceId);
+    await this.selectOverlayVideo('');
+  }
+
+  /** Both screen and webcam are live; webcam is the main display by default. */
+  async selectScreenCamMode(): Promise<void> {
+    if (this.displayMode === 'screen-cam') return;
+    if (!this.screenDeviceId || !this.webcamDeviceId) return;
+    this.displayMode = 'screen-cam';
+    await this.selectVideo(this.webcamDeviceId);
+    await this.selectOverlayVideo(this.screenDeviceId);
+  }
+
   selectVideo(deviceId: string): Promise<void> {
     return this.queueInputChange(async () => {
       const wasLive = this.rtcStreamService.isLive$.value;
@@ -220,10 +323,6 @@ export class StreamComponent
     });
   }
 
-  toggleInputPanel(): void {
-    this.inputPanelOpen = !this.inputPanelOpen;
-  }
-
   selectOverlayVideo(deviceId: string): Promise<void> {
     return this.queueInputChange(async () => {
       const wasLive = this.rtcStreamService.isLive$.value;
@@ -236,58 +335,14 @@ export class StreamComponent
     });
   }
 
-  selectGameAudio(deviceId: string): Promise<void> {
-    return this.queueInputChange(async () => {
-      const wasLive = this.rtcStreamService.isLive$.value;
-      try {
-        this.mediaInput.selectGameAudio(deviceId || null);
-        await this.mediaInput.refreshAudioSources();
-        await this.syncPublishedAudio();
-      } catch {
-        await this.handleInputChangeFailure(wasLive);
-      }
-    });
-  }
-
-  selectMicrophone(deviceId: string): Promise<void> {
-    return this.queueInputChange(async () => {
-      const wasLive = this.rtcStreamService.isLive$.value;
-      try {
-        this.mediaInput.selectMicrophone(deviceId || null);
-        await this.mediaInput.refreshAudioSources();
-        await this.syncPublishedAudio();
-      } catch {
-        await this.handleInputChangeFailure(wasLive);
-      }
-    });
-  }
-
-  setGameLevel(value: string): void {
-    this.mediaInput.setGameLevel(Number(value) / 100);
-  }
-
   toggleGameMute(): void {
     this.mediaInput.setGameMuted(!this.mediaInput.audioMixSnapshot.gameMuted);
-  }
-
-  setMicrophoneLevel(value: string): void {
-    this.mediaInput.setMicrophoneLevel(Number(value) / 100);
   }
 
   toggleMicrophoneMute(): void {
     this.mediaInput.setMicrophoneMuted(
       !this.mediaInput.audioMixSnapshot.microphoneMuted,
     );
-  }
-
-  meterScale(loudness: number): number {
-    return Math.min(1, Math.max(0, (loudness + 60) / 60));
-  }
-
-  meterBand(loudness: number): 'green' | 'yellow' | 'red' {
-    if (loudness > -3) return 'red';
-    if (loudness > -12) return 'yellow';
-    return 'green';
   }
 
   swapSources(): Promise<void> {
@@ -398,7 +453,7 @@ export class StreamComponent
 
   ngOnDestroy(): void {
     if (this.channelName) this.socket.leaveRoom(this.channelName);
-    this.gamepadNavigation.setBackAction(null);
+    this.gamepadNavigation.clearAuxButtonActions();
     this.destroy$.next();
     this.destroy$.complete();
     this.mediaInput.stopPreview();

@@ -4,12 +4,11 @@ import { Router } from '@angular/router';
 import { BehaviorSubject, Subject, of, throwError } from 'rxjs';
 import {
   AudioMixState,
-  AudioMeterState,
   MediaInputState,
   MediaPreviewState,
 } from '../../models/media-input.models';
-import { GamepadNavigationService } from '../../services/gamepad-navigation.service';
 import { DeviceAuthService } from '../../services/device-auth.service';
+import { GamepadNavigationService } from '../../services/gamepad-navigation.service';
 import { MediaInputService } from '../../services/media-input.service';
 import { RtcStreamService } from '../../services/agora/rtc-stream.service';
 import { SeoService } from '../../services/seo.service';
@@ -65,11 +64,11 @@ describe('StreamComponent', () => {
   let state$: BehaviorSubject<MediaInputState>;
   let preview$: BehaviorSubject<MediaPreviewState>;
   let audioMix$: BehaviorSubject<AudioMixState>;
-  let audioMeter$: BehaviorSubject<AudioMeterState>;
   let mediaInput: jasmine.SpyObj<MediaInputService>;
   let rtc: jasmine.SpyObj<RtcStreamService>;
   let streamService: jasmine.SpyObj<StreamService>;
   let socket: jasmine.SpyObj<RecordingSocketService>;
+  let gamepadNavigation: jasmine.SpyObj<GamepadNavigationService>;
   let chatMessage$: Subject<ChatMessage>;
   let isLive$: BehaviorSubject<boolean>;
 
@@ -82,22 +81,13 @@ describe('StreamComponent', () => {
       microphoneLevel: 1,
       microphoneMuted: false,
     });
-    audioMeter$ = new BehaviorSubject<AudioMeterState>({
-      game: 0,
-      microphone: 0,
-      output: 0,
-    });
     mediaInput = jasmine.createSpyObj<MediaInputService>(
       'MediaInputService',
       [
         'initialize',
         'selectVideo',
         'selectOverlayVideo',
-        'selectGameAudio',
-        'selectMicrophone',
-        'setGameLevel',
         'setGameMuted',
-        'setMicrophoneLevel',
         'setMicrophoneMuted',
         'swapSources',
         'resumeAudioContext',
@@ -112,7 +102,6 @@ describe('StreamComponent', () => {
         state$: state$.asObservable(),
         preview$: preview$.asObservable(),
         audioMix$: audioMix$.asObservable(),
-        audioMeter$: audioMeter$.asObservable(),
         snapshot: readyState,
         previewSnapshot: idlePreview,
         audioMixSnapshot: audioMix$.value,
@@ -165,6 +154,10 @@ describe('StreamComponent', () => {
       ['connect', 'joinRoom', 'leaveRoom', 'sendChat'],
       { chatMessage$ },
     );
+    gamepadNavigation = jasmine.createSpyObj<GamepadNavigationService>(
+      'GamepadNavigationService',
+      ['setAuxButtonActions', 'clearAuxButtonActions'],
+    );
 
     await TestBed.configureTestingModule({
       imports: [StreamComponent],
@@ -180,19 +173,11 @@ describe('StreamComponent', () => {
           useValue: { url: '/stream', navigate: () => Promise.resolve(true) },
         },
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
-        {
-          provide: GamepadNavigationService,
-          useValue: {
-            register: () => undefined,
-            unregister: () => undefined,
-            setBackAction: () => undefined,
-          },
-        },
+        { provide: GamepadNavigationService, useValue: gamepadNavigation },
       ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(StreamComponent);
-    fixture.componentInstance.inputPanelOpen = true;
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
@@ -202,7 +187,6 @@ describe('StreamComponent', () => {
     state$.complete();
     preview$.complete();
     audioMix$.complete();
-    audioMeter$.complete();
     chatMessage$.complete();
   });
 
@@ -235,82 +219,137 @@ describe('StreamComponent', () => {
     );
   });
 
-  it('keeps stream inputs dismissed until opened from the toolbar', () => {
-    fixture.componentInstance.inputPanelOpen = false;
-    fixture.detectChanges();
+  it('defaults to Screen + cam and remembers each role\'s device id', () => {
+    expect(fixture.componentInstance.displayMode).toBe('screen-cam');
+    expect(fixture.componentInstance.screenDeviceId).toBe('video-1');
+    expect(fixture.componentInstance.webcamDeviceId).toBe('video-2');
 
-    expect(fixture.nativeElement.querySelector('.input-panel')).toBeNull();
-    const inputsButton = fixture.nativeElement.querySelector(
-      '[aria-label="Show stream inputs"]',
-    ) as HTMLButtonElement;
-    expect(inputsButton).not.toBeNull();
-
-    inputsButton.click();
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.querySelector('.input-panel')).not.toBeNull();
-    expect(inputsButton.getAttribute('aria-expanded')).toBe('true');
+    const active = fixture.nativeElement.querySelector('.mode-btn--active');
+    expect(active.textContent).toContain('Screen + cam');
   });
 
-  it('updates and previews primary video and microphone independently', async () => {
-    const video = fixture.nativeElement.querySelector(
-      '#stream-video-input',
-    ) as HTMLSelectElement;
-    video.value = 'video-2';
-    video.dispatchEvent(new Event('change'));
+  it('switches to webcam-only and disables the screen source', async () => {
+    const webcamButton = fixture.nativeElement.querySelector(
+      '[aria-label="Show webcam only"]',
+    ) as HTMLButtonElement;
+
+    webcamButton.click();
     await fixture.whenStable();
+    fixture.detectChanges();
 
     expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-2');
-    expect(mediaInput.refreshPrimaryVideo).toHaveBeenCalled();
+    expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith(null);
+    expect(fixture.componentInstance.displayMode).toBe('webcam');
+  });
 
-    mediaInput.refreshAudioSources.calls.reset();
-    const microphone = fixture.nativeElement.querySelector(
-      '#microphone-input',
-    ) as HTMLSelectElement;
-    microphone.value = 'audio-1';
-    microphone.dispatchEvent(new Event('change'));
+  it('switches to screen-only and disables the webcam source', async () => {
+    const screenButton = fixture.nativeElement.querySelector(
+      '[aria-label="Show screen only"]',
+    ) as HTMLButtonElement;
+
+    screenButton.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-1');
+    expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith(null);
+    expect(fixture.componentInstance.displayMode).toBe('screen');
+  });
+
+  it('restores both sources when switching back to Screen + cam', async () => {
+    await fixture.componentInstance.selectWebcamMode();
+    mediaInput.selectVideo.calls.reset();
+    mediaInput.selectOverlayVideo.calls.reset();
+
+    const screenCamButton = fixture.nativeElement.querySelector(
+      '[aria-label="Show screen and webcam"]',
+    ) as HTMLButtonElement;
+    screenCamButton.click();
     await fixture.whenStable();
 
-    expect(mediaInput.selectMicrophone).toHaveBeenCalledWith('audio-1');
-    expect(mediaInput.refreshAudioSources).toHaveBeenCalled();
+    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-1');
+    expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith('video-2');
+    expect(fixture.componentInstance.displayMode).toBe('screen-cam');
   });
 
-  it('publishes a newly selected audio source while live', async () => {
-    const publishStream = {} as MediaStream;
-    Object.defineProperty(mediaInput, 'previewSnapshot', {
-      get: () => ({ ...idlePreview, stream: publishStream }),
-    });
-    isLive$.next(true);
+  it('swaps which source is primary only while Screen + cam is active', async () => {
+    const swap = fixture.nativeElement.querySelector(
+      '[aria-label="Swap main display and facecam (or press Y)"]',
+    ) as HTMLButtonElement;
+    expect(swap).not.toBeNull();
 
-    await fixture.componentInstance.selectMicrophone('audio-1');
+    swap.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
 
-    expect(mediaInput.refreshAudioSources).toHaveBeenCalled();
-    expect(rtc.syncPublishedAudio).toHaveBeenCalledWith(publishStream);
+    expect(mediaInput.swapSources).toHaveBeenCalled();
+
+    await fixture.componentInstance.selectWebcamMode();
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector(
+        '[aria-label="Swap main display and facecam (or press Y)"]',
+      ),
+    ).toBeNull();
   });
 
-  it('shows source activity at the selected level while preserving muted activity', () => {
-    audioMeter$.next({ game: -18, microphone: -14, output: -16 });
-    audioMix$.next({
-      ...audioMix$.value,
-      gameLevel: 0.5,
-      gameMuted: true,
+  it('binds Y/LB/RB controller shortcuts on init and releases them on destroy', () => {
+    expect(gamepadNavigation.setAuxButtonActions).toHaveBeenCalledWith({
+      y: jasmine.any(Function),
+      lb: jasmine.any(Function),
+      rb: jasmine.any(Function),
     });
+
+    const bound = gamepadNavigation.setAuxButtonActions.calls.mostRecent()
+      .args[0] as { y: () => void; lb: () => void; rb: () => void };
+
+    bound.y();
+    expect(mediaInput.swapSources).toHaveBeenCalled();
+
+    bound.lb();
+    expect(mediaInput.setMicrophoneMuted).toHaveBeenCalledWith(true);
+
+    bound.rb();
+    expect(mediaInput.setGameMuted).toHaveBeenCalledWith(true);
+
+    fixture.destroy();
+    expect(gamepadNavigation.clearAuxButtonActions).toHaveBeenCalled();
+  });
+
+  it('mutes and unmutes the microphone from the LB control', () => {
+    const mic = fixture.nativeElement.querySelector(
+      '[aria-label="Mute microphone (or press LB)"]',
+    ) as HTMLButtonElement;
+
+    mic.click();
+    expect(mediaInput.setMicrophoneMuted).toHaveBeenCalledWith(true);
+
+    audioMix$.next({ ...audioMix$.value, microphoneMuted: true });
     fixture.detectChanges();
 
-    const meter = fixture.nativeElement.querySelector(
-      '[aria-label="Main audio activity"]',
-    ) as HTMLElement;
-    expect(meter.classList).toContain('muted');
-    expect((meter.firstElementChild as HTMLElement).style.transform).toBe(
-      'scaleX(0.7)',
-    );
-    expect(meter.dataset['band']).toBe('green');
-    expect(fixture.componentInstance.meterBand(-8)).toBe('yellow');
-    expect(fixture.componentInstance.meterBand(-2)).toBe('red');
+    const unmute = fixture.nativeElement.querySelector(
+      '[aria-label="Unmute microphone (or press LB)"]',
+    ) as HTMLButtonElement;
+    expect(unmute).not.toBeNull();
+    expect(unmute.classList).toContain('audio-toggle--muted');
+  });
 
-    audioMeter$.next({ game: 0, microphone: -60, output: -1 });
+  it('mutes and unmutes screen audio from the RB control', () => {
+    const screenAudio = fixture.nativeElement.querySelector(
+      '[aria-label="Mute screen audio (or press RB)"]',
+    ) as HTMLButtonElement;
+
+    screenAudio.click();
+    expect(mediaInput.setGameMuted).toHaveBeenCalledWith(true);
+
+    audioMix$.next({ ...audioMix$.value, gameMuted: true });
     fixture.detectChanges();
-    expect(meter.classList).toContain('clipping');
+
+    const unmute = fixture.nativeElement.querySelector(
+      '[aria-label="Unmute screen audio (or press RB)"]',
+    ) as HTMLButtonElement;
+    expect(unmute).not.toBeNull();
+    expect(unmute.classList).toContain('audio-toggle--muted');
   });
 
   it('serializes complete input changes so their capture steps cannot interleave', async () => {
@@ -322,27 +361,23 @@ describe('StreamComponent', () => {
     );
 
     const videoChange = fixture.componentInstance.selectVideo('video-2');
-    const microphoneChange = fixture.componentInstance.selectMicrophone('audio-1');
+    const overlayChange = fixture.componentInstance.selectOverlayVideo('video-1');
     await Promise.resolve();
 
-    expect(mediaInput.selectMicrophone).not.toHaveBeenCalled();
+    expect(mediaInput.selectOverlayVideo).not.toHaveBeenCalled();
     resolveVideo(null);
     await videoChange;
-    await microphoneChange;
+    await overlayChange;
 
-    expect(mediaInput.selectMicrophone).toHaveBeenCalledWith('audio-1');
+    expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith('video-1');
   });
 
   it('turns input replacement failures into a recoverable UI state', async () => {
-    mediaInput.refreshAudioSources.and.rejectWith(
+    mediaInput.refreshOverlayVideo.and.rejectWith(
       new DOMException('Device is busy', 'NotReadableError'),
     );
-    const microphone = fixture.nativeElement.querySelector(
-      '#microphone-input',
-    ) as HTMLSelectElement;
 
-    microphone.dispatchEvent(new Event('change'));
-    await fixture.whenStable();
+    await fixture.componentInstance.selectOverlayVideo('video-1');
     fixture.detectChanges();
 
     expect(mediaInput.stopPreview).toHaveBeenCalled();
@@ -385,7 +420,7 @@ describe('StreamComponent', () => {
     expect(rtc.join).toHaveBeenCalled();
   });
 
-  it('shows loading, missing-device, and recoverable error states', () => {
+  it('shows loading and recoverable error states', () => {
     state$.next({
       ...readyState,
       status: 'loading',
@@ -408,10 +443,6 @@ describe('StreamComponent', () => {
     });
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('No video inputs found');
-    expect(fixture.nativeElement.textContent).toContain(
-      'No audio input is available',
-    );
     expect(fixture.nativeElement.textContent).toContain(
       'Allow camera and microphone access.',
     );
@@ -495,69 +526,6 @@ describe('StreamComponent', () => {
     );
     expect(fixture.componentInstance.workflowError).toContain(
       'could not be applied',
-    );
-  });
-
-  it('renders source-specific negotiated formats and compatibility notice', () => {
-    state$.next({
-      ...readyState,
-      videoInputs: [
-        {
-          ...readyState.videoInputs[0],
-          displayLabel: 'Yuan SC400N2 Video',
-        },
-        readyState.videoInputs[1],
-      ],
-      selection: {
-        ...readyState.selection,
-        videoDeviceId: 'video-1',
-      },
-    });
-    preview$.next({
-      ...idlePreview,
-      status: 'ready',
-      videoSettings: {
-        width: 1280,
-        height: 720,
-        frameRate: 30,
-        fallbackTier: 'bounded',
-        belowTarget: true,
-      },
-      overlayVideoSettings: {
-        width: 1920,
-        height: 1080,
-        frameRate: 50,
-        fallbackTier: 'exact',
-        belowTarget: false,
-      },
-    });
-    fixture.detectChanges();
-
-    const video = fixture.nativeElement.querySelector(
-      '#stream-video-input',
-    ) as HTMLSelectElement;
-    expect(video.options[0].text).toContain('Yuan SC400N2 Video');
-    expect(
-      fixture.nativeElement.querySelector('#stream-audio-input'),
-    ).toBeNull();
-    expect(
-      fixture.nativeElement.querySelector('#game-audio-level'),
-    ).not.toBeNull();
-    expect(
-      fixture.nativeElement.querySelector('#microphone-level'),
-    ).not.toBeNull();
-    expect(
-      fixture.nativeElement.querySelectorAll('.source-group').length,
-    ).toBe(2);
-    const renderedText = fixture.nativeElement.textContent.replace(/\s+/g, ' ');
-    expect(renderedText).toContain(
-      'Main stream: 1280×720 @ 30 fps',
-    );
-    expect(renderedText).toContain(
-      'Facecam: 1920×1080 @ 50 fps',
-    );
-    expect(renderedText).toContain(
-      'best compatible format available',
     );
   });
 });
