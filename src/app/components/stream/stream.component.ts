@@ -156,10 +156,13 @@ export class StreamComponent
    * the very first device list, or later, if a camera (e.g. Continuity
    * Camera) enumerates after a "devicechange" event - flip the underlying
    * selection state synchronously so Screen + cam starts out
-   * webcam-forward. The state flip itself is synchronous and side-effect
-   * free, so it never races refreshPreview()'s getUserMedia call; only if
-   * a preview/publish is already running (the late-arrival case) do we
-   * also kick off the async refresh needed to update the live stream.
+   * screen-forward: whichever device MediaInputService defaulted to as
+   * "overlay" becomes the screen (main) device, and whichever it
+   * defaulted to as "primary" becomes the webcam (facecam) device. The
+   * state flip itself is synchronous and side-effect free, so it never
+   * races refreshPreview()'s getUserMedia call; only if a preview/publish
+   * is already running (the late-arrival case) do we also kick off the
+   * async refresh needed to update the live stream.
    */
   private onMediaState(media: MediaInputState): void {
     const primary = media.selection.videoDeviceId;
@@ -167,10 +170,10 @@ export class StreamComponent
 
     if (!this.capturedDefaultDevices && primary && overlay) {
       // Two video sources are available - normalize into an explicit
-      // screen/webcam pairing so Screen + cam starts out webcam-forward,
-      // regardless of which one MediaInputService happened to default to.
-      this.screenDeviceId = primary;
-      this.webcamDeviceId = overlay;
+      // screen/webcam pairing, swapped from whatever MediaInputService
+      // happened to default to, so Screen + cam starts out screen-forward.
+      this.screenDeviceId = overlay;
+      this.webcamDeviceId = primary;
       this.capturedDefaultDevices = true;
       this.displayMode = 'screen-cam';
 
@@ -195,9 +198,16 @@ export class StreamComponent
       this.displayMode = 'webcam';
     }
 
+    // Read the live snapshot here rather than the `media` argument: the
+    // two forced selectVideo/selectOverlayVideo calls above emit their own
+    // state synchronously and re-enter this method before this line runs,
+    // so by the time we get here `media` is a stale snapshot from before
+    // that swap. Using `media` here would silently overwrite the correct,
+    // freshly-recomputed isWebcamPrimary with the pre-swap value - visible
+    // as the W/S highlight not updating on the very first swap after load.
+    const currentVideoDeviceId = this.mediaInput.snapshot.selection.videoDeviceId;
     this.isWebcamPrimary =
-      !!media.selection.videoDeviceId &&
-      media.selection.videoDeviceId === this.webcamDeviceId;
+      !!currentVideoDeviceId && currentVideoDeviceId === this.webcamDeviceId;
   }
 
   ngAfterViewInit(): void {
@@ -293,13 +303,13 @@ export class StreamComponent
     await this.selectOverlayVideo('');
   }
 
-  /** Both screen and webcam are live; webcam is the main display by default. */
+  /** Both screen and webcam are live; screen is the main display by default. */
   async selectScreenCamMode(): Promise<void> {
     if (this.displayMode === 'screen-cam') return;
     if (!this.screenDeviceId || !this.webcamDeviceId) return;
     this.displayMode = 'screen-cam';
-    await this.selectVideo(this.webcamDeviceId);
-    await this.selectOverlayVideo(this.screenDeviceId);
+    await this.selectVideo(this.screenDeviceId);
+    await this.selectOverlayVideo(this.webcamDeviceId);
   }
 
   selectVideo(deviceId: string): Promise<void> {
