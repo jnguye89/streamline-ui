@@ -10,24 +10,8 @@
       </span>
     </div>
 
-    <!-- Pieces each side has taken off the board, shown under its own
-         name in the color it captured (white's trophies are black pieces,
-         and vice versa) - plus a "+N" material-lead badge on whichever
-         tray is currently ahead. -->
-    <div class="captured-row" *ngIf="capturedByWhite.length || capturedByBlack.length">
-      <div class="captured-group">
-        <app-chess-piece-icon *ngFor="let p of capturedByWhite" [type]="p" color="b" size="tray">
-        </app-chess-piece-icon>
-        <span class="material-edge" *ngIf="materialDiff > 0">+{{ materialDiff }}</span>
-      </div>
-      <div class="captured-group">
-        <app-chess-piece-icon *ngFor="let p of capturedByBlack" [type]="p" color="w" size="tray">
-        </app-chess-piece-icon>
-        <span class="material-edge" *ngIf="materialDiff < 0">+{{ -materialDiff }}</span>
-      </div>
-    </div>
-
     <div class="status" *ngIf="statusMessage as msg">{{ msg }}</div>
+    <div class="check-flag" *ngIf="isCheck">Check!</div>
 
     <div class="draw-banner" *ngIf="incomingDrawOffer">
       Your opponent offers a draw
@@ -66,9 +50,38 @@
     </div>
   </div>
 
-  <app-chess-board class="board" [fen]="state?.fen ?? ''" [orientation]="orientation" [interactive]="isMyTurn"
-    (move)="onMoveAttempt($event)">
-  </app-chess-board>
+  <!-- Board flanked by both trays of captured pieces instead of stacking
+       them above the board in .chess-meta - the board is height-capped and
+       square (see chess-board.component.scss), which on any landscape
+       screen leaves wide empty gutters either side of it that this now
+       fills. Left = pieces white has taken (black pieces), right = pieces
+       black has taken (white pieces) - matching the left-white/right-black
+       order the player names above are already shown in, so the mapping
+       reads the same way regardless of which color a spectator is used to
+       playing. Both trays render unconditionally (not *ngIf) and reserve
+       equal fixed width so the board stays centered between them even when
+       one side has captured nothing yet. -->
+  <div class="board-row">
+    <div class="side-tray left">
+      <div class="tray-pieces">
+        <app-chess-piece-icon *ngFor="let p of capturedByWhite" [type]="p" color="b" size="tray">
+        </app-chess-piece-icon>
+      </div>
+      <span class="material-edge" *ngIf="materialDiff > 0">+{{ materialDiff }}</span>
+    </div>
+
+    <app-chess-board class="board" [fen]="state?.fen ?? ''" [orientation]="orientation" [interactive]="isMyTurn"
+      (move)="onMoveAttempt($event)">
+    </app-chess-board>
+
+    <div class="side-tray right">
+      <div class="tray-pieces">
+        <app-chess-piece-icon *ngFor="let p of capturedByBlack" [type]="p" color="w" size="tray">
+        </app-chess-piece-icon>
+      </div>
+      <span class="material-edge" *ngIf="materialDiff < 0">+{{ -materialDiff }}</span>
+    </div>
+  </div>
 
   <div class="chess-error" *ngIf="errorMessage" aria-live="polite">{{ errorMessage }}</div>
 </div>
