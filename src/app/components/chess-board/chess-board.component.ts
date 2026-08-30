@@ -54,6 +54,11 @@ export class ChessBoardComponent implements OnChanges {
   squares: BoardSquare[] = [];
   selected: Square | null = null;
   legalTargets = new Set<string>();
+  // Square of whichever king is currently in check, or null - set from the
+  // same chess.js load already done for `squares` below, so this always
+  // matches the position actually on screen instead of needing its own
+  // separate re-derivation.
+  checkedKingSquare: Square | null = null;
 
   private chess = new Chess();
 
@@ -115,14 +120,25 @@ export class ChessBoardComponent implements OnChanges {
       this.chess.reset();
     }
 
+    // Whichever side is to move is the only side that can currently BE in
+    // check (moving out of check is mandatory), so a checked king is always
+    // this color's king - no need to test both.
+    const inCheck = this.chess.isCheck();
+    const sideToMove = this.chess.turn();
+    let checkedKingSquare: Square | null = null;
+
     const board = this.chess.board(); // board[0] = rank 8 ... board[7] = rank 1
     const built: BoardSquare[] = [];
     for (let r = 0; r < 8; r++) {
       const rank = 8 - r;
       for (let f = 0; f < 8; f++) {
         const cell = board[r][f];
+        const square = `${FILES[f]}${rank}` as Square;
+        if (inCheck && cell?.type === 'k' && cell.color === sideToMove) {
+          checkedKingSquare = square;
+        }
         built.push({
-          square: `${FILES[f]}${rank}` as Square,
+          square,
           // Real chess: a1 is dark, h1 is light ("light on right"), and the
           // white king's start square (e1) is dark - the opposite of its
           // own color, per the "queen on her own color" convention (the
@@ -135,6 +151,7 @@ export class ChessBoardComponent implements OnChanges {
       }
     }
     this.squares = built;
+    this.checkedKingSquare = checkedKingSquare;
   }
 
   // v1 always auto-promotes to queen - no promotion-choice UI yet.

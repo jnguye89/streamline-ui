@@ -25,12 +25,11 @@
     filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45));
   }
 
-  // Small and flat for the captured-pieces tray - a drop shadow that reads
-  // fine on a 45-unit board piece just looks like smudge at 18px, and the
-  // ellipse "resting on the board" shadow doesn't make sense off the board.
+  // Flat (no drop shadow - fine on a 45-unit board piece, just looks like
+  // smudge this small) for the captured-pieces trays flanking the board.
   &.tray {
-    width: 18px;
-    height: 18px;
+    width: 42px;
+    height: 42px;
     flex-shrink: 0;
 
     .p-shadow {
