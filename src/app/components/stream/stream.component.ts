@@ -150,50 +150,54 @@ export class StreamComponent
   }
 
   /**
-   * Whichever device MediaInputService happens to enumerate first becomes
-   * "primary" by default, and that's arbitrary hardware ordering - not a
-   * real preference. The first time both roles are known - which can be on
-   * the very first device list, or later, if a camera (e.g. Continuity
-   * Camera) enumerates after a "devicechange" event - flip the underlying
-   * selection state synchronously so Screen + cam starts out
-   * screen-forward: whichever device MediaInputService defaulted to as
-   * "overlay" becomes the screen (main) device, and whichever it
-   * defaulted to as "primary" becomes the webcam (facecam) device. The
-   * state flip itself is synchronous and side-effect free, so it never
-   * races refreshPreview()'s getUserMedia call; only if a preview/publish
-   * is already running (the late-arrival case) do we also kick off the
-   * async refresh needed to update the live stream.
+   * The screen/webcam pairing must be derived from the enumerated device
+   * list (`videoInputs`), never from `selection`/`consoleSelection` -
+   * those reflect whatever MediaInputService restored from localStorage,
+   * which is the primary device *from the previous session*. That could be
+   * either physical device depending on what the user last did (swapped,
+   * switched to screen-only, etc.), so keying the role assignment off it
+   * made the webcam/screen mapping flip randomly on reload even though the
+   * user never touched anything this session. `videoInputs` order comes
+   * straight from the browser's device enumeration and is stable for the
+   * same connected hardware, so pairing off it instead means the same
+   * physical camera is always "the screen" and the other is always "the
+   * webcam," reload after reload. The first time both roles are known -
+   * which can be on the very first device list, or later, if a camera
+   * (e.g. Continuity Camera) enumerates after a "devicechange" event - we
+   * force the underlying selection to match synchronously so Screen + cam
+   * starts out screen-forward. That flip is synchronous and side-effect
+   * free, so it never races refreshPreview()'s getUserMedia call; only if
+   * a preview/publish is already running (the late-arrival case) do we
+   * also kick off the async refresh needed to update the live stream.
    */
   private onMediaState(media: MediaInputState): void {
-    const primary = media.selection.videoDeviceId;
-    const overlay = media.consoleSelection.overlayVideoDeviceId;
+    const [firstDevice, secondDevice] = media.videoInputs;
 
-    if (!this.capturedDefaultDevices && primary && overlay) {
-      // Two video sources are available - normalize into an explicit
-      // screen/webcam pairing, swapped from whatever MediaInputService
-      // happened to default to, so Screen + cam starts out screen-forward.
-      this.screenDeviceId = overlay;
-      this.webcamDeviceId = primary;
+    if (!this.capturedDefaultDevices && firstDevice && secondDevice) {
+      const screen = firstDevice.deviceId;
+      const webcam = secondDevice.deviceId;
+      this.webcamDeviceId = webcam;
+      this.screenDeviceId = screen;
       this.capturedDefaultDevices = true;
       this.displayMode = 'screen-cam';
 
-      this.mediaInput.selectVideo(overlay);
-      this.mediaInput.selectOverlayVideo(primary);
+      this.mediaInput.selectVideo(screen);
+      this.mediaInput.selectOverlayVideo(webcam);
 
       if (this.isReady) {
         // The second source only became known after the preview/publish
         // was already running (e.g. it enumerated late) - refresh the
         // live stream to match, not just the idle selection.
-        void this.selectVideo(overlay).then(() =>
-          this.selectOverlayVideo(primary),
+        void this.selectVideo(screen).then(() =>
+          this.selectOverlayVideo(webcam),
         );
       }
-    } else if (!this.capturedDefaultDevices && primary && !this.webcamDeviceId) {
+    } else if (!this.capturedDefaultDevices && firstDevice && !this.webcamDeviceId) {
       // Only one video source exists so far - there's nothing to pair it
       // with as "the screen" yet, so treat it as the webcam and stay in
       // single-source mode. If a second source shows up later (a camera
       // that enumerates late), the branch above takes over from here.
-      this.webcamDeviceId = primary;
+      this.webcamDeviceId = firstDevice.deviceId;
       this.screenDeviceId = null;
       this.displayMode = 'webcam';
     }
@@ -291,16 +295,14 @@ export class StreamComponent
   async selectWebcamMode(): Promise<void> {
     if (this.displayMode === 'webcam' || !this.webcamDeviceId) return;
     this.displayMode = 'webcam';
-    await this.selectVideo(this.webcamDeviceId);
-    await this.selectOverlayVideo('');
+    await this.selectSingleSource(this.webcamDeviceId);
   }
 
   /** Screen becomes the main display; webcam is turned off. */
   async selectScreenMode(): Promise<void> {
     if (this.displayMode === 'screen' || !this.screenDeviceId) return;
     this.displayMode = 'screen';
-    await this.selectVideo(this.screenDeviceId);
-    await this.selectOverlayVideo('');
+    await this.selectSingleSource(this.screenDeviceId);
   }
 
   /** Both screen and webcam are live; screen is the main display by default. */
@@ -339,6 +341,40 @@ export class StreamComponent
       try {
         this.mediaInput.selectOverlayVideo(deviceId || null);
         await this.mediaInput.refreshOverlayVideo();
+      } catch {
+        await this.handleInputChangeFailure(wasLive);
+      }
+    });
+  }
+
+  /**
+   * Switches to a single video source (webcam-only or screen-only) without
+   * ever touching the other device. MediaInputService.selectVideo() always
+   * re-pairs *some* other camera as the overlay as its own auto-pairing
+   * default (see reconcileConsoleSelection) - so selecting a new primary
+   * and only clearing the overlay afterward (the old selectVideo() +
+   * selectOverlayVideo('') sequence) briefly re-acquired the other device
+   * as an overlay before releasing it a moment later. Clearing the overlay
+   * in the same synchronous step as the primary change means
+   * refreshOverlayVideo() below sees "no overlay" from the start and never
+   * touches the other device at all.
+   */
+  private selectSingleSource(deviceId: string): Promise<void> {
+    return this.queueInputChange(async () => {
+      const wasLive = this.rtcStreamService.isLive$.value;
+      try {
+        this.mediaInput.selectVideo(deviceId || null);
+        this.mediaInput.selectOverlayVideo(null);
+        const stream = await this.mediaInput.refreshPrimaryVideo();
+        if (!stream) return;
+        await this.mediaInput.refreshOverlayVideo();
+        await this.mediaInput.refreshAudioSources();
+        if (this.rtcStreamService.isLive$.value) {
+          await this.rtcStreamService.replacePublishedVideo(stream);
+          await this.syncPublishedAudio();
+        }
+        this.mediaInput.commitPrimaryVideoRefresh();
+        await this.renderPrimaryPreview(stream);
       } catch {
         await this.handleInputChangeFailure(wasLive);
       }

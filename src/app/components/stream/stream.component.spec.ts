@@ -221,8 +221,8 @@ describe('StreamComponent', () => {
 
   it('defaults to Screen + cam and remembers each role\'s device id', () => {
     expect(fixture.componentInstance.displayMode).toBe('screen-cam');
-    expect(fixture.componentInstance.screenDeviceId).toBe('video-2');
-    expect(fixture.componentInstance.webcamDeviceId).toBe('video-1');
+    expect(fixture.componentInstance.screenDeviceId).toBe('video-1');
+    expect(fixture.componentInstance.webcamDeviceId).toBe('video-2');
 
     const active = fixture.nativeElement.querySelector('.mode-btn--active');
     expect(active.textContent).toContain('Screen + cam');
@@ -237,7 +237,7 @@ describe('StreamComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-1');
+    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-2');
     expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith(null);
     expect(fixture.componentInstance.displayMode).toBe('webcam');
   });
@@ -251,7 +251,7 @@ describe('StreamComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-2');
+    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-1');
     expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith(null);
     expect(fixture.componentInstance.displayMode).toBe('screen');
   });
@@ -267,8 +267,8 @@ describe('StreamComponent', () => {
     screenCamButton.click();
     await fixture.whenStable();
 
-    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-2');
-    expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith('video-1');
+    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-1');
+    expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith('video-2');
     expect(fixture.componentInstance.displayMode).toBe('screen-cam');
   });
 
