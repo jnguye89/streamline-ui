@@ -357,8 +357,8 @@
 .mode-swap-btn {
   position: relative;
   display: grid;
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   place-items: center;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.28);
@@ -367,10 +367,10 @@
   background: rgba(255, 255, 255, 0.08);
 
   mat-icon {
-    width: 14px;
-    height: 14px;
-    font-size: 14px;
-    line-height: 14px;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    line-height: 16px;
   }
 
   &:focus-visible,
@@ -386,19 +386,18 @@
 
 .mode-swap-btn__hint {
   position: absolute;
-  left: 50%;
-  bottom: -9px;
-  transform: translateX(-50%);
+  right: -4px;
+  bottom: -4px;
   display: grid;
-  width: 13px;
-  height: 13px;
+  width: 15px;
+  height: 15px;
   place-items: center;
   border-radius: 50%;
   background: #2e7d32;
   color: #fff;
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 800;
-  line-height: 13px;
+  line-height: 15px;
   box-shadow: 0 0 0 2px rgba(20, 20, 20, 0.9);
 }
 
