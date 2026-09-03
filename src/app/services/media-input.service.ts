@@ -943,7 +943,6 @@ export class MediaInputService implements OnDestroy {
         microphone: this.microphoneSourceNode,
       },
       this.audioMixSnapshot,
-      this.audioContext.destination,
     );
     this.gameAudioChannel = gains.game;
     this.microphoneAudioChannel = gains.microphone;

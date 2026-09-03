@@ -23,7 +23,6 @@ export function connectAudioMixer(
   destination: AudioNode,
   sources: AudioMixerSources,
   state: AudioMixState,
-  localMonitorDestination?: AudioNode | null,
 ): AudioMixerChannels {
   const limiter = context.createDynamicsCompressor();
   limiter.threshold.value = -1;
@@ -42,14 +41,6 @@ export function connectAudioMixer(
     limiter,
     outputAnalyser,
   };
-  if (localMonitorDestination && channels.game) {
-    // Let the streamer hear their own screen/game audio locally - the
-    // outbound `destination` above only feeds the published stream, which
-    // is silent on this machine. The microphone channel is deliberately
-    // left out of local monitoring so mic input doesn't loop back through
-    // the speakers as echo/feedback.
-    channels.game.mute.connect(localMonitorDestination);
-  }
   applyAudioMixState(context, channels, state, false);
   return channels;
 }
