@@ -1,24 +1,15 @@
 :host {
   // Centers the board within whatever box the parent flex layout actually
-  // allocates (chess-demo.component's `.board`, or chess-game.component's
-  // own `.board` inside its `.board-row`), rather than the board guessing
-  // its own size from vh math disconnected from that layout. That guess
-  // (`calc(100vh - 220px)`) is what produced a board sized larger than the
-  // real available height on-screen, spilling the bottom ranks past
-  // whatever ancestor clips overflow - the "missing rows" bug.
-  //
-  // Deliberately no `width` here (unlike the old rule): the actual square,
-  // `.chess-board` below, derives its own width from its height via
-  // aspect-ratio, so this host just needs to get out of the way widthwise
-  // and let that resolve naturally. chess-demo.component.scss's `.board`
-  // still sets `width: 100%` on this same host from the outside for its
-  // own full-bleed layout, which simply overrides this; chess-game's
-  // `.board-row` deliberately doesn't, so the board can shrink to its
-  // natural (height-derived) width and leave room for the capture trays
-  // flanking it on either side instead of stretching across the row.
+  // allocates (chess-game.component's `.board` - flex:1; min-height:0;),
+  // rather than the board guessing its own size from vh math disconnected
+  // from that layout. That guess (`calc(100vh - 220px)`) is what produced a
+  // board sized larger than the real available height on-screen, spilling
+  // the bottom ranks past whatever ancestor clips overflow - the "missing
+  // rows" bug.
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   height: 100%;
 }
 
@@ -162,14 +153,6 @@
 
 .square.legal-capture {
   box-shadow: inset 0 0 0 4px rgba(3, 218, 198, 0.75);
-}
-
-// Alarm-red ring on whichever king is currently in check - same visual
-// language as .selected's teal ring (an inset box-shadow so it reads on top
-// of the piece rather than tinting the square's own light/dark background),
-// just a color that reads as "danger" rather than "you picked this up".
-.square.in-check {
-  box-shadow: inset 0 0 0 4px rgba(255, 61, 61, 0.9), 0 0 16px 2px rgba(255, 61, 61, 0.45);
 }
 
 // Lichess/chess.com-style rank (1-8) and file (a-h) labels along the
