@@ -22,7 +22,6 @@
     class="square" [class.light]="sq.isLight" [class.dark]="!sq.isLight" [class.selected]="selected === sq.square"
     [class.legal-target]="legalTargets.has(sq.square) && !sq.piece"
     [class.legal-capture]="legalTargets.has(sq.square) && !!sq.piece"
-    [class.in-check]="checkedKingSquare === sq.square"
     [disabled]="!interactive" [attr.aria-label]="sq.square" (click)="onSquareClick(sq)">
 
     <app-chess-piece-icon *ngIf="sq.piece" [type]="sq.piece.type" [color]="sq.piece.color" size="board">

@@ -72,45 +72,11 @@
   font-weight: 600;
 
   .player {
-    // No opacity dimming at all now - previously this was 0.55, then 0.82,
-    // and both still had the same underlying problem: CSS opacity blends the
-    // text color toward this component's black background, so ANY amount of
-    // dimming pushes white's ivory a step closer to gray, and depending on
-    // exactly when a game's status/turn fields update (fresh game creation,
-    // the loading gap before the first fetch resolves, a socket update
-    // landing mid-render) the white player's name could render at less than
-    // full strength and read as "gray" rather than immediately, reliably
-    // "white." Whose color a player is should never be a function of
-    // loading state or whose turn it happens to be - it's a fixed fact about
-    // the seat they're in, so both names now always render at their full,
-    // true color the instant they're on screen, no dimming, no transition.
-    // Whose turn it is is shown separately below via `.turn`, without ever
-    // touching this base color/opacity.
-    opacity: 1;
+    opacity: 0.55;
 
-    // Matches the actual piece-set colors (see the shared gradients in
-    // chess-board.component.html) instead of both names just inheriting
-    // .chess-meta's plain white text.
-    &.white {
-      color: #efe9db;
-    }
-
-    &.black {
-      // The real black-piece gradient runs #4a4a52 -> #26262c -> #0c0c10 -
-      // all of which are unreadable-to-invisible as text on this
-      // component's pure black background. Lightened well past that range
-      // to a legible gray that still reads as "the dark side" next to
-      // white's ivory, rather than reusing the piece color verbatim.
-      color: #9a9aa6;
-    }
-
-    // Whose turn it is reads through weight + a matching-color glow only -
-    // never opacity, and never a color swap (that was the original "still
-    // showing as yellow" bug) - so it layers on top of the always-full-
-    // strength white/black color above instead of fighting it.
     &.turn {
-      font-weight: 800;
-      text-shadow: 0 0 8px currentColor, 0 1px 2px rgba(0, 0, 0, 0.6);
+      opacity: 1;
+      color: #ffd600;
     }
   }
 
@@ -121,7 +87,27 @@
   }
 }
 
+.captured-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  min-height: 18px;
+}
+
+.captured-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  // Lets a long tray (queens/rooks up early) wrap instead of stretching
+  // .chess-meta wider than the board beneath it.
+  flex-wrap: wrap;
+  max-width: 40vw;
+  justify-content: center;
+}
+
 .material-edge {
+  margin-left: 4px;
   font-size: 10px;
   font-weight: 700;
   color: #03dac6;
@@ -131,24 +117,6 @@
 .status {
   font-size: clamp(11px, 1.4vh, 14px);
   opacity: 0.85;
-}
-
-// Separate from .status (rather than folded into that same string) so it
-// can carry its own alarm styling and disappear the instant the check is
-// resolved, without the status-message switch in the component needing to
-// know about it at all - it's just "also show this" alongside whatever
-// .status already says ("Your move", "Opponent's move", etc).
-.check-flag {
-  font-size: clamp(12px, 1.6vh, 16px);
-  font-weight: 700;
-  color: #ff5252;
-  text-shadow: 0 0 10px rgba(255, 82, 82, 0.6);
-  animation: check-pulse 1s ease-in-out infinite;
-}
-
-@keyframes check-pulse {
-  0%, 100% { opacity: 0.75; }
-  50% { opacity: 1; }
 }
 
 .chess-actions {
@@ -209,72 +177,14 @@
   text-align: center;
 }
 
-// Row containing the board plus its two flanking capture trays. Takes over
-// the flex:1/min-height:0 slot .board used to hold directly in .chess-game's
-// column layout, so the board's own height-driven sizing chain is unchanged.
-.board-row {
+.board {
   flex: 1;
   display: flex;
-  flex-direction: row;
-  align-items: stretch;
+  align-items: center;
   justify-content: center;
-  gap: clamp(6px, 2vw, 28px);
   width: 100%;
   min-height: 0;
-}
-
-.board {
-  // Deliberately no width here (unlike the old rule) - the board is square
-  // and derives its own width from its height via aspect-ratio (see
-  // chess-board.component.scss), so forcing a width on this flex item would
-  // just fight that instead of letting it size naturally between the two
-  // fixed-width trays. Also deliberately no `min-width: 0`: leaving the
-  // flex item's automatic minimum in place is what stops it from being
-  // squeezed narrower than its own aspect-ratio-computed square if
-  // .board-row ever gets tight on horizontal space (e.g. a narrow portrait
-  // viewport) - the trays should be what gives ground first, not the board.
-  height: 100%;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   pointer-events: auto;
-}
-
-// Fixed width regardless of how many pieces are actually in it (and
-// rendered even when empty) so the board never drifts off-center as
-// material changes hands over the course of a game.
-.side-tray {
-  // Widened alongside the tray piece icons themselves (now 42px in
-  // chess-piece-icon.component.scss) so a couple of them still sit
-  // comfortably side by side before wrapping into a second column.
-  width: clamp(72px, 13vw, 130px);
-  // Shrinkable (not flex-shrink: 0) so this - not the board itself, which
-  // refuses to shrink below its own square min-content size - is what gives
-  // ground first if .board-row ever runs short on horizontal space.
-  flex-shrink: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  // Decorative only - never intercepts clicks meant for the board or the
-  // watch feed's own overlay controls beneath it.
-  pointer-events: none;
-}
-
-.tray-pieces {
-  display: flex;
-  flex-direction: column;
-  flex-wrap: wrap;
-  align-content: center;
-  justify-content: center;
-  gap: 1px;
-  // Column-direction wrap needs a real height to know when to start a new
-  // column - without this, a tray deep enough to need one (most of a side's
-  // captures, late in a lopsided game) would just overflow past the board's
-  // own height instead of spilling sideways into a second file of icons.
-  max-height: 100%;
 }
 
 .chess-error {

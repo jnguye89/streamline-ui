@@ -214,12 +214,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.socket.connect();
 
     this.socket.recordingStopped$.pipe(takeUntil(this.destroy$)).subscribe(e => {
-      // Never auto-advance a viewer away from a real chess game (mid-game
-      // or just finished) just because some unrelated live stream elsewhere
-      // stopped recording - only their own explicit next/previous should
-      // move them off it. See the pinnedChessItem comment in ngOnInit's
-      // playlist$ subscription for the same rule applied to the polling path.
-      if (this.currentItem?.type === 'chess') return;
       this.next();
     })
 
@@ -288,27 +282,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         const currentId = this.currentItem?.id;
         const currentType = this.currentItem?.type;
 
-        // A real chess game (not the discovery demo item) that's already on
-        // screen is pinned here regardless of whether this particular poll's
-        // `list` still contains it - once a game ends (or, for that matter,
-        // simply stops being the one open-seat/demo slot chess$ surfaces),
-        // findOpen() on the API stops returning it at all, which would
-        // otherwise make it "disappear" below and silently sweep whoever's
-        // watching it - a seated player mid-game, or anyone who just watched
-        // it finish - on to the next video with no say in the matter.
-        // ChessGameComponent doesn't need a fresher copy to keep working
-        // either way: it owns its own realtime state via sockets once
-        // mounted and (see its ngOnChanges) already ignores updates to this
-        // same input as long as the game id hasn't changed. Re-inserting the
-        // pinned item here just keeps it findable below so the existing
-        // "keep playing current" branch takes over instead of the
-        // "disappeared -> advance" one.
-        const pinnedChessItem = this.currentItem?.type === 'chess' ? this.currentItem : null;
-        const stillPresent = pinnedChessItem
-          ? list.some(x => x.type === 'chess' && x.id === pinnedChessItem.id)
-          : true;
-
-        this.playlist = pinnedChessItem && !stillPresent ? [pinnedChessItem, ...list] : list;
+        this.playlist = list;
 
         const videoId = this.route.snapshot.paramMap.get("id");
 

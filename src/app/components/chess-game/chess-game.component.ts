@@ -14,7 +14,6 @@ import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
-import { Chess } from 'chess.js';
 
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
 import {
@@ -70,28 +69,6 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
   private destroy$ = new Subject<void>();
   private joinedRoomId: string | null = null;
   private errorTimer: ReturnType<typeof setTimeout> | null = null;
-  // Which game switchToGame() most recently pointed at, tracked separately
-  // from `state.id` because `state` is null for the entire gap between
-  // starting that switch and its REST fetch resolving - see switchToGame()
-  // and pendingUpdates below for why that gap needs its own id to check
-  // socket events against.
-  private activeGameId: number | null = null;
-  // Socket updates (a move, a join, a draw offer...) that arrived for the
-  // current game before its initial getGame() fetch resolved, queued up to
-  // replay in order once it does, instead of being silently dropped. Without
-  // this, a fast-moving opponent's move landing in that gap - most likely
-  // right when a game first mounts or right after joining, exactly when an
-  // opponent who's already mid-move is most likely to move again quickly -
-  // was applied nowhere: onMove()'s own `!this.state` guard discarded it,
-  // and the REST fetch (already in flight before the move even happened)
-  // could easily resolve with the position from just before it, leaving the
-  // board showing a position one move stale. Selecting a piece against that
-  // stale position looks completely normal (the position is internally
-  // consistent, just outdated) right up until the actual move is submitted
-  // against the server's real, further-along position and silently doesn't
-  // land - exactly the "dots move, piece doesn't" symptom, fixed by a
-  // refresh only because that starts the fetch fresh with nothing racing it.
-  private pendingUpdates: Array<() => void> = [];
 
   constructor(
     private chessService: ChessService,
@@ -149,22 +126,6 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
 
   get isMyTurn(): boolean {
     return !!this.mySeat && this.state?.status === 'active' && this.state?.turn === this.mySeat;
-  }
-
-  // Whoever's turn it currently is being in check - purely derived from the
-  // live FEN via a throwaway chess.js instance (same library the API's own
-  // applyMove() already uses as the real authority for isCheckmate(), so
-  // this reads the exact same rules, just client-side for instant display).
-  // Only meaningful while a game is actually being played: checkmate is its
-  // own terminal `status` already, and every other status has no "turn" to
-  // speak of.
-  get isCheck(): boolean {
-    if (!this.state?.fen || this.state.status !== 'active') return false;
-    try {
-      return new Chess(this.state.fen).isCheck();
-    } catch {
-      return false;
-    }
   }
 
   get canJoin(): boolean {
@@ -343,14 +304,9 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
     this.errorMessage = null;
     this.state = null;
     this.loading = true;
-    this.activeGameId = id;
-    this.pendingUpdates = [];
 
     // Join the room before the REST fetch resolves, so a move that lands in
-    // the gap isn't missed - anything for this id that arrives before the
-    // fetch below resolves is queued by applyOrQueue() and replayed here
-    // once it does, rather than being dropped for having arrived while
-    // `state` was still null.
+    // the gap isn't missed.
     const roomId = roomFor(id);
     this.socket.joinRoom(roomId);
     this.joinedRoomId = roomId;
@@ -360,19 +316,10 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (state) => {
-          // A later switchToGame() call (the feed moved on before this one
-          // finished loading) already reset activeGameId/pendingUpdates for
-          // whatever it's loading now - applying this response on top of
-          // that would clobber the newer game with the old one's data.
-          if (this.activeGameId !== id) return;
           this.loading = false;
           this.applyState(state);
-          const pending = this.pendingUpdates;
-          this.pendingUpdates = [];
-          for (const apply of pending) apply();
         },
         error: () => {
-          if (this.activeGameId !== id) return;
           this.loading = false;
           this.showError('Could not load this game.');
         },
@@ -387,42 +334,34 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
   }
 
   private onMove(payload: ChessMovePayload): void {
-    if (payload.gameId !== this.activeGameId) return;
-    this.applyOrQueue(() => ({
-      ...this.state!,
+    if (!this.state || payload.gameId !== this.state.id) return;
+    this.applyState({
+      ...this.state,
       fen: payload.fen,
       turn: payload.turn,
       status: payload.status,
       winner: payload.winner,
       drawOfferedBy: payload.drawOfferedBy,
-    }));
+    });
   }
 
   private onEnded(payload: ChessEndedPayload): void {
-    if (payload.gameId !== this.activeGameId) return;
-    this.applyOrQueue(() => ({
-      ...this.state!,
-      status: payload.status,
-      winner: payload.winner,
-      drawOfferedBy: null,
-    }));
+    if (!this.state || payload.gameId !== this.state.id) return;
+    this.applyState({ ...this.state, status: payload.status, winner: payload.winner, drawOfferedBy: null });
   }
 
   private onDrawOffered(payload: ChessDrawOfferedPayload): void {
-    if (payload.gameId !== this.activeGameId) return;
-    this.applyOrQueue(() => ({ ...this.state!, drawOfferedBy: payload.offeredBy }));
+    if (!this.state || payload.gameId !== this.state.id) return;
+    this.applyState({ ...this.state, drawOfferedBy: payload.offeredBy });
   }
 
   private onDrawDeclined(payload: ChessDrawDeclinedPayload): void {
-    if (payload.gameId !== this.activeGameId) return;
+    if (!this.state || payload.gameId !== this.state.id) return;
     // Capture before clearing - only meaningful for whoever made the offer,
     // so this has to be checked against the *old* drawOfferedBy value, not
-    // the null applyState is about to set it to. Reading it here (rather
-    // than inside the queued closure) is fine even if this update ends up
-    // queued: an offer can't have gone out before this component even
-    // finished loading the game it's for.
-    const wasMyOffer = this.mySeat && this.state?.drawOfferedBy === this.mySeat;
-    this.applyOrQueue(() => ({ ...this.state!, drawOfferedBy: null }));
+    // the null applyState is about to set it to.
+    const wasMyOffer = this.mySeat && this.state.drawOfferedBy === this.mySeat;
+    this.applyState({ ...this.state, drawOfferedBy: null });
     // Tell the offering player plainly rather than leaving their "Draw
     // offer sent..." pill to just silently vanish.
     if (wasMyOffer) {
@@ -431,30 +370,13 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
   }
 
   private onJoined(payload: ChessJoinedPayload): void {
-    if (payload.gameId !== this.activeGameId) return;
-    this.applyOrQueue(() => ({
-      ...this.state!,
+    if (!this.state || payload.gameId !== this.state.id) return;
+    this.applyState({
+      ...this.state,
       blackUser: payload.blackUser,
       status: payload.status,
       turn: payload.turn,
-    }));
-  }
-
-  // Every socket handler above merges its payload into `...this.state`, but
-  // `state` is null for the entire gap between switchToGame() starting and
-  // its getGame() fetch resolving. Applying immediately during that gap
-  // would spread `...null` and crash; silently dropping instead (the
-  // previous behavior) meant an update landing in that exact window - most
-  // likely right as a game is first opened - just never made it into
-  // `state` at all, even though nothing ever fetched it again afterward. So
-  // it's queued instead, replayed in order against the real fetched state
-  // once switchToGame's `next` handler runs (see there).
-  private applyOrQueue(build: () => ChessGame): void {
-    if (!this.state) {
-      this.pendingUpdates.push(() => this.applyState(build()));
-      return;
-    }
-    this.applyState(build());
+    });
   }
 
   private applyState(state: ChessGame): void {
