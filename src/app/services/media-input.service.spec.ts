@@ -456,6 +456,66 @@ describe('MediaInputService', () => {
     expect(mediaDevices.stopTrack).toHaveBeenCalled();
   });
 
+  it('surfaces a busy-camera error even when the microphone probe succeeds', async () => {
+    mediaDevices.devices = [
+      device('audioinput', 'audio-1', 'Microphone'),
+    ];
+    mediaDevices.getUserMedia.and.callFake(
+      async (constraints: MediaStreamConstraints): Promise<MediaStream> => {
+        if (constraints.video) {
+          throw new DOMException('raw driver detail', 'NotReadableError');
+        }
+        return {
+          getTracks: () => [{ stop: mediaDevices.stopTrack }],
+        } as unknown as MediaStream;
+      },
+    );
+    configure();
+
+    await service.initialize();
+
+    // A camera that's busy/blocked must not look identical to "no camera
+    // was ever plugged in" just because the microphone probe succeeded -
+    // otherwise the page silently ends up with no video input and no
+    // explanation anywhere in the UI.
+    expect(service.snapshot.status).toBe('error');
+    expect(service.snapshot.permission).toBe('granted');
+    expect(service.snapshot.error).toEqual(
+      jasmine.objectContaining({
+        code: 'device-busy',
+        recoverable: true,
+      }),
+    );
+  });
+
+  it('surfaces a camera-specific permission-denied error even when the microphone probe succeeds', async () => {
+    mediaDevices.devices = [
+      device('audioinput', 'audio-1', 'Microphone'),
+    ];
+    mediaDevices.getUserMedia.and.callFake(
+      async (constraints: MediaStreamConstraints): Promise<MediaStream> => {
+        if (constraints.video) {
+          throw new DOMException('denied', 'NotAllowedError');
+        }
+        return {
+          getTracks: () => [{ stop: mediaDevices.stopTrack }],
+        } as unknown as MediaStream;
+      },
+    );
+    configure();
+
+    await service.initialize();
+
+    expect(service.snapshot.status).toBe('error');
+    expect(service.snapshot.permission).toBe('granted');
+    expect(service.snapshot.error).toEqual(
+      jasmine.objectContaining({
+        code: 'permission-denied',
+        recoverable: true,
+      }),
+    );
+  });
+
   it('does not access browser media APIs during server rendering', async () => {
     configure('server');
 

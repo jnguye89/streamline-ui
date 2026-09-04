@@ -238,14 +238,14 @@ export class MediaInputService implements OnDestroy {
       error: null,
     });
 
-    const permissionResults = await Promise.allSettled([
+    const [videoResult, audioResult] = await Promise.allSettled([
       this.requestPermission({ video: true, audio: false }),
       this.requestPermission({ video: false, audio: true }),
     ]);
-    const granted = permissionResults.some(
-      (result) => result.status === 'fulfilled',
-    );
-    const denied = permissionResults.some(
+    const granted =
+      videoResult.status === 'fulfilled' ||
+      audioResult.status === 'fulfilled';
+    const denied = [videoResult, audioResult].some(
       (result) =>
         result.status === 'rejected' &&
         this.isPermissionDenial(result.reason),
@@ -254,6 +254,21 @@ export class MediaInputService implements OnDestroy {
     if (granted) {
       this.patchState({ permission: 'granted' });
       await this.refreshDevices();
+      if (videoResult.status === 'rejected') {
+        // The microphone probe succeeding must not hide a camera that
+        // failed on its own - without this, a busy, disconnected, or
+        // blocked camera looks identical to "the app just isn't finding
+        // the webcam", with no error shown anywhere in the UI.
+        this.patchState({
+          status: 'error',
+          error: this.isPermissionDenial(videoResult.reason)
+            ? this.createError(
+                'permission-denied',
+                'Camera access was denied. Allow camera access in the browser and try again.',
+              )
+            : this.classifyVideoProbeFailure(videoResult.reason),
+        });
+      }
       return;
     }
 
@@ -267,6 +282,34 @@ export class MediaInputService implements OnDestroy {
     }
 
     await this.refreshDevices();
+  }
+
+  /**
+   * Classifies a rejected initial camera probe (getUserMedia({video:
+   * true}) during initialize()) using the same error-name buckets
+   * startPreview() uses for a rejected capture attempt, so a camera
+   * that's busy, missing, or otherwise unavailable gets a specific,
+   * actionable message instead of being silently swallowed because the
+   * microphone probe happened to succeed.
+   */
+  private classifyVideoProbeFailure(error: unknown): MediaInputError {
+    const name = this.errorName(error);
+    if (DEVICE_BUSY_ERRORS.has(name)) {
+      return this.createError(
+        'device-busy',
+        'The camera is busy or could not be started. Close other apps using it and retry.',
+      );
+    }
+    if (DEVICE_REMOVED_ERRORS.has(name)) {
+      return this.createError(
+        'device-removed',
+        'No camera was detected. Check the connection and try again.',
+      );
+    }
+    return this.createError(
+      'preview-failed',
+      'The camera could not be accessed. Check the connection and try again.',
+    );
   }
 
   async refreshDevices(): Promise<void> {

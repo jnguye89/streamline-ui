@@ -15,7 +15,7 @@ import { MatDialog } from "@angular/material/dialog";
 import { MatIconModule } from "@angular/material/icon";
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router } from "@angular/router";
-import { MediaInputState, MediaPreviewState } from '../../models/media-input.models';
+import { MediaInputDevice, MediaInputState, MediaPreviewState } from '../../models/media-input.models';
 import {
   Subject,
   filter,
@@ -169,35 +169,91 @@ export class StreamComponent
       // Two video sources are available - normalize into an explicit
       // screen/webcam pairing so Screen + cam starts out webcam-forward,
       // regardless of which one MediaInputService happened to default to.
-      this.screenDeviceId = primary;
-      this.webcamDeviceId = overlay;
+      // Prefer identifying the actual console/capture hardware (see
+      // classifyVideoPair) over raw enumeration order: order is arbitrary
+      // hardware/driver ordering, and blindly trusting it can hand the
+      // "webcam" role to a capture card (or vice versa) whenever both
+      // happen to enumerate in an unexpected sequence.
+      const { screenId, webcamId } = this.classifyVideoPair(
+        primary,
+        overlay,
+        media.videoInputs,
+      );
+      this.screenDeviceId = screenId;
+      this.webcamDeviceId = webcamId;
       this.capturedDefaultDevices = true;
       this.displayMode = 'screen-cam';
 
-      this.mediaInput.selectVideo(overlay);
-      this.mediaInput.selectOverlayVideo(primary);
+      this.mediaInput.selectVideo(webcamId);
+      this.mediaInput.selectOverlayVideo(screenId);
 
       if (this.isReady) {
         // The second source only became known after the preview/publish
         // was already running (e.g. it enumerated late) - refresh the
         // live stream to match, not just the idle selection.
-        void this.selectVideo(overlay).then(() =>
-          this.selectOverlayVideo(primary),
+        void this.selectVideo(webcamId).then(() =>
+          this.selectOverlayVideo(screenId),
         );
       }
     } else if (!this.capturedDefaultDevices && primary && !this.webcamDeviceId) {
-      // Only one video source exists so far - there's nothing to pair it
-      // with as "the screen" yet, so treat it as the webcam and stay in
-      // single-source mode. If a second source shows up later (a camera
-      // that enumerates late), the branch above takes over from here.
-      this.webcamDeviceId = primary;
-      this.screenDeviceId = null;
-      this.displayMode = 'webcam';
+      // Only one video source exists so far. If we can positively
+      // identify it as the console/capture card, surface it as "screen"
+      // rather than mislabeling it "webcam" - a capture card alone should
+      // not make the Webcam button look available. Otherwise there's
+      // nothing to pair it with as "the screen" yet, so treat it as the
+      // webcam and stay in single-source mode. If a second source shows
+      // up later (a camera that enumerates late), the branch above takes
+      // over from here.
+      const primaryDevice = media.videoInputs.find(
+        (device) => device.deviceId === primary,
+      );
+      if (primaryDevice?.isCaptureDevice) {
+        this.screenDeviceId = primary;
+        this.webcamDeviceId = null;
+        this.displayMode = 'screen';
+      } else {
+        this.webcamDeviceId = primary;
+        this.screenDeviceId = null;
+        this.displayMode = 'webcam';
+      }
     }
 
     this.isWebcamPrimary =
       !!media.selection.videoDeviceId &&
       media.selection.videoDeviceId === this.webcamDeviceId;
+  }
+
+  /**
+   * MediaInputService pairs primary/overlay video by arbitrary enumeration
+   * order, which is hardware/driver ordering, not a real preference. When
+   * exactly one of the pair is positively identified as the console/HDMI
+   * capture card (MediaInputDevice.isCaptureDevice - see
+   * media-input-device-projection.ts), assign roles by that identity
+   * instead, so a capture card and a real webcam land in the right slots
+   * even if they happen to enumerate in the "wrong" order. When neither or
+   * both are identified as capture hardware, there's no better signal
+   * than order, so fall back to the existing enumeration-order default
+   * (screen-cam starts webcam-forward).
+   */
+  private classifyVideoPair(
+    primary: string,
+    overlay: string,
+    videoInputs: readonly MediaInputDevice[],
+  ): { screenId: string; webcamId: string } {
+    const primaryIsCapture = !!videoInputs.find(
+      (device) => device.deviceId === primary,
+    )?.isCaptureDevice;
+    const overlayIsCapture = !!videoInputs.find(
+      (device) => device.deviceId === overlay,
+    )?.isCaptureDevice;
+
+    if (primaryIsCapture && !overlayIsCapture) {
+      return { screenId: primary, webcamId: overlay };
+    }
+    if (overlayIsCapture && !primaryIsCapture) {
+      return { screenId: overlay, webcamId: primary };
+    }
+    return { screenId: primary, webcamId: overlay };
   }
 
   ngAfterViewInit(): void {

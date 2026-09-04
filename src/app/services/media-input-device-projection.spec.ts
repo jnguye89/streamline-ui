@@ -94,4 +94,40 @@ describe('projectMediaInputDevice', () => {
         ?.displayLabel,
     ).toBe('Studio Microphone');
   });
+
+  it('flags recognized console/HDMI capture video inputs as capture devices', () => {
+    expect(
+      projectMediaInputDevice(
+        device('videoinput', 'SC0710 PCI, Video 01 Capture'),
+      )?.isCaptureDevice,
+    ).toBe(true);
+    expect(
+      projectMediaInputDevice(
+        device('videoinput', 'yuan sc-0710 pci video-02 capture device'),
+      )?.isCaptureDevice,
+    ).toBe(true);
+  });
+
+  it('does not flag an ordinary webcam, even one with a similar-looking model number, as a capture device', () => {
+    expect(
+      projectMediaInputDevice(device('videoinput', 'Logitech Brio'))
+        ?.isCaptureDevice,
+    ).toBeFalsy();
+    // "SC400N2" happens to contain "sc" then "400" in order, which alone
+    // satisfies the loose supported-model check - but it's not the "Video
+    // N Capture" wording the app actually uses to recognize the card, so
+    // it must not be flagged as one.
+    expect(
+      projectMediaInputDevice(device('videoinput', 'YUAN SC400N2 Video'))
+        ?.isCaptureDevice,
+    ).toBeFalsy();
+  });
+
+  it('never flags an audio input as a capture device', () => {
+    expect(
+      projectMediaInputDevice(
+        device('audioinput', 'SC0710 PCI, Analog 01 Audio (SC0710 PCI)'),
+      )?.isCaptureDevice,
+    ).toBeFalsy();
+  });
 });

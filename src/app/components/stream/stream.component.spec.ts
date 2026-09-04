@@ -529,3 +529,288 @@ describe('StreamComponent', () => {
     );
   });
 });
+
+
+describe('StreamComponent screen/webcam role detection', () => {
+  const idlePreview: MediaPreviewState = {
+    status: 'idle',
+    stream: null,
+    error: null,
+  };
+
+  async function createFixture(
+    initialState: MediaInputState,
+  ): Promise<{
+    fixture: ComponentFixture<StreamComponent>;
+    mediaInput: jasmine.SpyObj<MediaInputService>;
+  }> {
+    const state$ = new BehaviorSubject(initialState);
+    const preview$ = new BehaviorSubject(idlePreview);
+    const audioMix$ = new BehaviorSubject<AudioMixState>({
+      gameLevel: 0.625,
+      gameMuted: false,
+      microphoneLevel: 1,
+      microphoneMuted: false,
+    });
+    const mediaInput = jasmine.createSpyObj<MediaInputService>(
+      'MediaInputService',
+      [
+        'initialize',
+        'selectVideo',
+        'selectOverlayVideo',
+        'setGameMuted',
+        'setMicrophoneMuted',
+        'swapSources',
+        'resumeAudioContext',
+        'startPreview',
+        'refreshPrimaryVideo',
+        'commitPrimaryVideoRefresh',
+        'refreshOverlayVideo',
+        'refreshAudioSources',
+        'stopPreview',
+      ],
+      {
+        state$: state$.asObservable(),
+        preview$: preview$.asObservable(),
+        audioMix$: audioMix$.asObservable(),
+        snapshot: initialState,
+        previewSnapshot: idlePreview,
+        audioMixSnapshot: audioMix$.value,
+      },
+    );
+    mediaInput.initialize.and.resolveTo();
+    mediaInput.startPreview.and.resolveTo(null);
+
+    const auth = {
+      isAuthenticated$: new BehaviorSubject(true),
+      user$: new BehaviorSubject({ sub: 'auth0|viewer' }),
+    };
+    const rtc = jasmine.createSpyObj<RtcStreamService>(
+      'RtcStreamService',
+      [
+        'join',
+        'startPublish',
+        'replacePublishedVideo',
+        'syncPublishedAudio',
+        'stopPublish',
+        'leave',
+      ],
+      { isLive$: new BehaviorSubject(false) },
+    );
+    rtc.join.and.resolveTo();
+    rtc.leave.and.resolveTo();
+    const streamService = jasmine.createSpyObj<StreamService>('StreamService', [
+      'ensureReady',
+      'start',
+      'stop',
+      'process',
+    ]);
+    streamService.ensureReady.and.returnValue(
+      of({
+        appId: 'app',
+        rtcToken: 'token',
+        rtmToken: 'rtm-token',
+        channelName: 'channel',
+        expireAt: Date.now() + 60_000,
+        agoraUid: 42,
+      }),
+    );
+    const socket = jasmine.createSpyObj<RecordingSocketService>(
+      'RecordingSocketService',
+      ['connect', 'joinRoom', 'leaveRoom', 'sendChat'],
+      { chatMessage$: new Subject<ChatMessage>() },
+    );
+    const gamepadNavigation = jasmine.createSpyObj<GamepadNavigationService>(
+      'GamepadNavigationService',
+      ['setAuxButtonActions', 'clearAuxButtonActions'],
+    );
+
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [StreamComponent],
+      providers: [
+        { provide: DeviceAuthService, useValue: auth },
+        { provide: MediaInputService, useValue: mediaInput },
+        { provide: RtcStreamService, useValue: rtc },
+        { provide: StreamService, useValue: streamService },
+        { provide: RecordingSocketService, useValue: socket },
+        { provide: SeoService, useValue: { setTags: () => undefined } },
+        {
+          provide: Router,
+          useValue: { url: '/stream', navigate: () => Promise.resolve(true) },
+        },
+        { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
+        { provide: GamepadNavigationService, useValue: gamepadNavigation },
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(StreamComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    return { fixture, mediaInput };
+  }
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  it('identifies the console capture card as "screen" even when it enumerates after the webcam', async () => {
+    const { fixture, mediaInput } = await createFixture({
+      status: 'ready',
+      permission: 'granted',
+      videoInputs: [
+        {
+          deviceId: 'webcam-1',
+          groupId: 'webcam-group',
+          kind: 'videoinput',
+          displayLabel: 'Webcam',
+        },
+        {
+          deviceId: 'capture-1',
+          groupId: 'capture-group',
+          kind: 'videoinput',
+          displayLabel: 'Console Video 1',
+          isCaptureDevice: true,
+        },
+      ],
+      audioInputs: [],
+      // MediaInputService enumerated the webcam first and the capture card
+      // second - the opposite of what naive enumeration-order pairing
+      // would need to get screen/webcam right.
+      selection: { videoDeviceId: 'webcam-1' },
+      consoleSelection: {
+        overlayVideoDeviceId: 'capture-1',
+        gameAudioDeviceId: null,
+        microphoneDeviceId: null,
+      },
+      error: null,
+    });
+
+    expect(fixture.componentInstance.screenDeviceId).toBe('capture-1');
+    expect(fixture.componentInstance.webcamDeviceId).toBe('webcam-1');
+    expect(mediaInput.selectVideo).toHaveBeenCalledWith('webcam-1');
+    expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith('capture-1');
+  });
+
+  it('identifies the console capture card as "screen" even when it enumerates before the webcam', async () => {
+    const { fixture } = await createFixture({
+      status: 'ready',
+      permission: 'granted',
+      videoInputs: [
+        {
+          deviceId: 'capture-1',
+          groupId: 'capture-group',
+          kind: 'videoinput',
+          displayLabel: 'Console Video 1',
+          isCaptureDevice: true,
+        },
+        {
+          deviceId: 'webcam-1',
+          groupId: 'webcam-group',
+          kind: 'videoinput',
+          displayLabel: 'Webcam',
+        },
+      ],
+      audioInputs: [],
+      selection: { videoDeviceId: 'capture-1' },
+      consoleSelection: {
+        overlayVideoDeviceId: 'webcam-1',
+        gameAudioDeviceId: null,
+        microphoneDeviceId: null,
+      },
+      error: null,
+    });
+
+    expect(fixture.componentInstance.screenDeviceId).toBe('capture-1');
+    expect(fixture.componentInstance.webcamDeviceId).toBe('webcam-1');
+  });
+
+  it('falls back to enumeration order when neither device is a recognized capture card', async () => {
+    const { fixture } = await createFixture({
+      status: 'ready',
+      permission: 'granted',
+      videoInputs: [
+        {
+          deviceId: 'video-1',
+          groupId: 'video-group',
+          kind: 'videoinput',
+          displayLabel: 'Webcam',
+        },
+        {
+          deviceId: 'video-2',
+          groupId: 'video-group-2',
+          kind: 'videoinput',
+          displayLabel: 'Second camera',
+        },
+      ],
+      audioInputs: [],
+      selection: { videoDeviceId: 'video-1' },
+      consoleSelection: {
+        overlayVideoDeviceId: 'video-2',
+        gameAudioDeviceId: null,
+        microphoneDeviceId: null,
+      },
+      error: null,
+    });
+
+    expect(fixture.componentInstance.screenDeviceId).toBe('video-1');
+    expect(fixture.componentInstance.webcamDeviceId).toBe('video-2');
+  });
+
+  it('treats a lone capture card as "screen" rather than mislabeling it "webcam"', async () => {
+    const { fixture } = await createFixture({
+      status: 'ready',
+      permission: 'granted',
+      videoInputs: [
+        {
+          deviceId: 'capture-1',
+          groupId: 'capture-group',
+          kind: 'videoinput',
+          displayLabel: 'Console Video 1',
+          isCaptureDevice: true,
+        },
+      ],
+      audioInputs: [],
+      selection: { videoDeviceId: 'capture-1' },
+      consoleSelection: {
+        overlayVideoDeviceId: null,
+        gameAudioDeviceId: null,
+        microphoneDeviceId: null,
+      },
+      error: null,
+    });
+
+    expect(fixture.componentInstance.screenDeviceId).toBe('capture-1');
+    expect(fixture.componentInstance.webcamDeviceId).toBeNull();
+    expect(fixture.componentInstance.displayMode).toBe('screen');
+  });
+
+  it('treats a lone unrecognized video device as "webcam", as before', async () => {
+    const { fixture } = await createFixture({
+      status: 'ready',
+      permission: 'granted',
+      videoInputs: [
+        {
+          deviceId: 'webcam-1',
+          groupId: 'webcam-group',
+          kind: 'videoinput',
+          displayLabel: 'Webcam',
+        },
+      ],
+      audioInputs: [],
+      selection: { videoDeviceId: 'webcam-1' },
+      consoleSelection: {
+        overlayVideoDeviceId: null,
+        gameAudioDeviceId: null,
+        microphoneDeviceId: null,
+      },
+      error: null,
+    });
+
+    expect(fixture.componentInstance.webcamDeviceId).toBe('webcam-1');
+    expect(fixture.componentInstance.screenDeviceId).toBeNull();
+    expect(fixture.componentInstance.displayMode).toBe('webcam');
+  });
+});
