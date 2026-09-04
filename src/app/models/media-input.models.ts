@@ -27,6 +27,13 @@ export interface MediaInputDevice {
   groupId: string;
   kind: 'videoinput' | 'audioinput';
   displayLabel: string;
+  /**
+   * True when this device was positively identified as recognized
+   * console/HDMI capture hardware (see media-input-device-projection.ts).
+   * Optional so hand-written test fixtures don't need to set it; treated
+   * as false ("not known to be a capture device") when absent.
+   */
+  isCaptureDevice?: boolean;
 }
 
 export interface MediaInputSelection {
