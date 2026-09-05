@@ -31,6 +31,16 @@
   <!-- Off-screen pool that buffers the next few VODs ahead of time -->
   <div #preloadContainer class="preload-container"></div>
 
+  <!-- D-pad/arrow up-down volume feedback (VOD only - see
+       WatchComponent.adjustVolume). Kept as a sibling of .overlay, not
+       nested inside it, so it can appear/fade on its own timer regardless
+       of the overlay's separate auto-hide state. -->
+  <div class="volume-indicator" *ngIf="showVolumeIndicator">
+    <mat-icon>{{ volumeLevel === 0 ? 'volume_off' : volumeLevel < 50 ? 'volume_down' : 'volume_up' }}</mat-icon>
+    <div class="volume-track"><div class="volume-fill" [style.width.%]="volumeLevel"></div></div>
+    <span class="volume-value">{{ volumeLevel }}</span>
+  </div>
+
   <!-- Overlay (fills the container) -->
   <div class="overlay" [class.hidden]="overlayHidden">
     <!-- Top-left title + LIVE chip -->

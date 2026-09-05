@@ -30,7 +30,8 @@
   <h1>Videos</h1>
   <div fxLayout="row wrap" fxLayoutGap="16px" fxLayoutAlign="center">
     <div *ngFor="let video of videos">
-      <div class="video-item">
+      <div class="video-item" gamepadFocusable tabindex="0" (focus)="focusedVideo = video"
+           (click)="onTileClick($event)">
         <video *ngIf="video.source !== 'YOUTUBE'" [src]="video.processedPath ?? video.videoPath" controls loop
           class="video-player"></video>
         <!-- YouTube exposes no raw playable file, only its iframe embed player -->
@@ -50,6 +51,7 @@
                 (click)="deleteVideo(video)"
                 matTooltip="Delete video">
           <mat-icon>delete</mat-icon>
+          <span class="key-badge" aria-hidden="true">Y</span>
         </button>
       </div>
     </div>

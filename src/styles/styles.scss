@@ -29,6 +29,24 @@ $my-theme:   mat.define-light-theme((
 html, body { height: 100%; }
 body { margin: 0; background: #000; font-family: Roboto, "Helvetica Neue", sans-serif; }
 
+/* Hide scrollbars everywhere, app-wide. This is a TV/gamepad-first app
+   (see .gamepad-focusable below, and GamepadNavigationService's own
+   scroll() fallback that scrollBy()'s the nearest scrollable ancestor
+   when D-pad/stick input has nowhere else to focus) - scrolling itself
+   must keep working, this only removes the visible scrollbar chrome that
+   has no place in a remote-navigated, mouse-less UI. Covers every
+   scrollable element, not just html/body, since component-level
+   `overflow: auto` containers (chat, calls, podcast, read, etc.) each
+   render their own native scrollbar otherwise. */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* legacy Edge / IE */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, current Edge */
+}
+
 :root {
   /* Colors */
   --c-primary: #0e52ff;
