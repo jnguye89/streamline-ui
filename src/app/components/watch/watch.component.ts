@@ -134,6 +134,11 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private hideTimerRef: ReturnType<typeof setTimeout> | null = null;
   private readonly HIDE_DELAY_MS = 1 * 60 * 1000;
   private readonly MIN_DURATION_S = 1 * 60;
+  // Up/down volume control on Watch (VOD only - see syncDpadActionsForCurrentItem)
+  private readonly VOLUME_STEP = 10;
+  volumeLevel = 100; // 0-100, bound in the template for the fading indicator
+  showVolumeIndicator = false;
+  private volumeIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
   private progressPingRef: ReturnType<typeof setInterval> | null = null;
   private readonly PROGRESS_PING_MS = 10 * 1000;
   private readonly RESUME_NEAR_END_S = 15;
@@ -335,6 +340,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sendProgress(true);
     this.clearAutoHide();
     if (this.preloadTimerRef) { clearTimeout(this.preloadTimerRef); this.preloadTimerRef = null; }
+    if (this.volumeIndicatorTimer) { clearTimeout(this.volumeIndicatorTimer); this.volumeIndicatorTimer = null; }
     this.youtubePlayer?.destroy?.();
     this.gamepadNav.clearDpadActions();
     this.destroy$.next();
@@ -507,12 +513,44 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private syncDpadActionsForCurrentItem(): void {
     if (this.currentItem?.type === 'chess') {
       this.gamepadNav.clearDpadActions();
-    } else {
-      this.gamepadNav.setDpadActions({
-        left: () => { this.onUserActivity(); this.previous(); },
-        right: () => { this.onUserActivity(); this.next(); },
-      });
+      return;
     }
+    this.gamepadNav.setDpadActions({
+      left: () => { this.onUserActivity(); this.previous(); },
+      right: () => { this.onUserActivity(); this.next(); },
+      // Volume only makes sense for VOD (native <video> or YouTube) - live
+      // and the chess-demo placeholder have no volume surface to adjust,
+      // so up/down are left unclaimed there and keep panning UI focus via
+      // GamepadNavigationService.moveFocus, same as before this feature.
+      ...(this.currentItem?.type === 'vod' ? {
+        up: () => { this.onUserActivity(); this.adjustVolume(this.VOLUME_STEP); },
+        down: () => { this.onUserActivity(); this.adjustVolume(-this.VOLUME_STEP); },
+      } : {}),
+    });
+  }
+
+  // Applies a volume step to whichever surface is actually playing (native
+  // <video>.volume, or the YouTube IFrame Player's setVolume - the two
+  // never overlap since isYouTube() is a subtype of the 'vod' currentItem
+  // this is only ever called for) and flashes the on-screen indicator.
+  private adjustVolume(delta: number): void {
+    this.volumeLevel = Math.min(100, Math.max(0, this.volumeLevel + delta));
+    if (this.isYouTube(this.currentItem)) {
+      this.youtubePlayer?.setVolume(this.volumeLevel);
+    } else {
+      const video = this.playerRef?.nativeElement;
+      if (video) video.volume = this.volumeLevel / 100;
+    }
+    this.flashVolumeIndicator();
+  }
+
+  private flashVolumeIndicator(): void {
+    this.showVolumeIndicator = true;
+    if (this.volumeIndicatorTimer) clearTimeout(this.volumeIndicatorTimer);
+    this.volumeIndicatorTimer = setTimeout(() => {
+      this.showVolumeIndicator = false;
+      this.volumeIndicatorTimer = null;
+    }, 1200);
   }
 
   // YouTube exposes no raw playable file - only its <iframe> embed player -
@@ -560,8 +598,15 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.youtubePlayerItemId = itemId;
     this.youtubePlayer = new (window as any).YT.Player('watch-youtube-player', {
       events: {
-        onReady: (e: { target: { unMute: () => void; playVideo: () => void } }) => {
+        onReady: (e: {
+          target: { unMute: () => void; playVideo: () => void; setVolume: (v: number) => void };
+        }) => {
           e.target.unMute();
+          // A fresh YT.Player always starts at its own default volume, not
+          // whatever the user last set via adjustVolume() - push the
+          // current level explicitly or switching YouTube videos would
+          // silently reset volume to 100 every time.
+          e.target.setVolume(this.volumeLevel);
           e.target.playVideo();
         },
       },
@@ -668,6 +713,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.isPortrait = aspectRatio < 1;
     video.defaultMuted = false;
     video.muted = false;
+    video.volume = this.volumeLevel / 100;
     this.applyResumeTimestamp(video);
     video.play().catch(() => { });
     this.currentVideoDuration = video.duration;

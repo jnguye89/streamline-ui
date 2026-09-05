@@ -11,6 +11,7 @@
 
 .video-item {
   position: relative;
+  cursor: pointer; // clicking tile background (or A/Enter) toggles playback - see onTileClick
 
   .delete-btn {
     position: absolute;
@@ -20,9 +21,52 @@
     background: rgba(0, 0, 0, 0.55);
     opacity: 0;
     transition: opacity 0.2s ease;
+    // Slightly smaller than Material's default icon-button (~40px/24px icon).
+    // mat-icon-button centers its icon using Material's own fixed internal
+    // padding (8px), sized for the default 40px box - overriding
+    // width/height directly (or resizing .mat-icon itself) throws that
+    // centering off (confirmed - the icon rendered squashed into a corner,
+    // and before that, hidden entirely). A uniform transform: scale()
+    // sidesteps this: it shrinks the whole already-correctly-centered
+    // button in place around its own center, so the icon and the Y badge
+    // both stay perfectly centered/positioned, just smaller.
+    transform: scale(0.8);
+
+    // The Y badge lives inside .delete-btn so it inherits the same
+    // opacity/hover/focus reveal below for free - no separate rule needed.
+    // Sized down slightly along with the button above to keep proportions.
+    .key-badge {
+      position: absolute;
+      // Kept fully inside the button's own box (not a negative offset
+      // hanging off the corner) since mat-icon-button can clip overflow
+      // for its ripple/touch-target - a badge poking outside the bounds
+      // risks getting silently clipped depending on the Material version.
+      bottom: 0;
+      right: 0;
+      min-width: 14px;
+      height: 14px;
+      padding: 0 2px;
+      border-radius: 9999px;
+      background: #fff;
+      color: #000;
+      font-size: 9px;
+      font-weight: 800;
+      line-height: 14px;
+      text-align: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+      z-index: 1;
+    }
   }
 
   &:hover .delete-btn {
+    opacity: 1;
+  }
+
+  // Keyboard/gamepad equivalent of :hover above - :hover never fires for
+  // D-pad/arrow-key navigation, so the delete icon (Y badge included, since
+  // it's a child of .delete-btn) needs its own reveal tied to the tile
+  // actually having gamepad focus.
+  &.gamepad-focused .delete-btn {
     opacity: 1;
   }
 }
@@ -61,8 +105,10 @@
 
 .processed-badge {
   position: absolute;
+  // Top-left corner - the opposite corner from .delete-btn (top-right) -
+  // so the two never overlap regardless of the delete button's size/scale.
   top: 28px;
-  right: 28px;
+  left: 28px;
   font-size: 18px;
   width: 18px;
   height: 18px;
