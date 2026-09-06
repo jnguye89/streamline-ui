@@ -135,15 +135,15 @@ export class StreamComponent
       .pipe(takeUntil(this.destroy$))
       .subscribe((media) => this.onMediaState(media));
 
-    // Y swaps the primary/facecam pairing (only meaningful, and only
-    // wired up on-screen, while Screen + cam is active). LB/RB mute the
-    // mic/screen audio - this claims those two buttons away from their
-    // normal app-wide previous/next-page swipe for as long as this page
-    // is active; LT/RT still page-swipe as the fallback.
+    // Controller Map v2 (Live broadcaster layer): X swaps the
+    // primary/facecam pairing (only meaningful, and only wired up
+    // on-screen, while Screen + cam is active); Y advances Webcam -> Screen
+    // -> Screen+cam; LB/RB mute the mic/screen audio.
     this.gamepadNavigation.setAuxButtonActions({
-      y: () => {
+      x: () => {
         if (this.displayMode === 'screen-cam') void this.swapSources();
       },
+      y: () => void this.cycleDisplayMode(),
       lb: () => this.toggleMicrophoneMute(),
       rb: () => this.toggleGameMute(),
     });
@@ -356,6 +356,25 @@ export class StreamComponent
     this.displayMode = 'screen-cam';
     await this.selectVideo(this.webcamDeviceId);
     await this.selectOverlayVideo(this.screenDeviceId);
+  }
+
+  /**
+   * Y: advance through the fixed Webcam -> Screen -> Screen+cam cycle
+   * (Controller Map v2's "Next layout"). Skips any mode whose required
+   * device isn't available, same guard each select*Mode() already applies
+   * on its own; a full lap with everything unavailable is a no-op.
+   */
+  async cycleDisplayMode(): Promise<void> {
+    const order: DisplayMode[] = ['webcam', 'screen', 'screen-cam'];
+    const start = order.indexOf(this.displayMode);
+    for (let step = 1; step <= order.length; step++) {
+      const next = order[(start + step) % order.length];
+      if (next === 'webcam' && this.webcamDeviceId) return this.selectWebcamMode();
+      if (next === 'screen' && this.screenDeviceId) return this.selectScreenMode();
+      if (next === 'screen-cam' && this.webcamDeviceId && this.screenDeviceId) {
+        return this.selectScreenCamMode();
+      }
+    }
   }
 
   selectVideo(deviceId: string): Promise<void> {

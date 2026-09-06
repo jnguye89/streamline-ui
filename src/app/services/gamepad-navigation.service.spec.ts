@@ -1,33 +1,32 @@
 import { NgZone } from '@angular/core';
-import { Location } from '@angular/common';
-import { Router } from '@angular/router';
+import { fakeAsync, tick } from '@angular/core/testing';
 import { GamepadNavigationService } from './gamepad-navigation.service';
 
-function makePad(pressedIndexes: number[] = []): Gamepad {
+function makePad(pressedIndexes: number[] = [], axes: number[] = [0, 0]): Gamepad {
   const buttons = Array.from({ length: 17 }, (_, index) => ({
     pressed: pressedIndexes.includes(index),
     value: pressedIndexes.includes(index) ? 1 : 0,
     touched: false,
   })) as GamepadButton[];
-  return { axes: [0, 0], buttons, mapping: 'standard' } as unknown as Gamepad;
+  return { axes, buttons, mapping: 'standard' } as unknown as Gamepad;
 }
 
 describe('GamepadNavigationService', () => {
   let service: GamepadNavigationService;
-  let location: jasmine.SpyObj<Location>;
-  let router: jasmine.SpyObj<Router>;
 
   beforeEach(() => {
-    location = jasmine.createSpyObj<Location>('Location', ['back']);
-    router = jasmine.createSpyObj<Router>('Router', ['navigateByUrl'], {
-      url: '/stream',
-    });
     service = new GamepadNavigationService(
       'browser' as unknown as object,
       new NgZone({ enableLongStackTrace: false }),
-      location,
-      router,
     );
+  });
+
+  afterEach(() => {
+    try {
+      sessionStorage.removeItem('skriin:lastHardRefreshAt');
+    } catch {
+      // ignore - nothing to clean up if storage isn't available
+    }
   });
 
   it('reads a non-standard Bluetooth D-pad from Xbox hat axes', () => {
@@ -98,19 +97,166 @@ describe('GamepadNavigationService', () => {
     ).goBack();
 
     expect(dismiss).toHaveBeenCalled();
-    expect(location.back).not.toHaveBeenCalled();
   });
 
-  it('moves to adjacent primary routes for shoulder-button navigation', () => {
+  it('dismisses a focused row on B to a neutral, nothing-highlighted state (Controller Map v2), ahead of any page-level back action', () => {
+    const row = document.createElement('div');
+    row.setAttribute('data-gamepad-row', 'top');
+    const button = document.createElement('button');
+    row.appendChild(button);
+    button.classList.add('gamepad-focused');
+    const blurSpy = spyOn(button, 'blur');
+
     const controls = service as unknown as {
-      changeRoute(offset: -1 | 1): void;
+      currentEl: HTMLElement | null;
+      goBack(): void;
     };
+    controls.currentEl = button;
 
-    controls.changeRoute(-1);
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/podcast');
+    const backAction = jasmine.createSpy('backAction').and.returnValue(true);
+    service.setBackAction(backAction);
 
-    controls.changeRoute(1);
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/watch');
+    controls.goBack();
+
+    expect(blurSpy).toHaveBeenCalled();
+    expect(button.classList).not.toContain('gamepad-focused');
+    expect(controls.currentEl).toBeNull();
+    expect(backAction).not.toHaveBeenCalled();
+  });
+
+  it('keeps left/right movement inside a marked row instead of jumping to whatever page content is visually closest', () => {
+    const row = document.createElement('div');
+    row.setAttribute('data-gamepad-row', 'top');
+    document.body.appendChild(row);
+
+    const yap = document.createElement('button');
+    const search = document.createElement('button');
+    row.appendChild(yap);
+    row.appendChild(search);
+
+    // A page-level button (e.g. profile's "YouTube Channels") that sits
+    // just below "yap" - much closer on screen than "search" is, but not
+    // part of the row, so it must never win a left/right move out of it.
+    const pageButton = document.createElement('button');
+    document.body.appendChild(pageButton);
+
+    spyOn(yap, 'getBoundingClientRect').and.returnValue(
+      { left: 100, right: 140, top: 0, bottom: 20, width: 40, height: 20 } as DOMRect,
+    );
+    spyOn(search, 'getBoundingClientRect').and.returnValue(
+      { left: 500, right: 540, top: 0, bottom: 20, width: 40, height: 20 } as DOMRect,
+    );
+    spyOn(pageButton, 'getBoundingClientRect').and.returnValue(
+      { left: 110, right: 150, top: 40, bottom: 60, width: 40, height: 20 } as DOMRect,
+    );
+
+    service.register(yap);
+    service.register(search);
+    service.register(pageButton);
+
+    const controls = service as unknown as {
+      currentEl: HTMLElement | null;
+      moveFocus(direction: string): void;
+    };
+    controls.currentEl = yap;
+
+    controls.moveFocus('right');
+
+    expect(controls.currentEl).toBe(search);
+
+    row.remove();
+    pageButton.remove();
+  });
+
+  it('falls back to scrolling rather than leaving a row when nothing further right is in that row', () => {
+    const row = document.createElement('div');
+    row.setAttribute('data-gamepad-row', 'top');
+    document.body.appendChild(row);
+
+    const search = document.createElement('button'); // the last item in the row
+    row.appendChild(search);
+
+    const pageButton = document.createElement('button'); // outside the row, to the right
+    document.body.appendChild(pageButton);
+
+    spyOn(search, 'getBoundingClientRect').and.returnValue(
+      { left: 500, right: 540, top: 0, bottom: 20, width: 40, height: 20 } as DOMRect,
+    );
+    spyOn(pageButton, 'getBoundingClientRect').and.returnValue(
+      { left: 600, right: 640, top: 0, bottom: 20, width: 40, height: 20 } as DOMRect,
+    );
+
+    service.register(search);
+    service.register(pageButton);
+
+    const controls = service as unknown as {
+      currentEl: HTMLElement | null;
+      moveFocus(direction: string): void;
+    };
+    controls.currentEl = search;
+
+    const scrollSpy = spyOn(window, 'scrollBy');
+
+    controls.moveFocus('right');
+
+    expect(controls.currentEl).toBe(search); // unchanged - stayed in the row
+    expect(scrollSpy).toHaveBeenCalled();
+
+    row.remove();
+    pageButton.remove();
+  });
+
+  it('falls back to the page-level back action when focus is outside any row', () => {
+    const button = document.createElement('button');
+
+    const controls = service as unknown as {
+      currentEl: HTMLElement;
+      goBack(): void;
+    };
+    controls.currentEl = button;
+
+    const backAction = jasmine.createSpy('backAction').and.returnValue(true);
+    service.setBackAction(backAction);
+
+    controls.goBack();
+
+    expect(backAction).toHaveBeenCalled();
+  });
+
+  it('lets a page-level activate action consume the A button/Enter behavior', () => {
+    const button = document.createElement('button');
+    const clicked = jasmine.createSpy('clicked');
+    button.addEventListener('click', clicked);
+    const controls = service as unknown as {
+      currentEl: HTMLElement;
+      activateCurrent(): void;
+    };
+    controls.currentEl = button;
+
+    const activate = jasmine.createSpy('activate').and.returnValue(true);
+    service.setActivateAction(activate);
+    controls.activateCurrent();
+
+    expect(activate).toHaveBeenCalled();
+    expect(clicked).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the default click when the activate action declines to handle it', () => {
+    const button = document.createElement('button');
+    const clicked = jasmine.createSpy('clicked');
+    button.addEventListener('click', clicked);
+    const controls = service as unknown as {
+      currentEl: HTMLElement;
+      activateCurrent(): void;
+    };
+    controls.currentEl = button;
+
+    const activate = jasmine.createSpy('activate').and.returnValue(false);
+    service.setActivateAction(activate);
+    controls.activateCurrent();
+
+    expect(activate).toHaveBeenCalled();
+    expect(clicked).toHaveBeenCalledTimes(1);
   });
 
   it('previews select options and commits them only when A is pressed again', () => {
@@ -169,7 +315,6 @@ describe('GamepadNavigationService', () => {
 
     expect(select.selectedIndex).toBe(0);
     expect(select.size).toBe(0);
-    expect(location.back).not.toHaveBeenCalled();
   });
 
   it('adjusts a focused range in five-percent steps and commits with A', () => {
@@ -200,7 +345,7 @@ describe('GamepadNavigationService', () => {
     expect(range.classList).not.toContain('gamepad-adjusting');
   });
 
-  it('routes a bound LB press to its aux action instead of page-swipe, while LT keeps swiping', () => {
+  it('fires a bound LB aux action on each leading-edge press', () => {
     spyOn(document, 'hasFocus').and.returnValue(true);
     spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
     const gamepadsSpy = spyOn(navigator, 'getGamepads');
@@ -218,15 +363,9 @@ describe('GamepadNavigationService', () => {
     poll([4]); // LB leading edge
 
     expect(lb).toHaveBeenCalledTimes(1);
-    expect(router.navigateByUrl).not.toHaveBeenCalled();
-
-    poll([]);
-    poll([6]); // LT leading edge - untouched, still page-swipes
-
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/podcast');
   });
 
-  it('restores LB page-swipe once its aux action is cleared', () => {
+  it('fires bound LT/RT aux actions on each leading-edge press (Controller Map v2 seek jump)', () => {
     spyOn(document, 'hasFocus').and.returnValue(true);
     spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
     const gamepadsSpy = spyOn(navigator, 'getGamepads');
@@ -237,13 +376,215 @@ describe('GamepadNavigationService', () => {
       (service as unknown as { pollGamepad(): void }).pollGamepad();
     };
 
-    service.setAuxButtonActions({ lb: jasmine.createSpy('lb') });
+    const lt = jasmine.createSpy('lt');
+    const rt = jasmine.createSpy('rt');
+    service.setAuxButtonActions({ lt, rt });
+
+    poll([]);
+    poll([6]); // LT leading edge
+    expect(lt).toHaveBeenCalledTimes(1);
+    expect(rt).not.toHaveBeenCalled();
+
+    poll([]);
+    poll([7]); // RT leading edge
+    expect(rt).toHaveBeenCalledTimes(1);
+  });
+
+  it('scrubs by a delta that scales with right-stick deflection, throttled to the update interval', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    let now = 1000;
+    spyOn(performance, 'now').and.callFake(() => now);
+    const poll = (rightStickX: number) => {
+      gamepadsSpy.and.returnValue(
+        [makePad([], [0, 0, rightStickX, 0])] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    const scrub = jasmine.createSpy('scrub');
+    service.setRightStickScrubAction(scrub);
+
+    poll(0); // arms the input window - centered, no scrub yet
+
+    poll(1); // full right deflection
+    expect(scrub).toHaveBeenCalledTimes(1);
+    expect(scrub.calls.mostRecent().args[0]).toBeCloseTo(0.8, 5);
+
+    poll(1); // same tick (performance.now() unchanged) - throttled, no extra call
+    expect(scrub).toHaveBeenCalledTimes(1);
+
+    now += 100; // past the update interval
+    poll(-1); // full left deflection - opposite sign
+    expect(scrub).toHaveBeenCalledTimes(2);
+    expect(scrub.calls.mostRecent().args[0]).toBeCloseTo(-0.8, 5);
+  });
+
+  it('does not scrub while the right stick is within its deadzone', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    const poll = (rightStickX: number) => {
+      gamepadsSpy.and.returnValue(
+        [makePad([], [0, 0, rightStickX, 0])] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    const scrub = jasmine.createSpy('scrub');
+    service.setRightStickScrubAction(scrub);
+
+    poll(0);
+    poll(0.1); // within the 0.15 deadzone
+
+    expect(scrub).not.toHaveBeenCalled();
+  });
+
+  it('unregisters the service worker, clears caches, and reloads after L3+R3 are held for the hold duration', fakeAsync(() => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    let now = 1000;
+    spyOn(performance, 'now').and.callFake(() => now);
+    const poll = (pressed: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad(pressed)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    const registration = jasmine.createSpyObj('ServiceWorkerRegistration', ['unregister']);
+    spyOn(navigator.serviceWorker, 'getRegistrations').and.resolveTo([registration]);
+    spyOn(caches, 'keys').and.resolveTo(['cache-a']);
+    spyOn(caches, 'delete').and.resolveTo(true);
+    spyOn(window.location, 'reload');
+
+    poll([]); // arms the input window
+    poll([10, 11]); // L3+R3 pressed together - starts the hold timer
+
+    now += 1499;
+    poll([10, 11]); // still under the hold duration
+    expect(window.location.reload).not.toHaveBeenCalled();
+
+    now += 1;
+    poll([10, 11]); // hold duration reached - triggers
+    tick(); // flush the unregister/clear-cache/reload promise chain
+
+    expect(registration.unregister).toHaveBeenCalledTimes(1);
+    expect(caches.delete).toHaveBeenCalledWith('cache-a');
+    expect(window.location.reload).toHaveBeenCalledTimes(1);
+
+    now += 1000;
+    poll([10, 11]); // still held well past the duration - fires only once
+    tick();
+    expect(window.location.reload).toHaveBeenCalledTimes(1);
+  }));
+
+  it('resets the hard-refresh hold timer if L3 or R3 is released before the hold duration elapses', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    let now = 1000;
+    spyOn(performance, 'now').and.callFake(() => now);
+    const poll = (pressed: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad(pressed)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+    spyOn(window.location, 'reload');
+
+    poll([]); // arms the input window
+    poll([10, 11]); // starts the hold timer
+
+    now += 1000;
+    poll([10]); // R3 released early - resets the hold timer
+
+    now += 1000;
+    poll([10, 11]); // re-armed, only held for a fresh 1000ms so far
+
+    expect(window.location.reload).not.toHaveBeenCalled();
+  });
+
+  it('does not reload again within the cooldown window if L3+R3 are still held across the reload (e.g. a controller resting on its sticks), then allows it again once released and re-held after the cooldown', fakeAsync(() => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    let now = 1000;
+    spyOn(performance, 'now').and.callFake(() => now);
+    let wallClock = 5_000_000;
+    spyOn(Date, 'now').and.callFake(() => wallClock);
+    const poll = (pressed: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad(pressed)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    spyOn(navigator.serviceWorker, 'getRegistrations').and.resolveTo([]);
+    spyOn(caches, 'keys').and.resolveTo([]);
+    spyOn(window.location, 'reload');
+
+    poll([]); // arms the input window
+    poll([10, 11]); // starts the hold timer
+    now += 1500;
+    poll([10, 11]); // hold duration reached - triggers the first reload
+    tick();
+    expect(window.location.reload).toHaveBeenCalledTimes(1);
+
+    // A real reload would tear down this service and construct a fresh one
+    // (performance.now() resets too, since it's relative to navigation
+    // start) - simulate that instead of just continuing to poll the same
+    // instance, since the bug this guards against is specifically about
+    // state that does/doesn't survive that boundary.
+    service = new GamepadNavigationService(
+      'browser' as unknown as object,
+      new NgZone({ enableLongStackTrace: false }),
+    );
+    now = 1000;
+
+    wallClock += 2_000; // only 2s later - well within the 30s cooldown
+    poll([]); // arms the input window on the "new" page load
+    poll([10, 11]); // the controller never moved - still pinned
+    now += 1500;
+    poll([10, 11]); // hold duration reached again
+    tick();
+
+    expect(window.location.reload).toHaveBeenCalledTimes(1); // suppressed by the cooldown
+
+    // Cooldown elapses and the controller is finally moved (released, then
+    // re-held) - a genuine subsequent hard refresh should work again.
+    wallClock += 40_000;
+    poll([]); // release
+    now += 100;
+    poll([10, 11]); // re-press
+    now += 1500;
+    poll([10, 11]);
+    tick();
+
+    expect(window.location.reload).toHaveBeenCalledTimes(2);
+  }));
+
+  it('does not fire an aux action once it has been cleared', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    const poll = (pressed: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad(pressed)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    const lb = jasmine.createSpy('lb');
+    service.setAuxButtonActions({ lb });
     service.clearAuxButtonActions();
 
     poll([]);
     poll([4]);
 
-    expect(router.navigateByUrl).toHaveBeenCalledWith('/podcast');
+    expect(lb).not.toHaveBeenCalled();
   });
 
   it('fires the Y aux action on each leading edge press', () => {
@@ -331,6 +672,5 @@ describe('GamepadNavigationService', () => {
 
     expect(range.value).toBe('50');
     expect(range.classList).not.toContain('gamepad-adjusting');
-    expect(location.back).not.toHaveBeenCalled();
   });
 });

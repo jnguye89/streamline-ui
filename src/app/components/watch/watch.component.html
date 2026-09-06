@@ -83,7 +83,7 @@
     </ng-container>
 
     <!-- Bottom action row: view count, profile/down, like count -->
-    <div class="bottom-actions">
+    <div class="bottom-actions" data-gamepad-row="bottom">
       <div *ngIf="currentItem?.type === 'vod' && !isYouTube(currentItem)" class="action view" aria-label="View count">
         <span class="count">{{ $any(currentItem).viewCount ?? 0 | number }}</span>
         <mat-icon>visibility</mat-icon>

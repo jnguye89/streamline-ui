@@ -215,6 +215,20 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit() {
     this.syncDpadActionsForCurrentItem();
+    // LT/RT: fixed app-wide seek jump (Controller Map v2) - see seekBy().
+    // Y: Play/pause - the map leaves Y unused on Watch/Yap ("nothing"),
+    // so it's free here without touching what Y does on Live/Podcast
+    // (show/hide chat) or overloading A, which stays a plain "activate
+    // whatever's focused" everywhere on this page.
+    this.gamepadNav.setAuxButtonActions({
+      lt: () => this.seekBy(-10),
+      rt: () => this.seekBy(30),
+      y: () => this.togglePlayPause(),
+    });
+    // Right stick left/right: continuous analog scrub (map: "push distance
+    // = speed") - same seekBy() the LT/RT taps use, just with a variable
+    // delta computed by GamepadNavigationService instead of a fixed one.
+    this.gamepadNav.setRightStickScrubAction((delta) => this.seekBy(delta));
     this.setUpSeo();
     this.socket.connect();
 
@@ -343,6 +357,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.volumeIndicatorTimer) { clearTimeout(this.volumeIndicatorTimer); this.volumeIndicatorTimer = null; }
     this.youtubePlayer?.destroy?.();
     this.gamepadNav.clearDpadActions();
+    this.gamepadNav.clearAuxButtonActions();
+    this.gamepadNav.clearRightStickScrubAction();
     this.destroy$.next();
     this.destroy$.complete();
 
@@ -542,6 +558,62 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       if (video) video.volume = this.volumeLevel / 100;
     }
     this.flashVolumeIndicator();
+  }
+
+  /**
+   * Y ("Play/pause" - repurposed from the map's unused Watch/Yap slot for
+   * Y, see ngOnInit): toggles whichever surface is actually playing. Only
+   * meaningful for VOD, same scoping as seekBy() below and adjustVolume()
+   * above - live/chess have no local play/pause state of their own here.
+   */
+  private togglePlayPause(): void {
+    if (this.currentItem?.type !== 'vod') return;
+    this.onUserActivity();
+
+    if (this.isYouTube(this.currentItem)) {
+      const player = this.youtubePlayer;
+      if (!player?.getPlayerState || !player?.playVideo || !player?.pauseVideo) return;
+      // YT.PlayerState.PLAYING === 1; treat anything else (paused, ended,
+      // buffering, cued) as "not playing" for toggle purposes.
+      if (player.getPlayerState() === 1) {
+        player.pauseVideo();
+      } else {
+        player.playVideo();
+      }
+      return;
+    }
+
+    const video = this.playerRef?.nativeElement;
+    if (!video) return;
+    if (video.paused) { void video.play(); } else { video.pause(); }
+  }
+
+  /**
+   * Shared by LT/RT's fixed "Jump -10s"/"Jump +30s" per tap and the right
+   * stick's continuous analog scrub (both Controller Map v2) - nudges the
+   * play position on whichever surface is actually playing by whatever
+   * delta the caller already computed. A fixed app-wide action per the
+   * map, not a per-page override - so it's a deliberate no-op for anything
+   * that isn't a seekable VOD (live and chess have no timeline to seek,
+   * same as the map's own "no-op on live streams" note for this gesture).
+   */
+  private seekBy(deltaSeconds: number): void {
+    if (this.currentItem?.type !== 'vod') return;
+    this.onUserActivity();
+
+    if (this.isYouTube(this.currentItem)) {
+      const player = this.youtubePlayer;
+      if (!player?.getCurrentTime || !player?.seekTo) return;
+      const duration = player.getDuration?.() ?? Infinity;
+      const next = Math.min(duration, Math.max(0, player.getCurrentTime() + deltaSeconds));
+      player.seekTo(next, true);
+      return;
+    }
+
+    const video = this.playerRef?.nativeElement;
+    if (!video) return;
+    const duration = Number.isNaN(video.duration) ? Infinity : video.duration;
+    video.currentTime = Math.min(duration, Math.max(0, video.currentTime + deltaSeconds));
   }
 
   private flashVolumeIndicator(): void {

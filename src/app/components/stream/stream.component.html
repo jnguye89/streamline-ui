@@ -136,7 +136,7 @@
 
     <div class="stream-toolbar__separator"></div>
 
-    <div class="mode-group" role="group" aria-label="Video source">
+    <div class="mode-group" role="group" aria-label="Video source (or press Y to cycle)">
       <button
         gamepadFocusable
         class="mode-btn"
@@ -185,12 +185,12 @@
         gamepadFocusable
         class="mode-swap-btn"
         type="button"
-        aria-label="Swap main display and facecam (or press Y)"
+        aria-label="Swap main display and facecam (or press X)"
         [disabled]="isApplyingInputs || isStarting"
         (click)="swapSources()"
       >
         <mat-icon>swap_horiz</mat-icon>
-        <span class="mode-swap-btn__hint">Y</span>
+        <span class="mode-swap-btn__hint">X</span>
       </button>
       <span
         class="mode-avatar mode-avatar--screen"
