@@ -91,11 +91,17 @@
     background: #3d4f6c;
   }
 
-  &:disabled {
+  // Squares stay real, focusable <button>s even when it's not this
+  // viewer's turn (see the [class.non-interactive] comment below for why
+  // this can't be the native `disabled` attribute) - `.non-interactive`
+  // only dims the affordance, it doesn't gate the actual move/select logic,
+  // which ChessBoardComponent.onSquareClick() already checks `interactive`
+  // for itself.
+  &.non-interactive {
     cursor: default;
   }
 
-  &:not(:disabled):hover {
+  &:not(.non-interactive):hover {
     &.light {
       background: #f2f0e6;
     }

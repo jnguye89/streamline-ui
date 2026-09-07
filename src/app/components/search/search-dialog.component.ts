@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialogRef } from '@angular/material/dialog';
@@ -8,6 +8,7 @@ import { Subject, of } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil, catchError } from 'rxjs/operators';
 import { Auth0User } from '../../models/auth0-user.model';
 import { UserService } from '../../services/user.service';
+import { Direction, GamepadNavigationService } from '../../services/gamepad-navigation.service';
 import { GliderKeyboardComponent } from './glider-keyboard.component';
 
 @Component({
@@ -25,6 +26,7 @@ import { GliderKeyboardComponent } from './glider-keyboard.component';
           autocomplete="off"
           spellcheck="false"
           readonly
+          tabindex="-1"
         />
         <button class="esc-btn" (click)="close()">esc</button>
       </div>
@@ -180,66 +182,99 @@ export class SearchDialogComponent implements OnInit, OnDestroy {
   constructor(
     private ref: MatDialogRef<SearchDialogComponent>,
     private userService: UserService,
-    private router: Router
+    private router: Router,
+    private gamepadNavigation: GamepadNavigationService
   ) {}
 
-  @HostListener('document:keydown', ['$event'])
-  onKeyDown(e: KeyboardEvent) {
-    const dirMap: Record<string, string> = {
-      ArrowLeft: 'left', ArrowRight: 'right',
-      ArrowUp: 'up', ArrowDown: 'down',
-    };
-    const dir = dirMap[e.key];
-
+  // The on-screen glider keyboard has no real focusable DOM elements per
+  // key - its "focus" is just `keyboard.cursor` component state - so it
+  // can't be driven by GamepadNavigationService's generic spatial focus
+  // system the way every other page's buttons are. Instead this wires the
+  // dialog into the same page-override hooks Watch/Stream/Profile already
+  // use for their own custom input handling: setDpadActions for the D-pad,
+  // setActivateAction for A/Enter, setBackAction for B/Escape. Since the
+  // service already mirrors ArrowKeys/Enter/Escape from a real keyboard
+  // into these same hooks (see its own onKeyDown), this one path now
+  // drives both a physical keyboard and a physical gamepad identically -
+  // no separate document:keydown listener needed here anymore.
+  private handleDirection(dir: Direction): void {
     if (this.mode === 'results') {
-      if (!dir && e.key !== 'Enter') return;
-      e.preventDefault();
-
-      if (e.key === 'ArrowDown') {
+      if (dir === 'down') {
         if (this.focusedIndex === this.results.length - 1) {
           this.mode = 'keyboard'; // wrap back to keyboard top
         } else {
           this.focusedIndex++;
         }
-      } else if (e.key === 'ArrowUp') {
+      } else if (dir === 'up') {
         if (this.focusedIndex === 0) {
           this.mode = 'keyboard';
         } else {
           this.focusedIndex--;
         }
-      } else if (e.key === 'Enter' && this.results.length > 0) {
-        this.navigate(this.results[this.focusedIndex]);
       }
+      // left/right have no meaning in the results list - ignored
       return;
     }
 
     // Keyboard mode
-    if (dir) {
-      e.preventDefault();
-      // Down from the action row (bottom) → land on first result
-      if (dir === 'down'
-          && this.keyboard?.cursor[0] === this.keyboard?.ACTION_ROW
-          && this.results.length > 0) {
-        this.mode = 'results';
-        this.focusedIndex = 0;
-        return;
-      }
-      // Up from the top row → land on last result (results sit above the keyboard)
-      if (dir === 'up'
-          && this.keyboard?.cursor[0] === 0
-          && this.results.length > 0) {
-        this.mode = 'results';
-        this.focusedIndex = this.results.length - 1;
-        return;
-      }
-      this.keyboard?.nav(dir);
-    } else if (e.key === 'Enter') {
-      e.preventDefault();
-      this.keyboard?.activateKey(this.keyboard.cursor[0], this.keyboard.cursor[1]);
+    // Down from the action row (bottom) → land on first result
+    if (dir === 'down'
+        && this.keyboard?.cursor[0] === this.keyboard?.ACTION_ROW
+        && this.results.length > 0) {
+      this.mode = 'results';
+      this.focusedIndex = 0;
+      return;
     }
+    // Up from the top row → land on last result (results sit above the keyboard)
+    if (dir === 'up'
+        && this.keyboard?.cursor[0] === 0
+        && this.results.length > 0) {
+      this.mode = 'results';
+      this.focusedIndex = this.results.length - 1;
+      return;
+    }
+    this.keyboard?.nav(dir);
+  }
+
+  private handleActivate(): void {
+    if (this.mode === 'results') {
+      if (this.results.length > 0) this.navigate(this.results[this.focusedIndex]);
+      return;
+    }
+    this.keyboard?.activateKey(this.keyboard.cursor[0], this.keyboard.cursor[1]);
   }
 
   ngOnInit() {
+    // Whatever was gamepad-focused on the page underneath (typically the
+    // top nav's search icon that opened this dialog) is still "current" as
+    // far as GamepadNavigationService knows - opening a MatDialog doesn't
+    // clear it. Left alone, that element sits inside the top nav row, so
+    // B's row-dismiss handling would consume the first press clearing it
+    // (invisibly, since the dialog covers the row) before a second B ever
+    // reaches this dialog's own setBackAction() below. Clearing it up
+    // front means the very first B closes the dialog.
+    this.gamepadNavigation.clearFocus();
+
+    // includeStick: true - the on-screen keyboard has no real DOM focus of
+    // its own for the left stick to fall back to moving (see the comment
+    // above), so unlike Watch (which needs the stick free to reach its nav
+    // bar/action row while the D-pad is busy with seek/volume) this dialog
+    // wants the stick to reach these same handlers, not just the D-pad.
+    this.gamepadNavigation.setDpadActions({
+      up: () => this.handleDirection('up'),
+      down: () => this.handleDirection('down'),
+      left: () => this.handleDirection('left'),
+      right: () => this.handleDirection('right'),
+    }, { includeStick: true });
+    this.gamepadNavigation.setActivateAction(() => {
+      this.handleActivate();
+      return true;
+    });
+    this.gamepadNavigation.setBackAction(() => {
+      this.close();
+      return true;
+    });
+
     this.query.valueChanges.pipe(
       debounceTime(300),
       distinctUntilChanged(),
@@ -278,6 +313,9 @@ export class SearchDialogComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.gamepadNavigation.clearDpadActions();
+    this.gamepadNavigation.clearActivateAction();
+    this.gamepadNavigation.setBackAction(null);
     this.destroy$.next();
     this.destroy$.complete();
   }

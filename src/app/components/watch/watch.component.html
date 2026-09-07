@@ -28,9 +28,6 @@
        non-interactive board with a big "start a game" call to action. -->
   <app-chess-demo *ngIf="currentItem?.type === 'chess-demo'" (join)="startChessGame()"></app-chess-demo>
 
-  <!-- Off-screen pool that buffers the next few VODs ahead of time -->
-  <div #preloadContainer class="preload-container"></div>
-
   <!-- D-pad/arrow up-down volume feedback (VOD only - see
        WatchComponent.adjustVolume). Kept as a sibling of .overlay, not
        nested inside it, so it can appear/fade on its own timer regardless
@@ -83,7 +80,7 @@
     </ng-container>
 
     <!-- Bottom action row: view count, profile/down, like count -->
-    <div class="bottom-actions">
+    <div class="bottom-actions" data-gamepad-row="bottom">
       <div *ngIf="currentItem?.type === 'vod' && !isYouTube(currentItem)" class="action view" aria-label="View count">
         <span class="count">{{ $any(currentItem).viewCount ?? 0 | number }}</span>
         <mat-icon>visibility</mat-icon>

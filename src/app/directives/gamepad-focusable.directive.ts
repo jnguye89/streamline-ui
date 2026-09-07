@@ -8,7 +8,7 @@ import {
 import { GamepadNavigationService } from '../services/gamepad-navigation.service';
 
 /**
- * Marks an element as a target for gamepad (e.g. PS4 controller) D-pad/stick
+ * Marks an element as a target for gamepad (e.g. 8BitDo Ultimate 2/2C) D-pad/stick
  * navigation. Registers with `GamepadNavigationService` so it can receive
  * spatial focus and be "clicked" via the controller's activate button.
  *

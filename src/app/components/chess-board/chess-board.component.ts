@@ -44,7 +44,16 @@ export class ChessBoardComponent implements OnChanges {
   @Input() fen = '';
   @Input() orientation: 'white' | 'black' = 'white';
   // Gate on whether it's this viewer's turn to move at all - spectators and
-  // an out-of-turn seated player both render read-only.
+  // an out-of-turn seated player both render read-only. Deliberately NOT
+  // wired to the native `disabled` attribute on the square buttons (see
+  // chess-board.component.html) - a disabled button can't receive focus at
+  // all, which made D-pad/keyboard navigation across the board go
+  // completely dead the moment it wasn't your turn (or you were only
+  // spectating), even though nothing about *looking around* the board
+  // should require a turn. onSquareClick() below already checks this input
+  // itself before selecting a piece or emitting a move, so squares stay
+  // real, always-focusable buttons and this only governs whether a press
+  // actually does anything.
   @Input() interactive = false;
 
   @Output() move = new EventEmitter<{ from: string; to: string; promotion?: string }>();

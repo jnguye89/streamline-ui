@@ -1,11 +1,12 @@
 import { Inject, Injectable, NgZone, OnDestroy, PLATFORM_ID } from '@angular/core';
-import { Location, isPlatformBrowser } from '@angular/common';
-import { Router } from '@angular/router';
+import { isPlatformBrowser } from '@angular/common';
 
-type Direction = 'up' | 'down' | 'left' | 'right';
+export type Direction = 'up' | 'down' | 'left' | 'right';
 
-// Standard gamepad mapping (PS4 controller via Chrome's "standard" layout):
-// 0 = Cross (X), 1 = Circle, 12-15 = D-pad up/down/left/right.
+// Standard gamepad mapping (Xbox-layout controllers - e.g. the 8BitDo
+// Ultimate 2/2C - via the browser's "standard" Gamepad API layout; see
+// "skriin ai TV - Controller Map v2"): 0 = A, 1 = B, 2 = X, 3 = Y,
+// 12-15 = D-pad up/down/left/right.
 const BUTTON_ACTIVATE = 0;
 const BUTTON_BACK = 1;
 const BUTTON_X = 2;
@@ -14,19 +15,28 @@ const BUTTON_LB = 4;
 const BUTTON_RB = 5;
 const BUTTON_LT = 6;
 const BUTTON_RT = 7;
-const BUTTONS_PREVIOUS_ROUTE = [BUTTON_LB, BUTTON_LT];
-const BUTTONS_NEXT_ROUTE = [BUTTON_RB, BUTTON_RT];
 const BUTTON_DPAD_UP = 12;
 const BUTTON_DPAD_DOWN = 13;
 const BUTTON_DPAD_LEFT = 14;
 const BUTTON_DPAD_RIGHT = 15;
+// L3/R3 (left/right stick clicks) - not part of the Controller Map v2
+// per-page context model; reserved app-wide for the hard-refresh combo
+// (see handleHardRefreshCombo()).
+const BUTTON_L3 = 10;
+const BUTTON_R3 = 11;
 
-type AuxButton = 'x' | 'y' | 'lb' | 'rb';
+// Per Controller Map v2, only D-pad left/right, the left stick, A, B, X, Y,
+// LB and RB are meant to change meaning by page/context; LT/RT stay a
+// fixed, app-wide action (seek jump - see WatchComponent) wherever a page
+// chooses to bind them.
+type AuxButton = 'x' | 'y' | 'lb' | 'rb' | 'lt' | 'rt';
 const AUX_BUTTON_INDEXES: Record<AuxButton, number> = {
   x: BUTTON_X,
   y: BUTTON_Y,
   lb: BUTTON_LB,
   rb: BUTTON_RB,
+  lt: BUTTON_LT,
+  rt: BUTTON_RT,
 };
 
 const AXIS_DEADZONE = 0.5;
@@ -34,12 +44,38 @@ const BUTTON_PRESS_THRESHOLD = 0.5;
 const FALLBACK_DPAD_X_AXIS = 6;
 const FALLBACK_DPAD_Y_AXIS = 7;
 const FALLBACK_DPAD_HAT_AXIS = 9;
-const PAGE_ROUTES = ['/podcast', '/stream', '/watch', '/yap'];
 const REPEAT_DELAY_MS = 420;
 const REPEAT_RATE_MS = 150;
 const SCROLL_STEP_PX = 240;
+const HARD_REFRESH_HOLD_MS = 1500;
+// Guards against a stuck/pinned L3+R3 (e.g. a controller resting on its
+// sticks) causing a reload loop: the in-memory "already triggered" flag
+// below necessarily resets on every page load, so without this a held
+// combo would just re-trigger 1.5s after every reload, forever. Recorded
+// in sessionStorage (not a service field) specifically because it has to
+// survive the reload that resets everything else - see triggerHardRefresh().
+const HARD_REFRESH_COOLDOWN_MS = 30_000;
+const HARD_REFRESH_STORAGE_KEY = 'skriin:lastHardRefreshAt';
+
+// Right stick ("RS (2,3)" per Controller Map v2 rule 5) - only the
+// horizontal axis is used (scrub back/forward); vertical is "Nothing" in
+// every context, so it's never read. Smaller deadzone than the left
+// stick's since this is a continuous, magnitude-driven control rather than
+// a discrete direction trigger - see handleRightStickScrub().
+const RIGHT_STICK_X_AXIS = 2;
+const RIGHT_STICK_DEADZONE = 0.15;
+const SCRUB_MAX_SECONDS_PER_SEC = 8;
+const SCRUB_UPDATE_INTERVAL_MS = 100;
 
 const FOCUS_CLASS = 'gamepad-focused';
+
+// Controller Map v2's "row" concept: the top nav bar and Watch's bottom
+// action row (uploader profile/like/chess) both carry this attribute
+// today; a future island bar can opt in the same way. Used by goBack()'s
+// "Dismiss row" handling and by moveFocus()'s constrainToRow(), which
+// keeps left/right movement inside a row instead of leaking out to
+// whatever's visually closest on the rest of the page.
+const GAMEPAD_ROW_SELECTOR = '[data-gamepad-row]';
 
 /**
  * Polls the Gamepad API and translates D-pad / left-stick / button input into
@@ -59,10 +95,31 @@ export class GamepadNavigationService implements OnDestroy {
   private heldSince = 0;
   private lastRepeatAt = 0;
   private inputWindowActive = false;
+  // Tracks which direction a page's setDpadActions() override last fired
+  // for, regardless of whether the D-pad, the left stick, or a hat-axis
+  // D-pad emulation produced it (see pollGamepad()) - lets an override fire
+  // once per distinct press/deflection the same way a plain D-pad press
+  // always has, instead of only D-pad buttons getting that treatment.
+  private lastDpadOverrideDirection: Direction | null = null;
+  private lastScrubAt = 0;
+  private hardRefreshHoldSince = 0;
+  private hardRefreshTriggered = false;
 
   private dpadActions: Partial<Record<Direction, () => void>> = {};
+  // Whether the *true* left stick (not the D-pad, and not a hat-axis
+  // D-pad emulation - see getStickDirection()) also reaches dpadActions,
+  // set per setDpadActions() call. Off by default: a page like Watch that
+  // fully claims the D-pad for dedicated controls (seek/volume) still
+  // needs the stick free to pan spatial focus to its nav bar/action row,
+  // since the D-pad has nothing left over to do that with. A page with no
+  // real DOM focus of its own to move between - e.g. the search dialog's
+  // on-screen keyboard - opts in instead, so the stick reaches it exactly
+  // like the D-pad does.
+  private dpadActionsIncludeStick = false;
   private auxActions: Partial<Record<AuxButton, () => void>> = {};
+  private rightStickScrubAction: ((deltaSeconds: number) => void) | null = null;
   private backAction: (() => boolean) | null = null;
+  private activateAction: (() => boolean) | null = null;
   private selectMode: HTMLSelectElement | null = null;
   private selectInitialIndex = -1;
   private rangeMode: HTMLInputElement | null = null;
@@ -71,8 +128,6 @@ export class GamepadNavigationService implements OnDestroy {
   constructor(
     @Inject(PLATFORM_ID) platformId: object,
     private zone: NgZone,
-    private location: Location,
-    private router: Router,
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
   }
@@ -98,21 +153,29 @@ export class GamepadNavigationService implements OnDestroy {
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);
   }
 
-  setDpadActions(actions: Partial<Record<Direction, () => void>>): void {
+  setDpadActions(
+    actions: Partial<Record<Direction, () => void>>,
+    opts?: { includeStick?: boolean },
+  ): void {
     this.dpadActions = { ...actions };
+    this.dpadActionsIncludeStick = opts?.includeStick ?? false;
+    this.lastDpadOverrideDirection = null;
   }
 
   clearDpadActions(): void {
     this.dpadActions = {};
+    this.dpadActionsIncludeStick = false;
+    this.lastDpadOverrideDirection = null;
   }
 
   /**
-   * Page-specific shortcuts for the X/Y face buttons and the LB/RB shoulder
-   * buttons. LB and RB double as global previous/next-page swipe (see
-   * BUTTONS_PREVIOUS_ROUTE/BUTTONS_NEXT_ROUTE) - setting an override here
-   * for 'lb' or 'rb' suppresses that button's page-swipe for as long as the
-   * override is active (LT/RT keep working as the page-swipe fallback), so
-   * only bind them for actions worth losing that swipe gesture for.
+   * Page-specific shortcuts for the X/Y/LB/RB/LT/RT buttons (Controller
+   * Map v2). X/Y/LB/RB meaning is expected to vary by page/context; LT/RT
+   * are meant to stay a fixed app-wide action (seek jump) wherever a page
+   * binds them, so it stays a no-op - never something else - on any page
+   * that doesn't. Switching pages/sections is handled by the top nav row,
+   * not these buttons, so there's no shared fallback behavior to suppress
+   * here - unbound buttons simply do nothing.
    */
   setAuxButtonActions(actions: Partial<Record<AuxButton, () => void>>): void {
     this.auxActions = { ...actions };
@@ -122,8 +185,42 @@ export class GamepadNavigationService implements OnDestroy {
     this.auxActions = {};
   }
 
+  /**
+   * Right stick left/right ("Scrub timeline back/forward - push distance =
+   * speed", Controller Map v2): called at most every SCRUB_UPDATE_INTERVAL_MS
+   * while the stick is held past its deadzone, with a signed seconds-of-video
+   * delta already scaled by how far it's pushed and how long it's been since
+   * the last call - the page just applies it (see WatchComponent.seekBy()).
+   * A no-op page never sees a call at all.
+   */
+  setRightStickScrubAction(action: ((deltaSeconds: number) => void) | null): void {
+    this.rightStickScrubAction = action;
+    this.lastScrubAt = 0;
+  }
+
+  clearRightStickScrubAction(): void {
+    this.rightStickScrubAction = null;
+  }
+
   setBackAction(action: (() => boolean) | null): void {
     this.backAction = action;
+  }
+
+  /**
+   * Page/dialog-specific override for the main Activate button (A on a
+   * gamepad, Enter on a keyboard). Used by UI that tracks its own cursor
+   * instead of real DOM focus - e.g. the search dialog's on-screen
+   * keyboard, whose "focused" key is just component state, not something
+   * `.click()` on `currentEl` could ever reach. Return true to suppress
+   * the default `.click()` behavior; return false (or leave no override
+   * set) to fall back to it, same convention as `setBackAction`.
+   */
+  setActivateAction(action: (() => boolean) | null): void {
+    this.activateAction = action;
+  }
+
+  clearActivateAction(): void {
+    this.activateAction = null;
   }
 
   register(el: HTMLElement): void {
@@ -231,7 +328,22 @@ export class GamepadNavigationService implements OnDestroy {
   }
 
   private loop = (): void => {
-    this.pollGamepad();
+    try {
+      this.pollGamepad();
+    } catch (err) {
+      // A page-level action thrown from here (e.g. calling a method on a
+      // not-yet-ready YouTube IFrame player - see WatchComponent's
+      // adjustVolume() history) must never kill this loop for the rest of
+      // the page's life. Without this catch, an uncaught throw here would
+      // skip the requestAnimationFrame() call below on this one frame -
+      // and neither onGamepadConnected() nor onGamepadDisconnected() would
+      // ever restart it afterward, since both only act when rafId is null,
+      // and rafId is left holding its last successfully-scheduled (already
+      // fired) id forever, never reset by the frame that threw. Logging
+      // and continuing keeps one bad frame from silently disabling gamepad
+      // input site-wide until a full page reload.
+      console.error('[GamepadNavigationService] pollGamepad() threw - continuing', err);
+    }
     this.rafId = requestAnimationFrame(this.loop);
   };
 
@@ -267,33 +379,28 @@ export class GamepadNavigationService implements OnDestroy {
       }
     }
 
-    // LB/RB only page-swipe when nothing on the current page has claimed
-    // them via setAuxButtonActions(); LT/RT always page-swipe regardless.
-    const previousRouteButtons = this.auxActions.lb
-      ? [BUTTON_LT]
-      : BUTTONS_PREVIOUS_ROUTE;
-    const nextRouteButtons = this.auxActions.rb
-      ? [BUTTON_RT]
-      : BUTTONS_NEXT_ROUTE;
-    if (this.anyButtonPressed(buttons, this.prevButtons, previousRouteButtons)) {
-      this.changeRoute(-1);
-    }
-    if (this.anyButtonPressed(buttons, this.prevButtons, nextRouteButtons)) {
-      this.changeRoute(1);
-    }
-
-    // Fire page-specific D-pad overrides on the leading edge only.
-    const dpadMap: [number, Direction][] = [
-      [BUTTON_DPAD_UP, 'up'], [BUTTON_DPAD_DOWN, 'down'],
-      [BUTTON_DPAD_LEFT, 'left'], [BUTTON_DPAD_RIGHT, 'right'],
-    ];
-    for (const [btn, dir] of dpadMap) {
-      if (this.dpadActions[dir] && buttons[btn] && !this.prevButtons[btn]) {
+    // A page's setDpadActions() override always applies to the D-pad
+    // (buttons 12-15, or a hat-axis emulation of them - see
+    // getDpadDirection()), fired once per distinct press rather than on
+    // hold-repeat. The *true* left stick (getStickDirection()) only reaches
+    // the override when the page opted in via includeStick - otherwise it
+    // stays free to drive the generic spatial focus move below, same as
+    // when no override is set at all. See dpadActionsIncludeStick for why.
+    const dpadDir = this.getDpadDirection(pad, buttons);
+    const dir = dpadDir ?? this.getStickDirection(pad);
+    const canOverride = dpadDir !== null || this.dpadActionsIncludeStick;
+    if (dir && this.dpadActions[dir] && canOverride) {
+      if (dir !== this.lastDpadOverrideDirection) {
         this.zone.run(() => this.dpadActions[dir]!());
       }
+      this.lastDpadOverrideDirection = dir;
+      this.handleDirection(null);
+    } else {
+      this.lastDpadOverrideDirection = null;
+      this.handleDirection(dir);
     }
-
-    this.handleDirection(this.getDirection(pad, buttons));
+    this.handleRightStickScrub(pad);
+    this.handleHardRefreshCombo(buttons);
 
     this.prevButtons = buttons;
   }
@@ -308,19 +415,142 @@ export class GamepadNavigationService implements OnDestroy {
     this.heldDirection = null;
     this.heldSince = 0;
     this.lastRepeatAt = 0;
+    this.lastScrubAt = 0;
+    this.hardRefreshHoldSince = 0;
+    this.hardRefreshTriggered = false;
+    this.lastDpadOverrideDirection = null;
   }
 
-  private getDirection(pad: Gamepad, buttons: boolean[]): Direction | null {
-    if (buttons[BUTTON_DPAD_UP] && !this.dpadActions['up']) return 'up';
-    if (buttons[BUTTON_DPAD_DOWN] && !this.dpadActions['down']) return 'down';
-    if (buttons[BUTTON_DPAD_LEFT] && !this.dpadActions['left']) return 'left';
-    if (buttons[BUTTON_DPAD_RIGHT] && !this.dpadActions['right']) return 'right';
+  /**
+   * Analog counterpart to the LT/RT jump buttons: instead of a fixed step
+   * per press, the seek delta scales continuously with how far the stick
+   * is pushed (map: "push distance = speed") and with real elapsed time,
+   * so it feels the same whether the frame rate dips or not. Throttled to
+   * SCRUB_UPDATE_INTERVAL_MS rather than firing every animation frame -
+   * smooth enough to feel analog without hammering pages that seek via a
+   * postMessage-based API (e.g. the YouTube IFrame player) 60 times/sec.
+   */
+  private handleRightStickScrub(pad: Gamepad): void {
+    const action = this.rightStickScrubAction;
+    const x = pad.axes[RIGHT_STICK_X_AXIS] ?? 0;
+    if (!action || Math.abs(x) < RIGHT_STICK_DEADZONE) {
+      this.lastScrubAt = 0;
+      return;
+    }
 
-    const [x = 0, y = 0] = pad.axes;
-    if (x <= -AXIS_DEADZONE) return 'left';
-    if (x >= AXIS_DEADZONE) return 'right';
-    if (y <= -AXIS_DEADZONE) return 'up';
-    if (y >= AXIS_DEADZONE) return 'down';
+    const now = performance.now();
+    if (this.lastScrubAt && now - this.lastScrubAt < SCRUB_UPDATE_INTERVAL_MS) return;
+    const dt = this.lastScrubAt
+      ? (now - this.lastScrubAt) / 1000
+      : SCRUB_UPDATE_INTERVAL_MS / 1000;
+    this.lastScrubAt = now;
+
+    // Ramp smoothly from 0 just past the deadzone, rather than jumping
+    // straight to some nonzero minimum speed the instant it's cleared.
+    const eased = (Math.abs(x) - RIGHT_STICK_DEADZONE) / (1 - RIGHT_STICK_DEADZONE);
+    const secondsPerSecond = eased * SCRUB_MAX_SECONDS_PER_SEC * Math.sign(x);
+    this.zone.run(() => action(secondsPerSecond * dt));
+  }
+
+  /**
+   * L3+R3 held together for HARD_REFRESH_HOLD_MS - an app-wide combo (not
+   * part of Controller Map v2's per-page context model) for when the app
+   * feels stuck/stale. Deliberately requires both stick clicks held at
+   * once so it can never fire by accident during normal navigation.
+   */
+  private handleHardRefreshCombo(buttons: boolean[]): void {
+    if (!buttons[BUTTON_L3] || !buttons[BUTTON_R3]) {
+      this.hardRefreshHoldSince = 0;
+      this.hardRefreshTriggered = false;
+      return;
+    }
+
+    if (this.hardRefreshTriggered) return;
+
+    const now = performance.now();
+    if (!this.hardRefreshHoldSince) {
+      this.hardRefreshHoldSince = now;
+      return;
+    }
+
+    if (now - this.hardRefreshHoldSince < HARD_REFRESH_HOLD_MS) return;
+
+    // Mark handled either way so a combo that's still held doesn't re-evaluate
+    // (and re-log/re-check cooldown) on every remaining frame - it only
+    // re-arms once L3+R3 are both released above.
+    this.hardRefreshTriggered = true;
+    if (this.isHardRefreshOnCooldown()) return;
+    this.zone.run(() => void this.triggerHardRefresh());
+  }
+
+  private isHardRefreshOnCooldown(): boolean {
+    try {
+      const last = Number(sessionStorage.getItem(HARD_REFRESH_STORAGE_KEY) ?? '0');
+      return Date.now() - last < HARD_REFRESH_COOLDOWN_MS;
+    } catch {
+      return false; // sessionStorage unavailable (e.g. private browsing) - fail open rather than block a legitimate hard refresh forever
+    }
+  }
+
+  /**
+   * Unregisters the Angular service worker and clears Cache Storage before
+   * reloading - a plain `location.reload()` alone can still serve stale
+   * cached content (see `provideServiceWorker` in app.config.ts). Each step
+   * is best-effort so a failure to unregister/clear never blocks the reload.
+   */
+  private async triggerHardRefresh(): Promise<void> {
+    try {
+      sessionStorage.setItem(HARD_REFRESH_STORAGE_KEY, String(Date.now()));
+    } catch {
+      // Best-effort - cooldown just won't survive the reload in this case.
+    }
+
+    this.showHardRefreshIndicator();
+
+    try {
+      const registrations = await navigator.serviceWorker?.getRegistrations?.();
+      await Promise.all((registrations ?? []).map((registration) => registration.unregister()));
+    } catch {
+      // Best-effort - fall through to reload regardless.
+    }
+
+    try {
+      const keys = await caches?.keys?.();
+      await Promise.all((keys ?? []).map((key) => caches.delete(key)));
+    } catch {
+      // Best-effort - fall through to reload regardless.
+    }
+
+    window.location.reload();
+  }
+
+  private showHardRefreshIndicator(): void {
+    const overlay = document.createElement('div');
+    overlay.textContent = 'Refreshing\u2026';
+    overlay.setAttribute('aria-live', 'assertive');
+    overlay.style.cssText = [
+      'position:fixed', 'inset:0', 'z-index:2147483647',
+      'display:flex', 'align-items:center', 'justify-content:center',
+      'background:rgba(0,0,0,0.85)', 'color:#fff',
+      'font-size:2rem', 'font-family:sans-serif',
+    ].join(';');
+    document.body.appendChild(overlay);
+    // No cleanup needed - the page reloads shortly after this is shown.
+  }
+
+  /**
+   * D-pad direction: real buttons 12-15, or - for Bluetooth/driver
+   * combinations that expose an otherwise standard D-pad as axes instead of
+   * buttons - the equivalent hat-axis fallback. Deliberately excludes the
+   * true left stick (see getStickDirection()): both of these count as
+   * "the D-pad" for a setDpadActions() override, which always applies to
+   * them regardless of dpadActionsIncludeStick.
+   */
+  private getDpadDirection(pad: Gamepad, buttons: boolean[]): Direction | null {
+    if (buttons[BUTTON_DPAD_UP]) return 'up';
+    if (buttons[BUTTON_DPAD_DOWN]) return 'down';
+    if (buttons[BUTTON_DPAD_LEFT]) return 'left';
+    if (buttons[BUTTON_DPAD_RIGHT]) return 'right';
 
     // Some Bluetooth/driver combinations expose an otherwise standard Xbox
     // D-pad as a pair of hat axes instead of buttons 12–15. Browsers that
@@ -343,6 +573,20 @@ export class GamepadNavigationService implements OnDestroy {
       }
     }
     return null;
+  }
+
+  /** The true left stick (axes 0/1) only - see getDpadDirection(). */
+  private getStickDirection(pad: Gamepad): Direction | null {
+    const [x = 0, y = 0] = pad.axes;
+    if (x <= -AXIS_DEADZONE) return 'left';
+    if (x >= AXIS_DEADZONE) return 'right';
+    if (y <= -AXIS_DEADZONE) return 'up';
+    if (y >= AXIS_DEADZONE) return 'down';
+    return null;
+  }
+
+  private getDirection(pad: Gamepad, buttons: boolean[]): Direction | null {
+    return this.getDpadDirection(pad, buttons) ?? this.getStickDirection(pad);
   }
 
   private handleDirection(direction: Direction | null): void {
@@ -394,17 +638,27 @@ export class GamepadNavigationService implements OnDestroy {
       return;
     }
 
+    // currentEl can be null or stale here - not just on first load, but any
+    // time it was pointing at something that's since become unregistered or
+    // disconnected without going through the usual unregister() cleanup
+    // (e.g. a router-navigation race). Falls through to the normal scoring
+    // below from the freshly-picked baseline instead of just landing there
+    // and stopping - otherwise this same direction press looks like it did
+    // nothing (especially if the baseline happens to be wherever focus
+    // already visually was), and the user needs a second, "wasted" press
+    // before the D-pad/stick actually seems to respond.
     if (!this.currentEl || !candidates.includes(this.currentEl)) {
       const first = this.pickInitial(candidates);
-      if (first) this.focusElement(first);
-      return;
+      if (!first) return;
+      this.focusElement(first);
     }
 
-    const fromRect = this.currentEl.getBoundingClientRect();
+    const fromRect = this.currentEl!.getBoundingClientRect();
+    const scoped = this.constrainToRow(candidates, direction);
     let best: HTMLElement | null = null;
     let bestScore = Infinity;
 
-    for (const el of candidates) {
+    for (const el of scoped) {
       if (el === this.currentEl) continue;
       const score = this.score(fromRect, el.getBoundingClientRect(), direction);
       if (score !== null && score < bestScore) {
@@ -418,6 +672,22 @@ export class GamepadNavigationService implements OnDestroy {
     } else {
       this.scroll(direction);
     }
+  }
+
+  /**
+   * Controller Map v2's "row" concept: left/right movement from an element
+   * inside a marked row (GAMEPAD_ROW_SELECTOR) stays within that same row,
+   * rather than jumping to whatever's visually closest on the rest of the
+   * page - e.g. the top nav's "yap" -> "search" transition landing on a
+   * page-level button instead, just because it happened to sit closer on
+   * screen. Vertical movement is left unconstrained, since a row is a
+   * horizontal strip and "down" is how you leave it in the first place.
+   */
+  private constrainToRow(candidates: HTMLElement[], direction: Direction): HTMLElement[] {
+    if (direction !== 'left' && direction !== 'right') return candidates;
+    const row = this.currentEl?.closest(GAMEPAD_ROW_SELECTOR);
+    if (!row) return candidates;
+    return candidates.filter((el) => el.closest(GAMEPAD_ROW_SELECTOR) === row);
   }
 
   /**
@@ -500,6 +770,13 @@ export class GamepadNavigationService implements OnDestroy {
   }
 
   private activateCurrent(): void {
+    if (this.activateAction) {
+      let handled = false;
+      this.zone.run(() => {
+        handled = this.activateAction?.() ?? false;
+      });
+      if (handled) return;
+    }
     if (!this.currentEl) return;
     if (this.currentEl instanceof HTMLSelectElement) {
       if (this.selectMode === this.currentEl) {
@@ -538,23 +815,55 @@ export class GamepadNavigationService implements OnDestroy {
       this.exitRangeMode(false);
       return;
     }
-    let handled = false;
-    if (this.backAction) {
-      this.zone.run(() => {
-        handled = this.backAction?.() ?? false;
-      });
+    // Controller Map v2: B "dismisses" a focused row back to a neutral,
+    // nothing-highlighted state ("dismiss back to video"). Checked ahead
+    // of the page-level back action so a row always dismisses first, even
+    // on a page that also has its own setBackAction() override.
+    if (this.currentEl?.closest(GAMEPAD_ROW_SELECTOR)) {
+      this.dismissRow();
+      return;
     }
-    if (handled) return;
-    this.zone.run(() => this.location.back());
+    // B is otherwise "Nothing" in Default (viewing) per the map - no
+    // implicit browser-history-back fallback. A page that wants B to do
+    // something (e.g. close a dialog) still can via setBackAction(); a
+    // page with no override, or one whose action declines by returning
+    // false, just leaves B a no-op here.
+    if (this.backAction) {
+      this.zone.run(() => this.backAction?.());
+    }
   }
 
-  private changeRoute(offset: -1 | 1): void {
-    const currentPath = '/' + this.router.url.split(/[?#]/, 1)[0].split('/')[1];
-    const currentIndex = PAGE_ROUTES.indexOf(currentPath);
-    const nextIndex =
-      (Math.max(0, currentIndex) + offset + PAGE_ROUTES.length) %
-      PAGE_ROUTES.length;
-    this.zone.run(() => void this.router.navigateByUrl(PAGE_ROUTES[nextIndex]));
+  /**
+   * Clears gamepad focus entirely rather than landing it on whatever
+   * happens to be spatially nearest below the row - the map doesn't say a
+   * specific control should light up when a row is dismissed, just that
+   * the row goes away, so neither the row nor some arbitrary control (e.g.
+   * a Like button that merely happened to be closest) stays highlighted.
+   * The next direction press re-derives a starting focus on its own -
+   * moveFocus() already falls back to pickInitial() whenever currentEl is
+   * null - so navigation still works normally afterward.
+   */
+  private dismissRow(): void {
+    this.clearFocus();
+  }
+
+  /**
+   * Clears whatever element is currently tracked as gamepad-focused, with
+   * no replacement. A modal dialog opened from a row (e.g. search, opened
+   * from the top nav) should call this itself when it takes over input:
+   * otherwise the row button stays "current" behind the dialog, and B's
+   * row-dismiss handling in goBack() fires first and consumes the press -
+   * clearing focus with no visible effect, since the row isn't shown while
+   * the dialog covers it - before a second B press ever reaches the
+   * dialog's own setBackAction(). Calling this up front means there's no
+   * row left to dismiss, so the very first B reaches the dialog directly.
+   */
+  clearFocus(): void {
+    this.zone.run(() => {
+      this.currentEl?.classList.remove(FOCUS_CLASS);
+      this.currentEl?.blur();
+      this.currentEl = null;
+    });
   }
 
   private changeSelectOption(direction: Direction): void {
@@ -621,11 +930,4 @@ export class GamepadNavigationService implements OnDestroy {
     this.rangeInitialValue = '';
   }
 
-  private anyButtonPressed(
-    buttons: boolean[],
-    previousButtons: boolean[],
-    indexes: number[],
-  ): boolean {
-    return indexes.some((index) => buttons[index] && !previousButtons[index]);
-  }
 }

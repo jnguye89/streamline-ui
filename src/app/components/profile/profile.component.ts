@@ -40,6 +40,9 @@ export class ProfileComponent implements OnInit, OnDestroy {
   focusedVideo: any | null = null;
   isUploading = false;
   showPreviousButton: boolean = false;
+  // Only true on an actual Skriin kiosk device - see WifiStatusService for
+  // why a plain browser visitor never gets a truthy result here.
+  wifiAvailable = false;
 
   get isOwnProfile() {
     return !this.userId || this.userId === this.currentUserSub;

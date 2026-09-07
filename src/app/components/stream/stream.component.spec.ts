@@ -274,7 +274,7 @@ describe('StreamComponent', () => {
 
   it('swaps which source is primary only while Screen + cam is active', async () => {
     const swap = fixture.nativeElement.querySelector(
-      '[aria-label="Swap main display and facecam (or press Y)"]',
+      '[aria-label="Swap main display and facecam (or press X)"]',
     ) as HTMLButtonElement;
     expect(swap).not.toBeNull();
 
@@ -288,22 +288,23 @@ describe('StreamComponent', () => {
     fixture.detectChanges();
     expect(
       fixture.nativeElement.querySelector(
-        '[aria-label="Swap main display and facecam (or press Y)"]',
+        '[aria-label="Swap main display and facecam (or press X)"]',
       ),
     ).toBeNull();
   });
 
-  it('binds Y/LB/RB controller shortcuts on init and releases them on destroy', () => {
+  it('binds X/Y/LB/RB controller shortcuts on init and releases them on destroy', () => {
     expect(gamepadNavigation.setAuxButtonActions).toHaveBeenCalledWith({
+      x: jasmine.any(Function),
       y: jasmine.any(Function),
       lb: jasmine.any(Function),
       rb: jasmine.any(Function),
     });
 
     const bound = gamepadNavigation.setAuxButtonActions.calls.mostRecent()
-      .args[0] as { y: () => void; lb: () => void; rb: () => void };
+      .args[0] as { x: () => void; y: () => void; lb: () => void; rb: () => void };
 
-    bound.y();
+    bound.x();
     expect(mediaInput.swapSources).toHaveBeenCalled();
 
     bound.lb();
@@ -314,6 +315,18 @@ describe('StreamComponent', () => {
 
     fixture.destroy();
     expect(gamepadNavigation.clearAuxButtonActions).toHaveBeenCalled();
+  });
+
+  it('cycles Webcam -> Screen -> Screen+cam on Y, skipping unavailable modes', async () => {
+    // beforeEach leaves it on Screen + cam (see "defaults to Screen + cam" above)
+    await fixture.componentInstance.cycleDisplayMode();
+    expect(fixture.componentInstance.displayMode).toBe('webcam');
+
+    await fixture.componentInstance.cycleDisplayMode();
+    expect(fixture.componentInstance.displayMode).toBe('screen');
+
+    await fixture.componentInstance.cycleDisplayMode();
+    expect(fixture.componentInstance.displayMode).toBe('screen-cam');
   });
 
   it('mutes and unmutes the microphone from the LB control', () => {
