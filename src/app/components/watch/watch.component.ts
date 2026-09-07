@@ -83,7 +83,6 @@ const CHESS_DEMO_ITEM: ChessDemoItem = { type: 'chess-demo', id: 'chess-demo' };
 
 export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('player', { static: false }) playerRef!: ElementRef<HTMLVideoElement>;
-  @ViewChild('preloadContainer', { static: false }) preloadContainerRef!: ElementRef<HTMLElement>;
   @ViewChild('agoraContainer', { static: false }) agoraContainerRef!: ElementRef<HTMLElement>;
   @ViewChild('nextBtn', { static: true, read: ElementRef }) nextBtnRef!: ElementRef<HTMLElement>;
   @HostListener('window:keydown', ['$event'])
@@ -139,11 +138,22 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   volumeLevel = 100; // 0-100, bound in the template for the fading indicator
   showVolumeIndicator = false;
   private volumeIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
+  // Guards tryPlayCurrent() against overlapping calls (e.g. mashing the
+  // D-pad through several videos quickly): each call captures its own
+  // incrementing id and checks it's still the latest after every await -
+  // see tryPlayCurrent() for what goes wrong without this.
+  private playRequestId = 0;
   private progressPingRef: ReturnType<typeof setInterval> | null = null;
   private readonly PROGRESS_PING_MS = 10 * 1000;
   private readonly RESUME_NEAR_END_S = 15;
   private readonly VOD_PAGE_SIZE = 20;
   private readonly VOD_PREFETCH_THRESHOLD = 5;
+  // Where the chess slot lands in the feed - randomized once per page
+  // load (not re-rolled on every chess$/live$ poll, or its position would
+  // jump around while someone's mid-scroll) so it doesn't dominate what a
+  // visitor sees first every single time, while still surfacing early.
+  // 1..9 => the 2nd through 10th item, 0-indexed - see the playlist$ merge.
+  private readonly chessInsertIndex = 1 + Math.floor(Math.random() * 9);
   playlist: (PlayItem | LiveStream | ChessGameItem | ChessDemoItem)[] = [];
   currentIndex = 0;
   currentItem: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | null = null;
@@ -156,20 +166,22 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private isLoadingMoreVods = false;
   private vodExhausted = false;
   private lastViewCountedId: string | number | null = null;
-  private readonly PRELOAD_WINDOW_SIZE = 5;
-  // Only the very next video gets a real, fully-buffered <video> element -
-  // browsers cap how many media elements can actively decode/buffer at once,
-  // and blowing that budget was stalling the *real* player once you'd
-  // navigated past a handful of videos. The rest of the window is just
-  // warmed into the HTTP cache via <link rel="prefetch">, which doesn't
-  // touch a decoder.
-  private hotPreload: { src: string; el: HTMLVideoElement } | null = null;
-  private warmPrefetch = new Map<string, HTMLLinkElement>();
-  // Give the main player's own buffering a head start before competing for
-  // bandwidth - starting preload the instant we navigate was slowing down
-  // the video actually on screen.
-  private readonly PRELOAD_DELAY_MS = 3 * 1000;
-  private preloadTimerRef: ReturnType<typeof setTimeout> | null = null;
+  // There used to be a preload/prefetch subsystem here (a real "hot"
+  // <video> element for the very next item, later narrowed to just <link
+  // rel="prefetch"> tags for a window of upcoming items after the same bug
+  // showed up again with the real element). Both versions turned out to be
+  // the actual cause of the real player intermittently going blank on fast
+  // browsing sessions - first by contending with it for a scarce hardware
+  // decode session (kiosk/TV hardware tends to have very few), and even
+  // after narrowing to link-only prefetching, an unbounded number of
+  // full-video background fetches piling up over a longer session (10+
+  // videos) still appears able to starve or hang the real player's own
+  // request - browsers don't reliably cancel an in-flight prefetch just
+  // because its <link> tag was removed from the DOM. Recoverable only by a
+  // full reload, which is what actually freed everything up. Removed
+  // entirely rather than narrowed further: the browser's own buffering of
+  // whatever is actually on screen is enough, and it can't compete with
+  // itself.
 
   // YouTube embeds have to autoplay muted (browser policy), then get
   // unmuted through the IFrame Player API once loaded - see
@@ -290,7 +302,14 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // 3) Merge without reshuffling; only emit when the merged ids actually change
     const playlist$ = combineLatest([live$, chess$, vod$]).pipe(
       // map(([lives, vods]) => [...vods]),
-      map(([lives, chessGames, vods]) => [...lives, ...chessGames, ...vods]),
+      map(([lives, chessGames, vods]) => {
+        const videos = [...lives, ...vods];
+        // Clamped to the currently-known video count so this never throws
+        // for a short list (e.g. before more VOD pages have loaded) - chess
+        // just settles into its final spot once enough videos are in.
+        const insertAt = Math.min(this.chessInsertIndex, videos.length);
+        return [...videos.slice(0, insertAt), ...chessGames, ...videos.slice(insertAt)];
+      }),
       // distinctUntilChanged((a, b) => idsKey(a) === idsKey(b))
     );
 
@@ -353,7 +372,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.stopProgressPing();
     this.sendProgress(true);
     this.clearAutoHide();
-    if (this.preloadTimerRef) { clearTimeout(this.preloadTimerRef); this.preloadTimerRef = null; }
     if (this.volumeIndicatorTimer) { clearTimeout(this.volumeIndicatorTimer); this.volumeIndicatorTimer = null; }
     this.youtubePlayer?.destroy?.();
     this.gamepadNav.clearDpadActions();
@@ -370,14 +388,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     void this.agoraWatch.stop();
     const v = this.playerRef?.nativeElement;
     if (v) { v.src = ''; v.load(); }
-    if (this.hotPreload) {
-      this.hotPreload.el.src = '';
-      this.hotPreload.el.load();
-      this.hotPreload.el.remove();
-      this.hotPreload = null;
-    }
-    for (const [, link] of this.warmPrefetch) { link.remove(); }
-    this.warmPrefetch.clear();
   }
 
   // Navigation
@@ -435,10 +445,29 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private async tryPlayCurrent() {
     if (!this.currentItem || !this.viewReady$.value) return;
 
+    // next()/previous()/select() each fire this off with `void` rather
+    // than awaiting it, so mashing through several videos quickly (e.g.
+    // D-pad right, right, right) starts a new call before an earlier one
+    // has finished awaiting agoraWatch.stop()/watch()/el.play(). Every
+    // reference below used to go through the live `this.currentItem`
+    // field instead of a local snapshot, so an older call could resume
+    // after a newer one had already moved on, read the *new* item's type
+    // partway through acting on the *old* one, and tear down or repoint
+    // the shared <video> element for the wrong item - sometimes leaving it
+    // with no src at all. `item` pins this call to the item it started
+    // with; `requestId` lets it detect it's been superseded and stop
+    // touching shared state (rather than the reverse - trying to also
+    // guard `next()` itself, which would either drop presses or serialize
+    // them behind a slow agoraWatch.stop(), making the controls feel
+    // laggy instead of just fixing the actual data race).
+    const item = this.currentItem;
+    const requestId = ++this.playRequestId;
+    const stale = () => requestId !== this.playRequestId;
+
     // stop any previous live session when switching items
     await this.agoraWatch.stop();
+    if (stale()) return;
     this.chatMessages = [];
-    this.schedulePreloadWindow();
     this.syncDpadActionsForCurrentItem();
 
     const el = this.playerRef?.nativeElement;
@@ -447,18 +476,18 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // whenever the new one isn't also a YouTube embed - otherwise it just
     // sits there holding a postMessage channel open to an iframe that's
     // about to be repointed at something else entirely.
-    if (this.youtubePlayer && !this.isYouTube(this.currentItem)) {
+    if (this.youtubePlayer && !this.isYouTube(item)) {
       this.youtubePlayer.destroy?.();
       this.youtubePlayer = null;
       this.youtubePlayerItemId = null;
     }
 
-    if (this.currentItem.type === 'live') {
-      var curr = this.currentItem as LiveStream;
+    if (item.type === 'live') {
+      var curr = item as LiveStream;
       this.releasePlayerElement(el); // stop VOD element (if exists)
 
       // Join Agora as audience and render into container
-      const streamId = Number(this.currentItem.id); // your API id: 59
+      const streamId = Number(item.id); // your API id: 59
       const container = this.agoraContainerRef?.nativeElement;
       if (!container || Number.isNaN(streamId)) return;
 
@@ -467,11 +496,12 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       } catch (e) {
         console.warn('Failed to watch live stream:', e);
       }
+      if (stale()) return;
       this.socket.joinRoom(curr.channelName);
       return;
     }
 
-    if (this.currentItem.type === 'chess' || this.currentItem.type === 'chess-demo') {
+    if (item.type === 'chess' || item.type === 'chess-demo') {
       // No <video>/Agora surface for chess (real or the demo placeholder) -
       // just release whatever was playing. Board rendering + (for a real
       // game) its own socket room membership are owned by
@@ -496,13 +526,16 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       } catch { }
     }
 
-    if (this.isYouTube(this.currentItem)) return;
+    if (this.isYouTube(item)) return;
     if (!el) return;
 
     try {
       el.autoplay = true;
-      el.src = (this.currentItem as any).src;
+      el.src = (item as any).src;
       await el.play();
+      // A still-newer switch happened while play() was in flight - don't
+      // leave this now-stale item's video sitting there loaded/playing.
+      if (stale()) this.releasePlayerElement(el);
     } catch (e) {
       console.warn('Failed to start VOD:', e);
     }
@@ -521,16 +554,22 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch { }
   }
 
-  // A chess game needs all four d-pad directions free to move the board's
-  // own cursor across its gamepadFocusable squares (see
-  // GamepadNavigationService.moveFocus, which runs whenever no dpadActions
-  // override claims a direction) - so left/right are only bound to
-  // prev/next while something other than chess is on screen.
+  // The D-pad keeps paging the feed no matter what's on screen, chess
+  // included - so left/right always reach previous()/next() here, even for
+  // a live game. The board's own square-to-square cursor instead moves via
+  // the *left stick*: GamepadNavigationService only lets the stick fall
+  // through to a page-level dpadActions override when that override was
+  // registered with `includeStick` (see setDpadActions()'s doc comment) -
+  // this one deliberately isn't, so a stick tilt skips straight past these
+  // bindings to the generic spatial-focus movement underneath
+  // (GamepadNavigationService.moveFocus), which is what actually walks
+  // between the board's gamepadFocusable squares. Up/down have no
+  // page-level meaning for chess (no volume surface to adjust, unlike
+  // VOD), but still get claimed here as no-ops - left unclaimed, they'd
+  // fall through to that same generic movement too, and the D-pad would
+  // end up moving the board vertically while only being freed of it
+  // horizontally.
   private syncDpadActionsForCurrentItem(): void {
-    if (this.currentItem?.type === 'chess') {
-      this.gamepadNav.clearDpadActions();
-      return;
-    }
     this.gamepadNav.setDpadActions({
       left: () => { this.onUserActivity(); this.previous(); },
       right: () => { this.onUserActivity(); this.next(); },
@@ -542,6 +581,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         up: () => { this.onUserActivity(); this.adjustVolume(this.VOLUME_STEP); },
         down: () => { this.onUserActivity(); this.adjustVolume(-this.VOLUME_STEP); },
       } : {}),
+      // Chess: no volume surface either, but see the comment above - these
+      // still need claiming (as no-ops) purely to keep the D-pad off the
+      // board vertically too.
+      ...(this.currentItem?.type === 'chess' ? {
+        up: () => {},
+        down: () => {},
+      } : {}),
     });
   }
 
@@ -552,7 +598,16 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private adjustVolume(delta: number): void {
     this.volumeLevel = Math.min(100, Math.max(0, this.volumeLevel + delta));
     if (this.isYouTube(this.currentItem)) {
-      this.youtubePlayer?.setVolume(this.volumeLevel);
+      // Unlike togglePlayPause()/seekBy() below, this used to call
+      // setVolume() off a bare `?.` null-check on the player itself - but
+      // `new YT.Player(...)` returns a stub object immediately, before the
+      // real API attaches (see onYoutubeIframeLoad()'s onReady handler), so
+      // there's a real window where youtubePlayer is truthy but setVolume
+      // isn't a function yet. A volume press in that window threw an
+      // uncaught TypeError. Guard the method itself, same as the other two.
+      if (typeof this.youtubePlayer?.setVolume === 'function') {
+        this.youtubePlayer.setVolume(this.volumeLevel);
+      }
     } else {
       const video = this.playerRef?.nativeElement;
       if (video) video.volume = this.volumeLevel / 100;
@@ -666,7 +721,45 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.youtubePlayer && this.youtubePlayerItemId === itemId) return;
 
     await this.loadYoutubeIframeApi();
-    this.youtubePlayer?.destroy?.();
+
+    // The item can have moved on again while the API script load above was
+    // in flight (only actually slow the very first time - see
+    // loadYoutubeIframeApi() - but that's exactly when a burst of quick
+    // D-pad presses is most likely to race it). Creating a player for an
+    // item that's no longer current would either collide with whatever the
+    // *actual* current item's own (load) event is about to do, or end up
+    // talking to an iframe that's since navigated elsewhere - the
+    // postMessage-target-origin-mismatch warnings that produces. Bail and
+    // let the current item's own (load) event (already fired, or still to
+    // come) drive the real setup instead.
+    const stillCurrent = this.isYouTube(this.currentItem)
+      && (this.currentItem as { id: string | number }).id === itemId;
+    if (!stillCurrent) return;
+
+    // NOT calling this.youtubePlayer?.destroy?.() here, even though it
+    // looks like the obvious "tear down the old one first" step (and is
+    // exactly what tryPlayCurrent() does when leaving YouTube entirely) -
+    // per the IFrame API's own docs, destroy() *removes the <iframe>
+    // element from the DOM*. This handler runs on that same iframe's
+    // (load) event while it's still the one Angular's *ngIf is rendering
+    // (two YouTube videos back to back never toggle *ngIf, so the element
+    // is reused, only its [src] changes) - destroying it here rips out the
+    // exact element the line right below tries to hand to a new YT.Player,
+    // and does so *outside* Angular's own change detection, which still
+    // believes that iframe exists. The visible result: the video area goes
+    // permanently blank (Angular has no idea its element was pulled out
+    // from under it) while everything else on the page keeps working,
+    // fixed only by a full reload rebuilding the DOM from scratch - and
+    // depending on timing, the requests below can also end up canceled or
+    // stuck pending, since they were kicked off against an iframe that no
+    // longer exists.
+    // The IFrame API is built to hand an *existing* iframe to a new
+    // YT.Player and re-point it (that's the "internal navigation" this
+    // same handler already guards against re-triggering forever, see
+    // youtubePlayerItemId above) - so the right move for a genuine
+    // video-to-video switch is just to stop tracking the old JS wrapper
+    // and let a fresh one take over the same element, not tear the element
+    // down first.
     this.youtubePlayerItemId = itemId;
     this.youtubePlayer = new (window as any).YT.Player('watch-youtube-player', {
       events: {
@@ -711,73 +804,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     });
     this.youtubeApiReady$ = ready;
     return ready;
-  }
-
-  private schedulePreloadWindow(): void {
-    if (this.preloadTimerRef) clearTimeout(this.preloadTimerRef);
-    this.preloadTimerRef = setTimeout(() => {
-      this.preloadTimerRef = null;
-      this.computePreloadWindow();
-    }, this.PRELOAD_DELAY_MS);
-  }
-
-  // Keeps a sliding window of the next PRELOAD_WINDOW_SIZE VODs warmed up so
-  // playback is ready by the time the user gets there. Live items aren't
-  // preloadable this way (joined via Agora, not a src URL), so those are
-  // skipped when building the window. Each step forward drops whatever
-  // fell out of range and picks up exactly one new item at the tail.
-  private computePreloadWindow(): void {
-    const container = this.preloadContainerRef?.nativeElement;
-    if (!container || !this.playlist.length) return;
-
-    const target: string[] = [];
-    const seen = new Set<string>();
-    for (let step = 1; step < this.playlist.length && target.length < this.PRELOAD_WINDOW_SIZE; step++) {
-      const idx = (this.currentIndex + step) % this.playlist.length;
-      const item = this.playlist[idx];
-      if (!item || item.type !== 'vod' || this.isYouTube(item)) continue;
-      const src = item.src;
-      if (!src || seen.has(src)) continue;
-      seen.add(src);
-      target.push(src);
-    }
-
-    const [hotSrc, ...warmSrcs] = target;
-
-    if (this.hotPreload && this.hotPreload.src !== hotSrc) {
-      this.hotPreload.el.src = '';
-      this.hotPreload.el.load();
-      this.hotPreload.el.remove();
-      this.hotPreload = null;
-    }
-    if (hotSrc && !this.hotPreload) {
-      const el = document.createElement('video');
-      el.preload = 'auto';
-      el.muted = true;
-      el.playsInline = true;
-      (el as any).fetchPriority = 'low'; // don't compete with the visible player's own buffering
-      el.src = hotSrc;
-      container.appendChild(el);
-      el.load();
-      this.hotPreload = { src: hotSrc, el };
-    }
-
-    const warmSet = new Set(warmSrcs);
-    for (const [src, link] of this.warmPrefetch) {
-      if (warmSet.has(src)) continue;
-      link.remove();
-      this.warmPrefetch.delete(src);
-    }
-    for (const src of warmSrcs) {
-      if (this.warmPrefetch.has(src)) continue;
-      const link = document.createElement('link');
-      link.rel = 'prefetch';
-      link.as = 'video';
-      (link as any).fetchPriority = 'low';
-      link.href = src;
-      document.head.appendChild(link);
-      this.warmPrefetch.set(src, link);
-    }
   }
 
   onVideoLoaded(video: HTMLVideoElement) {
@@ -1003,15 +1029,29 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (videos) => {
-          const existingIds = new Set(this.vodItems$.value.map(v => v.id));
-          const fresh = videos
-            .map(v => this.mapVod(v))
-            .filter(v => !existingIds.has(v.id));
+          // mapVod() throwing on a single malformed record used to leave
+          // isLoadingMoreVods stuck true forever (it's only reset at the
+          // bottom of this callback) - loadMoreVods() would then silently
+          // no-op on every future call (see the guard above), permanently
+          // disabling pagination for the rest of the session with no error
+          // surfaced anywhere. Once that happens, next()/previous() just
+          // keep wrapping around whatever was already loaded - which, if
+          // it happened right as the player was mid-switch, could look a
+          // lot like the d-pad "stopped working" even though it's actually
+          // still doing something, just never anything new.
+          try {
+            const existingIds = new Set(this.vodItems$.value.map(v => v.id));
+            const fresh = videos
+              .map(v => this.mapVod(v))
+              .filter(v => !existingIds.has(v.id));
 
-          if (fresh.length === 0) {
-            this.vodExhausted = true;
-          } else {
-            this.vodItems$.next([...this.vodItems$.value, ...fresh]);
+            if (fresh.length === 0) {
+              this.vodExhausted = true;
+            } else {
+              this.vodItems$.next([...this.vodItems$.value, ...fresh]);
+            }
+          } catch (e) {
+            console.error('[WatchComponent] loadMoreVods() failed to process a page - will retry on the next threshold hit', e);
           }
           this.isLoadingMoreVods = false;
         },

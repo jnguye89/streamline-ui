@@ -95,11 +95,27 @@ export class GamepadNavigationService implements OnDestroy {
   private heldSince = 0;
   private lastRepeatAt = 0;
   private inputWindowActive = false;
+  // Tracks which direction a page's setDpadActions() override last fired
+  // for, regardless of whether the D-pad, the left stick, or a hat-axis
+  // D-pad emulation produced it (see pollGamepad()) - lets an override fire
+  // once per distinct press/deflection the same way a plain D-pad press
+  // always has, instead of only D-pad buttons getting that treatment.
+  private lastDpadOverrideDirection: Direction | null = null;
   private lastScrubAt = 0;
   private hardRefreshHoldSince = 0;
   private hardRefreshTriggered = false;
 
   private dpadActions: Partial<Record<Direction, () => void>> = {};
+  // Whether the *true* left stick (not the D-pad, and not a hat-axis
+  // D-pad emulation - see getStickDirection()) also reaches dpadActions,
+  // set per setDpadActions() call. Off by default: a page like Watch that
+  // fully claims the D-pad for dedicated controls (seek/volume) still
+  // needs the stick free to pan spatial focus to its nav bar/action row,
+  // since the D-pad has nothing left over to do that with. A page with no
+  // real DOM focus of its own to move between - e.g. the search dialog's
+  // on-screen keyboard - opts in instead, so the stick reaches it exactly
+  // like the D-pad does.
+  private dpadActionsIncludeStick = false;
   private auxActions: Partial<Record<AuxButton, () => void>> = {};
   private rightStickScrubAction: ((deltaSeconds: number) => void) | null = null;
   private backAction: (() => boolean) | null = null;
@@ -137,12 +153,19 @@ export class GamepadNavigationService implements OnDestroy {
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);
   }
 
-  setDpadActions(actions: Partial<Record<Direction, () => void>>): void {
+  setDpadActions(
+    actions: Partial<Record<Direction, () => void>>,
+    opts?: { includeStick?: boolean },
+  ): void {
     this.dpadActions = { ...actions };
+    this.dpadActionsIncludeStick = opts?.includeStick ?? false;
+    this.lastDpadOverrideDirection = null;
   }
 
   clearDpadActions(): void {
     this.dpadActions = {};
+    this.dpadActionsIncludeStick = false;
+    this.lastDpadOverrideDirection = null;
   }
 
   /**
@@ -305,7 +328,22 @@ export class GamepadNavigationService implements OnDestroy {
   }
 
   private loop = (): void => {
-    this.pollGamepad();
+    try {
+      this.pollGamepad();
+    } catch (err) {
+      // A page-level action thrown from here (e.g. calling a method on a
+      // not-yet-ready YouTube IFrame player - see WatchComponent's
+      // adjustVolume() history) must never kill this loop for the rest of
+      // the page's life. Without this catch, an uncaught throw here would
+      // skip the requestAnimationFrame() call below on this one frame -
+      // and neither onGamepadConnected() nor onGamepadDisconnected() would
+      // ever restart it afterward, since both only act when rafId is null,
+      // and rafId is left holding its last successfully-scheduled (already
+      // fired) id forever, never reset by the frame that threw. Logging
+      // and continuing keeps one bad frame from silently disabling gamepad
+      // input site-wide until a full page reload.
+      console.error('[GamepadNavigationService] pollGamepad() threw - continuing', err);
+    }
     this.rafId = requestAnimationFrame(this.loop);
   };
 
@@ -341,18 +379,26 @@ export class GamepadNavigationService implements OnDestroy {
       }
     }
 
-    // Fire page-specific D-pad overrides on the leading edge only.
-    const dpadMap: [number, Direction][] = [
-      [BUTTON_DPAD_UP, 'up'], [BUTTON_DPAD_DOWN, 'down'],
-      [BUTTON_DPAD_LEFT, 'left'], [BUTTON_DPAD_RIGHT, 'right'],
-    ];
-    for (const [btn, dir] of dpadMap) {
-      if (this.dpadActions[dir] && buttons[btn] && !this.prevButtons[btn]) {
+    // A page's setDpadActions() override always applies to the D-pad
+    // (buttons 12-15, or a hat-axis emulation of them - see
+    // getDpadDirection()), fired once per distinct press rather than on
+    // hold-repeat. The *true* left stick (getStickDirection()) only reaches
+    // the override when the page opted in via includeStick - otherwise it
+    // stays free to drive the generic spatial focus move below, same as
+    // when no override is set at all. See dpadActionsIncludeStick for why.
+    const dpadDir = this.getDpadDirection(pad, buttons);
+    const dir = dpadDir ?? this.getStickDirection(pad);
+    const canOverride = dpadDir !== null || this.dpadActionsIncludeStick;
+    if (dir && this.dpadActions[dir] && canOverride) {
+      if (dir !== this.lastDpadOverrideDirection) {
         this.zone.run(() => this.dpadActions[dir]!());
       }
+      this.lastDpadOverrideDirection = dir;
+      this.handleDirection(null);
+    } else {
+      this.lastDpadOverrideDirection = null;
+      this.handleDirection(dir);
     }
-
-    this.handleDirection(this.getDirection(pad, buttons));
     this.handleRightStickScrub(pad);
     this.handleHardRefreshCombo(buttons);
 
@@ -372,6 +418,7 @@ export class GamepadNavigationService implements OnDestroy {
     this.lastScrubAt = 0;
     this.hardRefreshHoldSince = 0;
     this.hardRefreshTriggered = false;
+    this.lastDpadOverrideDirection = null;
   }
 
   /**
@@ -491,17 +538,19 @@ export class GamepadNavigationService implements OnDestroy {
     // No cleanup needed - the page reloads shortly after this is shown.
   }
 
-  private getDirection(pad: Gamepad, buttons: boolean[]): Direction | null {
-    if (buttons[BUTTON_DPAD_UP] && !this.dpadActions['up']) return 'up';
-    if (buttons[BUTTON_DPAD_DOWN] && !this.dpadActions['down']) return 'down';
-    if (buttons[BUTTON_DPAD_LEFT] && !this.dpadActions['left']) return 'left';
-    if (buttons[BUTTON_DPAD_RIGHT] && !this.dpadActions['right']) return 'right';
-
-    const [x = 0, y = 0] = pad.axes;
-    if (x <= -AXIS_DEADZONE) return 'left';
-    if (x >= AXIS_DEADZONE) return 'right';
-    if (y <= -AXIS_DEADZONE) return 'up';
-    if (y >= AXIS_DEADZONE) return 'down';
+  /**
+   * D-pad direction: real buttons 12-15, or - for Bluetooth/driver
+   * combinations that expose an otherwise standard D-pad as axes instead of
+   * buttons - the equivalent hat-axis fallback. Deliberately excludes the
+   * true left stick (see getStickDirection()): both of these count as
+   * "the D-pad" for a setDpadActions() override, which always applies to
+   * them regardless of dpadActionsIncludeStick.
+   */
+  private getDpadDirection(pad: Gamepad, buttons: boolean[]): Direction | null {
+    if (buttons[BUTTON_DPAD_UP]) return 'up';
+    if (buttons[BUTTON_DPAD_DOWN]) return 'down';
+    if (buttons[BUTTON_DPAD_LEFT]) return 'left';
+    if (buttons[BUTTON_DPAD_RIGHT]) return 'right';
 
     // Some Bluetooth/driver combinations expose an otherwise standard Xbox
     // D-pad as a pair of hat axes instead of buttons 12–15. Browsers that
@@ -524,6 +573,20 @@ export class GamepadNavigationService implements OnDestroy {
       }
     }
     return null;
+  }
+
+  /** The true left stick (axes 0/1) only - see getDpadDirection(). */
+  private getStickDirection(pad: Gamepad): Direction | null {
+    const [x = 0, y = 0] = pad.axes;
+    if (x <= -AXIS_DEADZONE) return 'left';
+    if (x >= AXIS_DEADZONE) return 'right';
+    if (y <= -AXIS_DEADZONE) return 'up';
+    if (y >= AXIS_DEADZONE) return 'down';
+    return null;
+  }
+
+  private getDirection(pad: Gamepad, buttons: boolean[]): Direction | null {
+    return this.getDpadDirection(pad, buttons) ?? this.getStickDirection(pad);
   }
 
   private handleDirection(direction: Direction | null): void {
@@ -575,13 +638,22 @@ export class GamepadNavigationService implements OnDestroy {
       return;
     }
 
+    // currentEl can be null or stale here - not just on first load, but any
+    // time it was pointing at something that's since become unregistered or
+    // disconnected without going through the usual unregister() cleanup
+    // (e.g. a router-navigation race). Falls through to the normal scoring
+    // below from the freshly-picked baseline instead of just landing there
+    // and stopping - otherwise this same direction press looks like it did
+    // nothing (especially if the baseline happens to be wherever focus
+    // already visually was), and the user needs a second, "wasted" press
+    // before the D-pad/stick actually seems to respond.
     if (!this.currentEl || !candidates.includes(this.currentEl)) {
       const first = this.pickInitial(candidates);
-      if (first) this.focusElement(first);
-      return;
+      if (!first) return;
+      this.focusElement(first);
     }
 
-    const fromRect = this.currentEl.getBoundingClientRect();
+    const fromRect = this.currentEl!.getBoundingClientRect();
     const scoped = this.constrainToRow(candidates, direction);
     let best: HTMLElement | null = null;
     let bestScore = Infinity;
@@ -772,6 +844,21 @@ export class GamepadNavigationService implements OnDestroy {
    * null - so navigation still works normally afterward.
    */
   private dismissRow(): void {
+    this.clearFocus();
+  }
+
+  /**
+   * Clears whatever element is currently tracked as gamepad-focused, with
+   * no replacement. A modal dialog opened from a row (e.g. search, opened
+   * from the top nav) should call this itself when it takes over input:
+   * otherwise the row button stays "current" behind the dialog, and B's
+   * row-dismiss handling in goBack() fires first and consumes the press -
+   * clearing focus with no visible effect, since the row isn't shown while
+   * the dialog covers it - before a second B press ever reaches the
+   * dialog's own setBackAction(). Calling this up front means there's no
+   * row left to dismiss, so the very first B reaches the dialog directly.
+   */
+  clearFocus(): void {
     this.zone.run(() => {
       this.currentEl?.classList.remove(FOCUS_CLASS);
       this.currentEl?.blur();

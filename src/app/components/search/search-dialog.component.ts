@@ -245,12 +245,27 @@ export class SearchDialogComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    // Whatever was gamepad-focused on the page underneath (typically the
+    // top nav's search icon that opened this dialog) is still "current" as
+    // far as GamepadNavigationService knows - opening a MatDialog doesn't
+    // clear it. Left alone, that element sits inside the top nav row, so
+    // B's row-dismiss handling would consume the first press clearing it
+    // (invisibly, since the dialog covers the row) before a second B ever
+    // reaches this dialog's own setBackAction() below. Clearing it up
+    // front means the very first B closes the dialog.
+    this.gamepadNavigation.clearFocus();
+
+    // includeStick: true - the on-screen keyboard has no real DOM focus of
+    // its own for the left stick to fall back to moving (see the comment
+    // above), so unlike Watch (which needs the stick free to reach its nav
+    // bar/action row while the D-pad is busy with seek/volume) this dialog
+    // wants the stick to reach these same handlers, not just the D-pad.
     this.gamepadNavigation.setDpadActions({
       up: () => this.handleDirection('up'),
       down: () => this.handleDirection('down'),
       left: () => this.handleDirection('left'),
       right: () => this.handleDirection('right'),
-    });
+    }, { includeStick: true });
     this.gamepadNavigation.setActivateAction(() => {
       this.handleActivate();
       return true;

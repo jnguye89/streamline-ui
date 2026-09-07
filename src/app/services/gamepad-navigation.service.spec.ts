@@ -56,6 +56,23 @@ describe('GamepadNavigationService', () => {
     ).toBeFalse();
   });
 
+  it('keeps scheduling the next animation frame even if a page-level action throws (e.g. calling a method on a not-yet-ready player)', () => {
+    const rafSpy = spyOn(window, 'requestAnimationFrame').and.returnValue(123);
+    const pollSpy = spyOn(
+      service as unknown as { pollGamepad(): void },
+      'pollGamepad',
+    ).and.throwError('boom');
+    spyOn(console, 'error'); // expected - just keep it out of the test output
+
+    (service as unknown as { loop(): void }).loop();
+
+    expect(pollSpy).toHaveBeenCalledTimes(1);
+    // The whole point: a throw from pollGamepad() must not skip this call -
+    // otherwise nothing ever restarts the loop again for the rest of the
+    // page's life (see the comment on loop() itself).
+    expect(rafSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('does not apply raw-axis fallbacks to a normalized standard controller', () => {
     const pad = {
       axes: [0, 0, 0, 0],
@@ -122,6 +139,31 @@ describe('GamepadNavigationService', () => {
     expect(button.classList).not.toContain('gamepad-focused');
     expect(controls.currentEl).toBeNull();
     expect(backAction).not.toHaveBeenCalled();
+  });
+
+  it('reaches a page-level back action on the very first B when clearFocus() was called first (e.g. a dialog opened from a row button)', () => {
+    const row = document.createElement('div');
+    row.setAttribute('data-gamepad-row', 'top');
+    const button = document.createElement('button'); // e.g. the top nav's search icon
+    row.appendChild(button);
+    button.classList.add('gamepad-focused');
+
+    const controls = service as unknown as {
+      currentEl: HTMLElement | null;
+      goBack(): void;
+    };
+    controls.currentEl = button;
+
+    // Opening the dialog clears focus up front, same as SearchDialogComponent does.
+    service.clearFocus();
+    expect(controls.currentEl).toBeNull();
+
+    const backAction = jasmine.createSpy('backAction').and.returnValue(true);
+    service.setBackAction(backAction);
+
+    controls.goBack(); // first B - no row left to dismiss, so this reaches the dialog directly
+
+    expect(backAction).toHaveBeenCalledTimes(1);
   });
 
   it('keeps left/right movement inside a marked row instead of jumping to whatever page content is visually closest', () => {
@@ -204,6 +246,44 @@ describe('GamepadNavigationService', () => {
 
     row.remove();
     pageButton.remove();
+  });
+
+  it('still makes forward progress on the same press when currentEl is stale (disconnected/unregistered) instead of just re-establishing a baseline and stopping', () => {
+    const topButton = document.createElement('button'); // e.g. profile's "Upload Video"
+    document.body.appendChild(topButton);
+    const videoTile = document.createElement('div'); // e.g. a video grid tile below it
+    document.body.appendChild(videoTile);
+
+    spyOn(topButton, 'getBoundingClientRect').and.returnValue(
+      { left: 0, right: 100, top: 0, bottom: 40, width: 100, height: 40 } as DOMRect,
+    );
+    spyOn(videoTile, 'getBoundingClientRect').and.returnValue(
+      { left: 0, right: 100, top: 100, bottom: 200, width: 100, height: 100 } as DOMRect,
+    );
+
+    service.register(topButton);
+    service.register(videoTile);
+
+    const controls = service as unknown as {
+      currentEl: HTMLElement | null;
+      moveFocus(direction: string): void;
+    };
+    // Simulate a stale currentEl: something no longer registered/connected
+    // (e.g. left over from a router-navigation race), not one of the two
+    // live candidates above.
+    const stale = document.createElement('button');
+    controls.currentEl = stale;
+
+    controls.moveFocus('down');
+
+    // The stale reference gets replaced with a fresh baseline (topButton,
+    // topmost/leftmost) AND the still-pending 'down' press is honored from
+    // there in the same call, landing on videoTile - not left sitting on
+    // topButton waiting for a second press to actually move.
+    expect(controls.currentEl).toBe(videoTile);
+
+    topButton.remove();
+    videoTile.remove();
   });
 
   it('falls back to the page-level back action when focus is outside any row', () => {
@@ -388,6 +468,109 @@ describe('GamepadNavigationService', () => {
     poll([]);
     poll([7]); // RT leading edge
     expect(rt).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires a page-level D-pad override from the left stick only when the page opts in via includeStick (e.g. a dialog with no real DOM focus of its own)', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    const poll = (axes: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad([], axes)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    const left = jasmine.createSpy('left');
+    const right = jasmine.createSpy('right');
+    service.setDpadActions({ left, right }, { includeStick: true });
+
+    poll([0, 0]); // arms the input window - centered
+    poll([-1, 0]); // left stick pushed fully left
+    expect(left).toHaveBeenCalledTimes(1);
+    expect(right).not.toHaveBeenCalled();
+
+    poll([-1, 0]); // still held left - does not repeat-fire
+    expect(left).toHaveBeenCalledTimes(1);
+
+    poll([0, 0]); // back to center
+    poll([1, 0]); // pushed fully right
+    expect(right).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves the left stick free to pan spatial focus even in a claimed direction when the page has not opted in (e.g. Watch, which needs the stick to reach its nav bar/action row while the D-pad drives seek/volume)', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    const poll = (axes: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad([], axes)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    const left = jasmine.createSpy('left');
+    service.setDpadActions({ left }); // no includeStick - Watch's default usage
+    const moveFocusSpy = spyOn(
+      service as unknown as { moveFocus(direction: string): void },
+      'moveFocus',
+    );
+
+    poll([0, 0]); // arms the input window
+    poll([-1, 0]); // left stick pushed fully left - 'left' is claimed, but not for the stick
+
+    expect(left).not.toHaveBeenCalled();
+    expect(moveFocusSpy).toHaveBeenCalledWith('left');
+  });
+
+  it('does not also pan generic spatial focus while a real D-pad button override is consuming the direction', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    const poll = (pressed: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad(pressed)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    const left = jasmine.createSpy('left');
+    service.setDpadActions({ left }); // D-pad buttons always reach an override - no includeStick needed
+    const moveFocusSpy = spyOn(
+      service as unknown as { moveFocus(direction: string): void },
+      'moveFocus',
+    );
+
+    poll([]);
+    poll([14]); // D-pad left button (BUTTON_DPAD_LEFT) - overridden
+
+    expect(left).toHaveBeenCalledTimes(1);
+    expect(moveFocusSpy).not.toHaveBeenCalled();
+  });
+
+  it('still pans generic spatial focus via the left stick when a direction has no page-level override at all', () => {
+    spyOn(document, 'hasFocus').and.returnValue(true);
+    spyOnProperty(document, 'visibilityState', 'get').and.returnValue('visible');
+    const gamepadsSpy = spyOn(navigator, 'getGamepads');
+    const poll = (axes: number[]) => {
+      gamepadsSpy.and.returnValue(
+        [makePad([], axes)] as unknown as (Gamepad | null)[],
+      );
+      (service as unknown as { pollGamepad(): void }).pollGamepad();
+    };
+
+    // Only left/right are claimed (as Watch does) - up/down should still
+    // drive ordinary focus movement via the stick.
+    service.setDpadActions({ left: jasmine.createSpy('left') });
+    const moveFocusSpy = spyOn(
+      service as unknown as { moveFocus(direction: string): void },
+      'moveFocus',
+    );
+
+    poll([0, 0]); // arms the input window
+    poll([0, -1]); // stick pushed up - unclaimed direction
+
+    expect(moveFocusSpy).toHaveBeenCalledWith('up');
   });
 
   it('scrubs by a delta that scales with right-stick deflection, throttled to the update interval', () => {
