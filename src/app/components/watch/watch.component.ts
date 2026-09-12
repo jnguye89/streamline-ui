@@ -250,6 +250,18 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.socket.chatMessage$.pipe(takeUntil(this.destroy$)).subscribe(msg => this.onChatMessage(msg));
 
+    // Catches a navigation that reuses this exact component instance (e.g.
+    // clicking a chess "your turn" notification's View board action while
+    // already sitting on /watch/:id for something else) - Angular's default
+    // route reuse strategy keeps this component alive across param-only
+    // changes on the same route, so ngOnInit doesn't re-run and nothing else
+    // reacts to the param actually changing. No-ops harmlessly if the
+    // playlist hasn't loaded that id yet; the playlist$ subscription's own
+    // call to selectFromRouteId() covers that case once it has.
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.selectFromRouteId();
+    });
+
     // 1) VOD: server-randomized, no-repeat feed, paged in as the playlist is
     // consumed (see loadMoreVods / next())
     const vod$ = this.vodItems$.asObservable();
@@ -322,15 +334,11 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.playlist = list;
 
-        const videoId = this.route.snapshot.paramMap.get("id");
-
-        if (!!videoId) {
-          const selectedIndex = this.playlist.map(p => `${p.id}`).indexOf(videoId);
-          if (!!selectedIndex) {
-            this.currentIndex = selectedIndex;
-            this.currentItem = this.playlist[this.currentIndex];
-            void this.tryPlayCurrent();
-          }
+        // A route :id (e.g. a deep link, or a chess "View board" notification
+        // navigating here) always wins over "preserve whatever was already
+        // playing" below - see selectFromRouteId().
+        if (this.selectFromRouteId()) {
+          return;
         }
 
         if (currentId && currentType) {
@@ -361,6 +369,29 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       });
 
+  }
+
+  // Selects whichever playlist item matches the route's current :id param,
+  // if any and if it's actually in the (already-loaded) playlist yet.
+  // Pulled out of the playlist$ subscription above so it can also be called
+  // directly from the paramMap subscription in ngOnInit - Angular reuses
+  // this component across param-only navigations on the 'watch/:id' route
+  // (see app.routes.ts), so ngOnInit itself won't re-run and a plain
+  // route.snapshot read inside the playlist$ pipeline would otherwise only
+  // pick up a new id on the next unrelated poll tick (up to 15s later).
+  // Returns whether a match was applied, so callers can treat it as
+  // authoritative over other selection logic (see the early `return` above).
+  private selectFromRouteId(): boolean {
+    const videoId = this.route.snapshot.paramMap.get('id');
+    if (!videoId) return false;
+
+    const selectedIndex = this.playlist.map(p => `${p.id}`).indexOf(videoId);
+    if (selectedIndex === -1) return false; // not (yet) in the loaded playlist
+
+    this.currentIndex = selectedIndex;
+    this.currentItem = this.playlist[this.currentIndex];
+    void this.tryPlayCurrent();
+    return true;
   }
 
   ngAfterViewInit(): void {

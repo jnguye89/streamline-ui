@@ -90,3 +90,13 @@ export interface ChessAck {
   ok: boolean;
   error?: string;
 }
+
+// Sent over the socket's personal 'user:{id}' room (see EventsService.notifyUser
+// on the API), not a chess:{id} room broadcast - it reaches whoever's turn it
+// now is regardless of which screen they're on or whether they've joined that
+// game's room at all. opponentUsername is null if the opponent record somehow
+// isn't resolvable; the UI falls back to a generic "it's your turn" message.
+export interface ChessYourTurnPayload {
+  gameId: number;
+  opponentUsername: string | null;
+}

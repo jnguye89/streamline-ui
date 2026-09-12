@@ -1,9 +1,9 @@
 import { Injectable, OnDestroy } from "@angular/core";
-import { BehaviorSubject, Subject } from "rxjs";
+import { BehaviorSubject, Subject, skip } from "rxjs";
 import { io, Socket } from "socket.io-client";
 import { environment } from "../../../environments/environment";
 import { DeviceAuthService } from "../device-auth.service";
-import { ChessAck, ChessDrawDeclinedPayload, ChessDrawOfferedPayload, ChessEndedPayload, ChessJoinedPayload, ChessMovePayload } from "../../models/chess/chess-game.model";
+import { ChessAck, ChessDrawDeclinedPayload, ChessDrawOfferedPayload, ChessEndedPayload, ChessJoinedPayload, ChessMovePayload, ChessYourTurnPayload } from "../../models/chess/chess-game.model";
 
 export interface RoomUserJoined {
     userId: string;
@@ -33,7 +33,12 @@ export class RecordingSocketService implements OnDestroy {
     private socket?: Socket;
     private destroyed$ = new Subject<void>();
 
-    private connected$ = new BehaviorSubject<boolean>(false);
+    // Public (not just used internally) - ChessGameComponent listens for a
+    // reconnect so it can re-issue room:join for whatever room it had before,
+    // since Socket.IO does not restore server-side room membership by itself
+    // after a connection is torn down and recreated (see reconnect() below,
+    // and the client's own built-in auto-reconnect after a network drop).
+    connected$ = new BehaviorSubject<boolean>(false);
 
     roomUserJoined$ = new Subject<RoomUserJoined>();
     roomUserLeft$ = new Subject<RoomUserJoined>();
@@ -48,8 +53,53 @@ export class RecordingSocketService implements OnDestroy {
     chessJoined$ = new Subject<ChessJoinedPayload>();
     chessDrawOffered$ = new Subject<ChessDrawOfferedPayload>();
     chessDrawDeclined$ = new Subject<ChessDrawDeclinedPayload>();
+    // Personal "it's your turn" nudge - delivered over this same connection's
+    // own 'user:{id}' room (see 'user:register' below), independent of
+    // whether any chess:{id} room has been joined. Subscribed to app-wide by
+    // ChessTurnNotificationService, not scoped to ChessGameComponent like the
+    // other chess subjects above.
+    chessYourTurn$ = new Subject<ChessYourTurnPayload>();
 
-    constructor(private deviceAuth: DeviceAuthService) { }
+    constructor(private deviceAuth: DeviceAuthService) {
+        // Socket.IO's handshake `auth` payload (see connect() below) is
+        // captured once, at `io(...)` call time. If the socket first
+        // connects before the user logs in (the common case - connect() is
+        // called unconditionally on app boot), it just keeps riding that
+        // anonymous handshake forever otherwise: REST calls pick up a fresh
+        // Authorization header on every request via an interceptor, but this
+        // one long-lived socket never does. Concretely, that stale
+        // connection is exactly what made a chess move silently do nothing
+        // right after logging in to join a game - ChessGateway's chess:move
+        // handler is guarded by the *hard* WsJwtGuard, which requires a
+        // userId that was only ever going to be set from this socket's
+        // original (pre-login) unauthenticated handshake, so the ack this
+        // socket was waiting on never arrived and the click just appeared to
+        // do nothing. `skip(1)` ignores the value isAuthenticated$ already
+        // holds when this subscription starts (that's the state the current
+        // socket, if any, was already created with) and only reacts to
+        // actual login/logout transitions from here on. Only reconnects if
+        // a socket already exists - if nothing has called connect() yet,
+        // there's nothing stale to fix and the next explicit connect() call
+        // will already use whatever token is current at that point.
+        this.deviceAuth.isAuthenticated$.pipe(skip(1)).subscribe(() => {
+            if (this.socket) {
+                this.reconnect();
+            }
+        });
+    }
+
+    // Tears down any existing connection and opens a fresh one so the
+    // handshake picks up whatever access token is current right now - see
+    // the constructor above for why this needs to exist at all. Only
+    // reconnect()/connect() actually create a socket; nothing else should
+    // reach into `this.socket` to replace it.
+    reconnect(): void {
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = undefined;
+        }
+        this.connect();
+    }
 
     connect(): void {
         if (this.socket?.connected) {
@@ -66,6 +116,12 @@ export class RecordingSocketService implements OnDestroy {
         this.socket.on('connect', () => {
             this.connected$.next(true);
             console.log('[WS] connected', this.socket?.id);
+            // Register this socket into its own personal room right away so
+            // server-initiated personal events (e.g. chess:your-turn) reach
+            // it immediately - not only after some other feature happens to
+            // call joinRoom() for an unrelated room first. No-ops server-side
+            // for an anonymous (unauthenticated) connection.
+            this.socket?.emit('user:register');
         });
 
         this.socket.on('disconnect', () => {
@@ -111,6 +167,10 @@ export class RecordingSocketService implements OnDestroy {
 
         this.socket.on('chess:draw-declined', (payload: ChessDrawDeclinedPayload) => {
             this.chessDrawDeclined$.next(payload);
+        });
+
+        this.socket.on('chess:your-turn', (payload: ChessYourTurnPayload) => {
+            this.chessYourTurn$.next(payload);
         });
     }
 

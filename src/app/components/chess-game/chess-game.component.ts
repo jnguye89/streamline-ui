@@ -13,7 +13,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
+import { Subject, filter, skip, takeUntil } from 'rxjs';
 
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
 import {
@@ -27,6 +27,7 @@ import {
   ChessMovePayload,
 } from '../../models/chess/chess-game.model';
 import { DeviceAuthService } from '../../services/device-auth.service';
+import { ChessViewStateService } from '../../services/chess/chess-view-state.service';
 import { ChessService } from '../../services/chess/chess.service';
 import { RecordingSocketService } from '../../services/socket/recording.service';
 import { ChessBoardComponent } from '../chess-board/chess-board.component';
@@ -75,6 +76,7 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
     private socket: RecordingSocketService,
     private deviceAuth: DeviceAuthService,
     private router: Router,
+    private chessViewState: ChessViewStateService,
   ) {
     this.socket.chessMove$.pipe(takeUntil(this.destroy$)).subscribe((p) => this.onMove(p));
     this.socket.chessEnded$.pipe(takeUntil(this.destroy$)).subscribe((p) => this.onEnded(p));
@@ -88,6 +90,25 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
     // below already handles.
     this.socket.chessDrawOffered$.pipe(takeUntil(this.destroy$)).subscribe((p) => this.onDrawOffered(p));
     this.socket.chessDrawDeclined$.pipe(takeUntil(this.destroy$)).subscribe((p) => this.onDrawDeclined(p));
+
+    // Socket.IO does not restore server-side room membership by itself
+    // after the underlying connection is torn down and recreated - whether
+    // that's RecordingSocketService.reconnect() firing after a login/logout
+    // (see that service for why it exists) or the client's own built-in
+    // auto-reconnect after a network blip. Without this, a room join made on
+    // the connection that existed before either of those would silently stop
+    // delivering chess:move/joined/draw-offered/etc. for this game until the
+    // user happened to navigate away and back (which re-runs switchToGame()
+    // from scratch and rejoins as a side effect) - this re-joins directly the
+    // moment the socket comes back, `skip(1)` so the BehaviorSubject's
+    // current value at subscribe time doesn't count as a "reconnect".
+    this.socket.connected$
+      .pipe(skip(1), filter(Boolean), takeUntil(this.destroy$))
+      .subscribe(() => {
+        if (this.joinedRoomId) {
+          this.socket.joinRoom(this.joinedRoomId);
+        }
+      });
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -99,6 +120,10 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
 
   ngOnDestroy(): void {
     this.leaveCurrentRoom();
+    // Nobody's looking at any board anymore once this component itself is
+    // torn down (WatchComponent's *ngIf only keeps it mounted while a chess
+    // item is the current playlist item - see watch.component.html).
+    this.chessViewState.setCurrentGame(null);
     if (this.errorTimer) clearTimeout(this.errorTimer);
     this.destroy$.next();
     this.destroy$.complete();
@@ -301,6 +326,7 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
 
   private switchToGame(id: number): void {
     this.leaveCurrentRoom();
+    this.chessViewState.setCurrentGame(id);
     this.errorMessage = null;
     this.state = null;
     this.loading = true;
