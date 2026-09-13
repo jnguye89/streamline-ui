@@ -56,6 +56,21 @@ export class ChessBoardComponent implements OnChanges {
   // actually does anything.
   @Input() interactive = false;
 
+  // Whether the game has actually started (both seats filled) - a separate
+  // axis from `interactive` above. `interactive` is about whose *turn* it
+  // is within a game that's already live, and deliberately leaves squares
+  // focusable even when it isn't your turn (see the comment above) so d-pad
+  // "looking around" a live game still works. There's nothing to look
+  // around on a game that's still 'waiting' for a second player though - no
+  // moves made, nobody to spectate yet - so this one genuinely disables the
+  // squares via the native `disabled` attribute (see the template) rather
+  // than just dimming them: GamepadNavigationService.isFocusable() already
+  // skips disabled buttons entirely, so the only thing left selectable on
+  // the page while this is false is the Join button. Defaults true so the
+  // auto-play demo board (always interactive=false anyway, nothing to do
+  // with a real game) doesn't need to think about this at all.
+  @Input() gameLive = true;
+
   @Output() move = new EventEmitter<{ from: string; to: string; promotion?: string }>();
 
   // Always built in white-orientation order (a8..h8 ... a1..h1); the

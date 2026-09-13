@@ -53,7 +53,7 @@
     </div>
 
     <!-- Side nav buttons -->
-    <button gamepadFocusable class="nav prev" mat-icon-button (click)="previous()" [disabled]="!hasMany" aria-label="Previous">
+    <button gamepadFocusable class="nav prev" mat-icon-button (click)="previous()" [disabled]="!hasMany || !canGoBack" aria-label="Previous">
       <mat-icon>skip_previous</mat-icon>
     </button>
 

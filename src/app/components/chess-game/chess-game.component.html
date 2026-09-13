@@ -67,7 +67,7 @@
   </div>
 
   <app-chess-board class="board" [fen]="state?.fen ?? ''" [orientation]="orientation" [interactive]="isMyTurn"
-    (move)="onMoveAttempt($event)">
+    [gameLive]="state?.status === 'active'" (move)="onMoveAttempt($event)">
   </app-chess-board>
 
   <div class="chess-error" *ngIf="errorMessage" aria-live="polite">{{ errorMessage }}</div>
