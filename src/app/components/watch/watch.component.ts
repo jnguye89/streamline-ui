@@ -158,6 +158,26 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   currentIndex = 0;
   currentItem: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | null = null;
   get hasMany() { return this.playlist.length > 1; }
+  // Distinct from hasMany: there may be other items to show, but the
+  // viewer hasn't actually gone anywhere yet to go "back" to (right
+  // after first load, or right after a fresh deep link / continue-
+  // watching jump / new chess game resets history) - see pushHistory().
+  get canGoBack() { return this.historyIndex > 0; }
+
+  // Deterministic back/forward through what's actually been shown,
+  // tracked separately from playlist position. this.playlist is NOT a
+  // stable ordering over time - live$ and chess$ each re-poll on their
+  // own 15s timers and can change the live count or which chess item is
+  // surfaced, which shifts everything after them, and loadMoreVods()
+  // appends further VOD pages - so a raw currentIndex+/-1 can't reliably
+  // answer "what was two videos ago," since the answer can silently move
+  // out from under it between polls. Storing just a stable identity
+  // (id+type) per visited step, and re-resolving it against whatever
+  // this.playlist looks like right now (resolveHistoryEntry), keeps
+  // previous()/next() correct regardless of how the underlying list has
+  // reshuffled since.
+  private historyKeys: Array<{ id: string | number; type: string }> = [];
+  private historyIndex = -1;
 
   // Internal streams
   // private playlist$ = new BehaviorSubject<PlayItem[]>([]);
@@ -258,8 +278,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // reacts to the param actually changing. No-ops harmlessly if the
     // playlist hasn't loaded that id yet; the playlist$ subscription's own
     // call to selectFromRouteId() covers that case once it has.
+    // `false`: don't fetch-fallback from here (see selectFromRouteId) - this
+    // fires as soon as ngOnInit runs, before live$/chess$/vod$ have
+    // necessarily emitted even once, so "not in the playlist yet" doesn't
+    // yet mean anything - the playlist$ subscription's own call (below)
+    // covers that once there's actually something loaded to check against.
     this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.selectFromRouteId();
+      this.selectFromRouteId(false);
     });
 
     // 1) VOD: server-randomized, no-repeat feed, paged in as the playlist is
@@ -336,8 +361,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
         // A route :id (e.g. a deep link, or a chess "View board" notification
         // navigating here) always wins over "preserve whatever was already
-        // playing" below - see selectFromRouteId().
-        if (this.selectFromRouteId()) {
+        // playing" below - see selectFromRouteId(). `true`: this callback
+        // only runs once live$/chess$/vod$ have each emitted at least once
+        // (combineLatest), so if a chess game of the viewer's own is open,
+        // chess$ has already surfaced it by now - "still not found" here
+        // genuinely means "not a currently-open game of mine", so it's safe
+        // to let selectFromRouteId try fetching it as a video instead.
+        if (this.selectFromRouteId(true)) {
           return;
         }
 
@@ -359,6 +389,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
           const firstLiveIndex = this.playlist.findIndex(i => i.type === 'live');
           this.currentIndex = firstLiveIndex >= 0 ? firstLiveIndex : 0;
           this.currentItem = this.playlist[this.currentIndex] ?? null;
+          if (this.currentItem) this.pushHistory(this.currentItem);
           void this.tryPlayCurrent();
           setTimeout(() => {
             console.log('Requesting focus on next button:', this.nextBtnRef?.nativeElement);
@@ -381,17 +412,80 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // pick up a new id on the next unrelated poll tick (up to 15s later).
   // Returns whether a match was applied, so callers can treat it as
   // authoritative over other selection logic (see the early `return` above).
-  private selectFromRouteId(): boolean {
+  // The id last successfully applied via the route - once a route id has
+  // been consumed this way, ordinary scrolling (next()/previous()/select(),
+  // none of which touch the route) owns `currentItem` until the route
+  // points somewhere new. Without this, selectFromRouteId() re-ran on every
+  // playlist$ emission forever (live$/chess$/vod$ each poll on their own
+  // timers), so as long as the URL still carried an old id, the very next
+  // poll snapped the view straight back to it - undoing whatever the
+  // viewer had scrolled to since. That's what made a chess game (or
+  // anything else scrolled to) look like it kept vanishing on its own.
+  private appliedRouteId: string | null = null;
+  // Prevents firing a second fetchVideoByRouteId() for the same id while
+  // one is already in flight - selectFromRouteId() can be called several
+  // times in quick succession (paramMap subscription, then every
+  // playlist$ emission) before the network request resolves.
+  private fetchingRouteVideoId: string | null = null;
+
+  private selectFromRouteId(allowFetchFallback: boolean): boolean {
     const videoId = this.route.snapshot.paramMap.get('id');
-    if (!videoId) return false;
+    if (!videoId || videoId === this.appliedRouteId) return false;
 
     const selectedIndex = this.playlist.map(p => `${p.id}`).indexOf(videoId);
-    if (selectedIndex === -1) return false; // not (yet) in the loaded playlist
+    if (selectedIndex !== -1) {
+      this.appliedRouteId = videoId;
+      this.currentIndex = selectedIndex;
+      this.currentItem = this.playlist[this.currentIndex];
+      this.pushHistory(this.currentItem);
+      void this.tryPlayCurrent();
+      return true;
+    }
 
-    this.currentIndex = selectedIndex;
-    this.currentItem = this.playlist[this.currentIndex];
-    void this.tryPlayCurrent();
-    return true;
+    // Not in whatever's loaded right now. getVideos() (see loadMoreVods)
+    // samples the VOD feed randomly per request rather than paging through
+    // a stable list, so there is no guarantee a specific video ever turns
+    // up in it again - which is exactly the gap that made a deep link back
+    // to one exact video (e.g. Profile's "back to video" button,
+    // ProfileComponent.goToWatch()) land on whatever random item the
+    // "first init" fallback further below picked instead of the video the
+    // viewer actually came from. Fetch it directly instead of hoping.
+    if (allowFetchFallback) this.fetchVideoByRouteId(videoId);
+    return false;
+  }
+
+  private fetchVideoByRouteId(videoId: string): void {
+    const numericId = Number(videoId);
+    // Chess games and videos are both plain numeric ids from separate DB
+    // tables, so a chess id could coincidentally match some unrelated
+    // video's id - but a chess deep link is always resolved by chess$
+    // itself (see the `true` call site's comment above) before this ever
+    // runs, so anything reaching here is safe to treat as a video id.
+    if (!Number.isFinite(numericId) || this.fetchingRouteVideoId === videoId) return;
+    this.fetchingRouteVideoId = videoId;
+
+    this.videoService.getVideoById(numericId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (video) => {
+          this.fetchingRouteVideoId = null;
+          // Navigated elsewhere while this was in flight - stale response.
+          if (this.route.snapshot.paramMap.get('id') !== videoId) return;
+
+          const item = this.mapVod(video);
+          if (!this.playlist.some(p => `${p.id}` === videoId)) {
+            this.playlist = [item, ...this.playlist];
+          }
+          this.appliedRouteId = videoId;
+          this.currentIndex = this.playlist.findIndex(p => `${p.id}` === videoId);
+          this.currentItem = this.playlist[this.currentIndex];
+          this.pushHistory(this.currentItem);
+          void this.tryPlayCurrent();
+        },
+        // Doesn't exist (deleted, bad id) - leave appliedRouteId unset and
+        // let the normal "first init" fallback take over on its own.
+        error: () => { this.fetchingRouteVideoId = null; },
+      });
   }
 
   ngAfterViewInit(): void {
@@ -421,6 +515,35 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (v) { v.src = ''; v.load(); }
   }
 
+  // Records `item` as the current point in history, discarding any
+  // "redo" entries beyond it - same semantics as a browser tab: navigating
+  // somewhere new (a route deep link, continue-watching, starting a fresh
+  // chess game) collapses whatever forward stack existed past this point.
+  // A no-op if `item` is already the current entry, so re-resolving the
+  // same item against a freshly-polled playlist (see the playlist$
+  // subscription below) never records a duplicate step.
+  private pushHistory(item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem): void {
+    const top = this.historyIndex >= 0 ? this.historyKeys[this.historyIndex] : undefined;
+    if (top && top.id === item.id && top.type === item.type) return;
+
+    if (this.historyIndex < this.historyKeys.length - 1) {
+      this.historyKeys = this.historyKeys.slice(0, this.historyIndex + 1);
+    }
+    this.historyKeys.push({ id: item.id, type: item.type });
+    this.historyIndex = this.historyKeys.length - 1;
+  }
+
+  // Re-locates a history entry inside the current (possibly reshuffled)
+  // playlist by stable identity. Null if that item isn't loaded at all any
+  // more (e.g. a live stream that's since ended) - callers skip past a
+  // vanished entry rather than getting stuck showing dead content.
+  private resolveHistoryEntry(
+    key: { id: string | number; type: string }
+  ): { item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem; index: number } | null {
+    const index = this.playlist.findIndex(x => x.id === key.id && x.type === key.type);
+    return index >= 0 ? { item: this.playlist[index], index } : null;
+  }
+
   // Navigation
   next() {
     this.stopProgressPing();
@@ -433,8 +556,41 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.currentIndex >= this.playlist.length - this.VOD_PREFETCH_THRESHOLD) {
       this.loadMoreVods();
     }
-    this.currentIndex = (this.currentIndex + 1) % this.playlist.length;
-    this.currentItem = this.playlist[this.currentIndex];
+
+    // Redo first: step forward through history already visited (e.g.
+    // right after previous()), skipping any entry that's since dropped out
+    // of the playlist. Only once there's nothing left to redo do we
+    // discover something genuinely new.
+    let resolved: { item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem; index: number } | null = null;
+    while (this.historyIndex < this.historyKeys.length - 1 && !resolved) {
+      this.historyIndex++;
+      resolved = this.resolveHistoryEntry(this.historyKeys[this.historyIndex]);
+    }
+
+    if (!resolved) {
+      // At the frontier: find the next item nobody's seen yet this
+      // session, searching forward from the current position and wrapping
+      // around the (possibly-reshuffled) playlist, so scrolling forward
+      // never repeats itself while there's still something new loaded.
+      // Falls back to a plain wraparound repeat only once literally
+      // everything loaded so far has already been shown.
+      const shown = new Set(this.historyKeys.map(k => `${k.type}:${k.id}`));
+      for (let step = 1; step <= this.playlist.length && !resolved; step++) {
+        const idx = (this.currentIndex + step) % this.playlist.length;
+        const candidate = this.playlist[idx];
+        if (!shown.has(`${candidate.type}:${candidate.id}`)) {
+          resolved = { item: candidate, index: idx };
+        }
+      }
+      if (!resolved) {
+        const idx = (this.currentIndex + 1) % this.playlist.length;
+        resolved = { item: this.playlist[idx], index: idx };
+      }
+      this.pushHistory(resolved.item);
+    }
+
+    this.currentIndex = resolved.index;
+    this.currentItem = resolved.item;
     this.clearAutoHide();
     void this.tryPlayCurrent();
   }
@@ -443,8 +599,21 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.stopProgressPing();
     this.sendProgress();
     if (!this.playlist.length) return;
-    this.currentIndex = (this.currentIndex - 1 + this.playlist.length) % this.playlist.length;
-    this.currentItem = this.playlist[this.currentIndex];
+
+    // Walk backward through history (skipping any entry that's since
+    // vanished from the playlist) rather than touching playlist position
+    // directly - see the class-level comment above historyKeys.
+    let resolved: { item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem; index: number } | null = null;
+    let idx = this.historyIndex;
+    while (idx > 0 && !resolved) {
+      idx--;
+      resolved = this.resolveHistoryEntry(this.historyKeys[idx]);
+    }
+    if (!resolved) return; // nothing further back still exists
+
+    this.historyIndex = idx;
+    this.currentIndex = resolved.index;
+    this.currentItem = resolved.item;
     this.clearAutoHide();
     void this.tryPlayCurrent();
   }
@@ -455,6 +624,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.sendProgress();
     this.currentIndex = i;
     this.currentItem = this.playlist[i];
+    this.pushHistory(this.currentItem);
     this.clearAutoHide();
     void this.tryPlayCurrent();
   }
@@ -1027,7 +1197,21 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private mapVod(v: Video): PlayItem {
     return {
       type: 'vod',
-      id: (v as any).id ?? crypto.randomUUID(),
+      // YouTube-sourced entries have no DB row and so no numeric `id` at all
+      // (see VideoDto/toYoutubeVideoDto on the API) - falling back to a
+      // fresh crypto.randomUUID() here meant every single YouTube video
+      // looked brand new on every page, forever, since nothing about it
+      // could ever match a previously-seen id. That's what let them dodge
+      // the exact same-id dedup this method's own caller (loadMoreVods)
+      // relies on for local videos: once the local catalog cycled through
+      // its own real ids and started recycling, those got correctly
+      // filtered as repeats, while YouTube entries - always "new" - kept
+      // flooding in behind them, which is why the feed felt like "a few
+      // local videos, then just YouTube" instead of staying mixed.
+      // `externalId` is YouTube's own stable per-video id, so reusing it
+      // (namespaced so it can never collide with a numeric local id) lets
+      // this same dedup logic recognize a repeated YouTube video too.
+      id: (v as any).id ?? ((v as any).externalId ? `yt:${(v as any).externalId}` : crypto.randomUUID()),
       title: (v as any).title ?? (v as any).name ?? 'Video',
       user: (v as any).user,
       src: v.processedPath ?? v.videoPath,
@@ -1111,6 +1295,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
             if (idx >= 0) {
               this.currentIndex = idx;
               this.currentItem = this.playlist[idx];
+              this.pushHistory(this.currentItem);
               this.clearAutoHide();
               void this.tryPlayCurrent();
             }

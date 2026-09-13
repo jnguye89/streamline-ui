@@ -27,6 +27,14 @@ export class VideoService {
     return this.http.get<Video | null>(`${this.apiUrl}/video/continue-watching`);
   }
 
+  // Fetches one exact video by id, regardless of whether it's in whatever
+  // random page getVideos() happens to have served - see the API's own
+  // VideoService.getVideoById for why that distinction matters for a deep
+  // link to one specific video.
+  getVideoById(id: number): Observable<Video> {
+    return this.http.get<Video>(`${this.apiUrl}/video/${id}`);
+  }
+
   getStreamStatus(): Observable<StreamStatus> {
     return this.http.get<StreamStatus>(`${this.apiUrl}/video/status`);
   }
