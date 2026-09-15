@@ -4,6 +4,7 @@ import {
   Component,
   ElementRef,
   HostListener,
+  NgZone,
   OnDestroy,
   OnInit,
   Renderer2,
@@ -242,7 +243,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private gamepadNav: GamepadNavigationService,
     private renderer: Renderer2,
     private deviceAuth: DeviceAuthService,
-    private chessService: ChessService
+    private chessService: ChessService,
+    private zone: NgZone
   ) { }
 
   ngOnInit() {
@@ -974,6 +976,29 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
           // silently reset volume to 100 every time.
           e.target.setVolume(this.volumeLevel);
           e.target.playVideo();
+        },
+        // Mirrors the native <video>'s (ended)="next()" binding in
+        // watch.component.html - without this, a YouTube embed just sits
+        // on its own "video ended" screen forever instead of advancing
+        // like a regular VOD does. YT.PlayerState.ENDED === 0 (avoiding
+        // the enum since this.youtubePlayer/the YT namespace are kept
+        // `any`-typed - see the field comment above).
+        onStateChange: (e: { data: number }) => {
+          if (e.data !== 0) return;
+          // Guard against a stale player's callback firing after the user
+          // has already navigated elsewhere (same race onYoutubeIframeLoad
+          // itself guards against via `stillCurrent` above) - only advance
+          // if this player is still the one actually bound to the current
+          // item.
+          if (!this.isYouTube(this.currentItem)
+            || (this.currentItem as { id: string | number }).id !== itemId) return;
+          // The IFrame API talks to this callback over postMessage, which
+          // isn't reliably inside Angular's zone the way a real DOM
+          // (ended) event is - run next() explicitly inside it so the
+          // resulting currentItem/currentIndex change actually triggers
+          // change detection instead of silently updating state the view
+          // never repaints for.
+          this.zone.run(() => this.next());
         },
       },
     });
