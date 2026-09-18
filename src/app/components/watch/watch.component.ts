@@ -94,14 +94,18 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     const isTyping = !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
     if (isTyping) return;
 
+    // ArrowLeft/ArrowRight prev/next (and, during a chess game, arrow-key
+    // board navigation) are already handled by
+    // GamepadNavigationService.onKeyDown, which mirrors whatever the D-pad
+    // is currently bound to for this page (see syncDpadActionsForCurrentItem)
+    // - that's also where left/right stay bound to previous()/next() even
+    // mid-game. Handling ArrowLeft/ArrowRight again here used to
+    // double-fire previous()/next() for a single keypress outside of
+    // chess, since both listeners are active on window:keydown at once.
+    // This listener now only needs to register "the user is actively
+    // using the keyboard" for every other key, matching what
+    // onUserActivity()'s mousemove/click bindings already do for the mouse.
     this.onUserActivity();
-    // While a chess game is on screen, arrow keys move the board's own
-    // cursor between squares (via GamepadNavigationService's spatial focus
-    // movement over the board's gamepadFocusable squares - see
-    // syncDpadActionsForCurrentItem) rather than paging the feed.
-    if (this.currentItem?.type === 'chess') return;
-    if (e.key === 'ArrowLeft') { e.preventDefault(); this.previous(); }
-    if (e.key === 'ArrowRight') { e.preventDefault(); this.next(); }
   }
 
   @HostListener('window:mousemove')
@@ -254,10 +258,19 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // so it's free here without touching what Y does on Live/Podcast
     // (show/hide chat) or overloading A, which stays a plain "activate
     // whatever's focused" everywhere on this page.
+    // X: Like (Controller Map v2 calls for "X = Like, hold = Follow" on
+    // Watch) - only the straightforward like is wired here, same as the
+    // on-screen heart button; there's no hold-to-follow gesture support in
+    // GamepadNavigationService yet and no confirmed Follow feature to wire
+    // it to, so that half is left out rather than half-built. onLike()
+    // itself already no-ops for anything that isn't a plain VOD (live,
+    // chess, YouTube - see its own guard), so X is harmless to press
+    // anywhere else on this page.
     this.gamepadNav.setAuxButtonActions({
       lt: () => this.seekBy(-10),
       rt: () => this.seekBy(30),
       y: () => this.togglePlayPause(),
+      x: () => this.onLike(),
     });
     // Right stick left/right: continuous analog scrub (map: "push distance
     // = speed") - same seekBy() the LT/RT taps use, just with a variable
@@ -1199,10 +1212,18 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   onLike(): void {
-    if (this.currentItem?.type !== 'vod') return;
+    // Matches the on-screen like button's own *ngIf (see watch.component.html)
+    // - YouTube-sourced items don't get a like button there since there's
+    // nowhere on our own backend to record a like against them, only a
+    // real VOD id. Re-checked here rather than only in the template because
+    // this is now also reachable straight from the X button (see
+    // ngOnInit's setAuxButtonActions), which bypasses the template
+    // entirely.
+    if (this.currentItem?.type !== 'vod' || this.isYouTube(this.currentItem)) return;
     const item = this.currentItem;
     if (item.liked) return;
 
+    this.onUserActivity();
     item.liked = true;
     item.likeCount = (item.likeCount ?? 0) + 1;
     this.videoService.addLike(item.id).subscribe({ error: () => { } });

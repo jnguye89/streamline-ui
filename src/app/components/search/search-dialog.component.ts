@@ -255,17 +255,22 @@ export class SearchDialogComponent implements OnInit, OnDestroy {
     // front means the very first B closes the dialog.
     this.gamepadNavigation.clearFocus();
 
-    // includeStick: true - the on-screen keyboard has no real DOM focus of
-    // its own for the left stick to fall back to moving (see the comment
-    // above), so unlike Watch (which needs the stick free to reach its nav
-    // bar/action row while the D-pad is busy with seek/volume) this dialog
-    // wants the stick to reach these same handlers, not just the D-pad.
+    // stickOnly: true - the left stick drives the on-screen keyboard, and
+    // the D-pad is claimed but deliberately inert here rather than also
+    // wired to the same handleDirection() calls: unlike Watch (which needs
+    // the stick free to reach its nav bar/action row while the D-pad is
+    // busy with seek/volume), this dialog has no other DOM focus of its
+    // own for the stick to fall back to - but it also must not let the
+    // D-pad fall through to the top nav row sitting behind it (see
+    // clearFocus() above). "Claimed but inert" is what stickOnly gives:
+    // a D-pad press here does nothing at all, on purpose, while the stick
+    // keeps working exactly as before.
     this.gamepadNavigation.setDpadActions({
       up: () => this.handleDirection('up'),
       down: () => this.handleDirection('down'),
       left: () => this.handleDirection('left'),
       right: () => this.handleDirection('right'),
-    }, { includeStick: true });
+    }, { stickOnly: true });
     this.gamepadNavigation.setActivateAction(() => {
       this.handleActivate();
       return true;
