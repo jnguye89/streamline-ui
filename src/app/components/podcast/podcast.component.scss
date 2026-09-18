@@ -124,6 +124,8 @@
 }
 
 .user-picker__search {
+  display: block;
+  width: calc(100% - 24px);
   margin: 0 12px 8px;
   padding: 8px 10px;
   background: rgba(255, 255, 255, 0.06);
@@ -131,9 +133,16 @@
   border-radius: 8px;
   color: #fff;
   font-size: 13px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
   outline: none;
 
   &::placeholder { color: rgba(255, 255, 255, 0.3); }
+}
+
+.user-picker__search-text {
+  &.placeholder { color: rgba(255, 255, 255, 0.3); }
 }
 
 .user-picker__list {
