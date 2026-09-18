@@ -16,16 +16,21 @@
   <div class="user-picker" *ngIf="showUserPicker">
     <div class="user-picker__header">
       <span class="user-picker__title">People</span>
-      <button gamepadFocusable class="user-picker__close" (click)="showUserPicker = false">
+      <button gamepadFocusable class="user-picker__close" (click)="closeUserPicker()">
         <mat-icon>close</mat-icon>
       </button>
     </div>
 
-    <input class="user-picker__search" type="search" placeholder="Search users…" />
+    <button gamepadFocusable
+            type="button"
+            class="user-picker__search"
+            (click)="openPeopleSearch()">
+      <span class="user-picker__search-text" [class.placeholder]="!searchControl.value">{{ searchControl.value || 'Search users…' }}</span>
+    </button>
 
     <div class="user-picker__list">
       <label gamepadFocusable class="user"
-             *ngFor="let u of (users$ | async)"
+             *ngFor="let u of (filteredUsers$ | async)"
              [class.self]="u.auth0UserId == (user$ | async)?.sub">
         <input type="checkbox"
                [(ngModel)]="selected[u.agoraUserId]"
@@ -40,7 +45,7 @@
       <!-- <mat-slide-toggle gamepadFocusable [(ngModel)]="isVideo" [disabled]="isPodcast">Video</mat-slide-toggle> -->
       <button gamepadFocusable mat-flat-button color="primary"
               [disabled]="selectedCount === 0"
-              (click)="callSelected(); showUserPicker = false">
+              (click)="callSelected(); closeUserPicker()">
         Call {{ selectedCount > 0 ? '(' + selectedCount + ')' : '' }}
       </button>
     </div>

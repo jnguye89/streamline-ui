@@ -1,10 +1,10 @@
 import { CommonModule } from "@angular/common";
 import { AfterViewInit, Component, ElementRef, inject, OnDestroy, OnInit, ViewChild, ViewEncapsulation } from "@angular/core";
-import { FormsModule } from "@angular/forms";
+import { FormControl, FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
 import { RtmService } from "../../services/agora/rtm.service";
-import { concatMap, filter, firstValueFrom, Observable, of, Subject, take, takeUntil } from "rxjs";
+import { combineLatest, concatMap, filter, firstValueFrom, map, Observable, of, startWith, Subject, take, takeUntil } from "rxjs";
 import { ActivatedRoute, Router } from "@angular/router";
 import { Auth0User } from "../../models/auth0-user.model";
 import { UserService } from "../../services/user.service";
@@ -20,12 +20,13 @@ import { MatIconModule } from "@angular/material/icon";
 import { StreamService } from "../../services/stream.service";
 import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
+import { TextKeyboardDialogComponent, TextKeyboardSuggestion } from "../search/text-keyboard-dialog.component";
 
 @Component({
   selector: "app-podcast",
   standalone: true,
   encapsulation: ViewEncapsulation.None,
-  imports: [CommonModule, FormsModule, MatButtonModule, MatSlideToggleModule,
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, MatButtonModule, MatSlideToggleModule,
     MatIconModule, GamepadFocusableDirective],
   templateUrl: "./podcast.component.html",
   styleUrl: "./podcast.component.scss",
@@ -37,6 +38,18 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
   sidebarCollapsed = false;
   isAuthenticated$ = this.deviceAuth.isAuthenticated$;
   users$: Observable<Auth0User[]> = of();
+  // Live filter over users$ driven by the "Add person" search box - see
+  // openPeopleSearch()/searchControl below. Reassigned alongside users$
+  // itself in init()'s subscribe callback, for the same reason users$ is:
+  // it needs to be built from the real getUsers() stream, not the of()
+  // placeholder above (an already-completed empty observable would leave
+  // combineLatest() with nothing to combine, and it would never emit).
+  filteredUsers$: Observable<Auth0User[]> = of([]);
+  // Bound to the "Add person" search input and shared with
+  // TextKeyboardDialogComponent's on-screen keyboard - see
+  // openPeopleSearch(). Typing on that keyboard updates this control
+  // directly, which filteredUsers$ above reacts to live.
+  searchControl = new FormControl('');
   user$: Observable<DeviceUser | null> = of();
   isVideo = true;
   isPodcast = false;
@@ -78,6 +91,68 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
 
   toggleUserPicker() {
     this.showUserPicker = !this.showUserPicker;
+    if (!this.showUserPicker) {
+      this.searchControl.setValue('');
+    }
+  }
+
+  closeUserPicker() {
+    this.showUserPicker = false;
+    this.searchControl.setValue('');
+  }
+
+  // Opens the same on-screen keyboard the top-nav search icon uses (see
+  // SearchDialogComponent), bound to this page's own searchControl instead
+  // of a user-search API call - so typing here just live-filters the
+  // already-loaded users$ list via filteredUsers$, no network round trip.
+  // The dialog's own backdrop fully blurs/darkens the user-picker list
+  // behind it, so filteredUsers$ updating live isn't visible to the user
+  // while the dialog is open - suggestions$ mirrors those same matches
+  // into a results list inside the dialog itself (same as global search),
+  // and tapping/activating one toggles that person's selection via the
+  // existing toggleSelection(), same as tapping their row in the list.
+  openPeopleSearch() {
+    this.dialog.open(TextKeyboardDialogComponent, {
+      width: '560px',
+      maxWidth: '95vw',
+      maxHeight: '90vh',
+      position: { top: '6%' },
+      panelClass: 'spotlight-panel',
+      backdropClass: 'spotlight-backdrop',
+      autoFocus: false,
+      data: {
+        control: this.searchControl,
+        placeholder: 'Search users…',
+        // Empty (not "everyone") until the user actually types something -
+        // filteredUsers$ itself returns the full list for an empty term
+        // (that's the right behavior for the page's own list behind the
+        // dialog), but that would make results non-empty from the moment
+        // the dialog opens. TextKeyboardDialogComponent's keyboard<->results
+        // mode switch only triggers at the keyboard's boundary rows when
+        // results.length > 0, so a non-empty list from frame one traps the
+        // very first up/down press into results mode before the user has
+        // typed anything - "moving around with the joystick" (grid
+        // navigation) would stop working immediately. Gating on the raw
+        // search term here (not just filteredUsers$'s output) keeps this
+        // matching SearchDialogComponent's own contract: no query, no
+        // results, full keyboard-grid navigation until you start typing.
+        suggestions$: combineLatest([
+          this.filteredUsers$,
+          this.user$,
+          this.searchControl.valueChanges.pipe(startWith(this.searchControl.value)),
+        ]).pipe(
+          map(([users, me, term]) => {
+            if (!(term ?? '').trim()) return [];
+            return users
+              .filter(u => u.auth0UserId !== me?.sub)
+              .slice(0, 8)
+              .map(u => ({ id: u.agoraUserId, label: u.username }));
+          })
+        ),
+        onSelectSuggestion: (item: TextKeyboardSuggestion) => this.toggleSelection(item.id as number),
+        isSuggestionSelected: (item: TextKeyboardSuggestion) => !!this.selected[item.id as number],
+      },
+    });
   }
 
   online(uid: number) {
@@ -208,6 +283,15 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
         this.userId = u.agoraUserId;
         this.orchestrator.initForUser(this.userId!);
         this.users$ = this.userService.getUsers();
+        this.filteredUsers$ = combineLatest([
+          this.users$,
+          this.searchControl.valueChanges.pipe(startWith(this.searchControl.value)),
+        ]).pipe(
+          map(([users, term]) => {
+            const q = (term ?? '').trim().toLowerCase();
+            return q ? users.filter(u => u.username?.toLowerCase().includes(q)) : users;
+          })
+        );
       });
 
     this.rtm.incomingInvite$.subscribe(async ({ from, channel, media }) => {
