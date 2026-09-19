@@ -280,6 +280,19 @@ export class SearchDialogComponent implements OnInit, OnDestroy {
       return true;
     });
 
+    // LT/RT have no page-specific job here otherwise (this dialog isn't
+    // Watch, so they're not seeking video), and reaching Space/Delete
+    // normally means navigating the stick all the way down to the
+    // keyboard's action row every time - tedious for the two keys used on
+    // almost every word. Bound as one-shot shortcuts straight to those
+    // keys, on the same LT=backward/RT=forward convention the map already
+    // uses for Watch's seek jump (LT -10s / RT +30s): LT deletes
+    // (backward), RT spaces (forward, advancing past the current word).
+    this.gamepadNavigation.setAuxButtonActions({
+      lt: () => this.keyboard?.activateKey(this.keyboard.ACTION_ROW, 1), // Delete
+      rt: () => this.keyboard?.activateKey(this.keyboard.ACTION_ROW, 0), // Space
+    });
+
     this.query.valueChanges.pipe(
       debounceTime(300),
       distinctUntilChanged(),
@@ -321,6 +334,7 @@ export class SearchDialogComponent implements OnInit, OnDestroy {
     this.gamepadNavigation.clearDpadActions();
     this.gamepadNavigation.clearActivateAction();
     this.gamepadNavigation.setBackAction(null);
+    this.gamepadNavigation.clearAuxButtonActions();
     this.destroy$.next();
     this.destroy$.complete();
   }
