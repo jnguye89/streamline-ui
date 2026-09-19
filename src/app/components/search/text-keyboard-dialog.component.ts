@@ -234,6 +234,15 @@ export class TextKeyboardDialogComponent implements OnInit, OnDestroy {
       return true;
     });
 
+    // Same LT/RT shortcut as SearchDialogComponent (see its ngOnInit for
+    // the full reasoning) - one-shot Delete/Space so the two most-used
+    // keys don't require navigating the stick down to the action row every
+    // time, on the map's existing LT=backward/RT=forward convention.
+    this.gamepadNavigation.setAuxButtonActions({
+      lt: () => this.keyboard?.activateKey(this.keyboard.ACTION_ROW, 1), // Delete
+      rt: () => this.keyboard?.activateKey(this.keyboard.ACTION_ROW, 0), // Space
+    });
+
     this.data.suggestions$?.pipe(takeUntil(this.destroy$)).subscribe(items => {
       this.results = items;
       this.focusedIndex = Math.min(this.focusedIndex, Math.max(items.length - 1, 0));
@@ -305,6 +314,7 @@ export class TextKeyboardDialogComponent implements OnInit, OnDestroy {
     this.gamepadNavigation.clearDpadActions();
     this.gamepadNavigation.clearActivateAction();
     this.gamepadNavigation.setBackAction(null);
+    this.gamepadNavigation.clearAuxButtonActions();
     this.destroy$.next();
     this.destroy$.complete();
   }

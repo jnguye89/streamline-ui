@@ -152,6 +152,12 @@ export class GamepadNavigationService implements OnDestroy {
   private dpadStickOnly = false;
   private auxActions: Partial<Record<AuxButton, () => void>> = {};
   private rightStickScrubAction: ((deltaSeconds: number) => void) | null = null;
+  // J/L keyboard equivalent of the right stick's continuous scrub - see
+  // startKeyScrub()/stopKeyScrub()/tickKeyScrub(). 0 = not scrubbing;
+  // -1/1 = which direction is currently held (J/L respectively).
+  private keyScrubDirection: -1 | 0 | 1 = 0;
+  private keyScrubTimer: ReturnType<typeof setInterval> | null = null;
+  private lastKeyScrubAt = 0;
   private backAction: (() => boolean) | null = null;
   private activateAction: (() => boolean) | null = null;
   private selectMode: HTMLSelectElement | null = null;
@@ -173,6 +179,11 @@ export class GamepadNavigationService implements OnDestroy {
     window.addEventListener('gamepadconnected', this.onGamepadConnected);
     window.addEventListener('gamepaddisconnected', this.onGamepadDisconnected);
     window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('keyup', this.onKeyUp);
+    // Safety net for startKeyScrub(): if focus leaves the window entirely
+    // while J/L is held (e.g. alt-tab), no keyup ever arrives here to stop
+    // it - without this, a scrub could run forever in the background.
+    window.addEventListener('blur', this.stopKeyScrub);
 
     if (this.hasConnectedGamepad()) {
       this.zone.runOutsideAngular(() => this.loop());
@@ -184,6 +195,9 @@ export class GamepadNavigationService implements OnDestroy {
     window.removeEventListener('gamepadconnected', this.onGamepadConnected);
     window.removeEventListener('gamepaddisconnected', this.onGamepadDisconnected);
     window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keyup', this.onKeyUp);
+    window.removeEventListener('blur', this.stopKeyScrub);
+    this.stopKeyScrub();
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);
   }
 
@@ -360,12 +374,29 @@ export class GamepadNavigationService implements OnDestroy {
 
     // Keyboard equivalents of the LB/RB/Y/X aux buttons - Q/E is the
     // standard "shoulder button" convention, Y and X match their
-    // on-screen hint / controller face letter.
+    // on-screen hint / controller face letter. (LT/RT have no keyboard
+    // equivalent of their own outside the on-screen-keyboard dialogs' own
+    // Space/Backspace shortcut - see setAuxButtonActions() callers. J/L
+    // are the right stick's keyboard equivalent instead - see below.)
     const auxKeyMap: Record<string, AuxButton> = { q: 'lb', e: 'rb', y: 'y', x: 'x' };
     const auxKey = auxKeyMap[e.key.toLowerCase()];
     if (auxKey && this.auxActions[auxKey]) {
       e.preventDefault();
       this.zone.run(() => this.auxActions[auxKey]!());
+      return;
+    }
+
+    // J/L = the right stick's keyboard equivalent ("Scrub timeline back/
+    // forward - push distance = speed", Controller Map v2). A physical
+    // keyboard has no analog push distance, so holding J/L scrubs at a
+    // fixed, full-speed rate for as long as the key is held - see
+    // startKeyScrub()/stopKeyScrub(). Only meaningful wherever a page has
+    // opted into right-stick scrub via setRightStickScrubAction() (Watch's
+    // VOD playback today); a no-op page never starts a scrub at all.
+    const keyLower = e.key.toLowerCase();
+    if ((keyLower === 'j' || keyLower === 'l') && this.rightStickScrubAction) {
+      e.preventDefault();
+      if (!e.repeat) this.startKeyScrub(keyLower === 'j' ? -1 : 1);
       return;
     }
 
@@ -375,11 +406,98 @@ export class GamepadNavigationService implements OnDestroy {
       return;
     }
 
-    if (e.key === 'Escape' || e.key === 'Backspace') {
+    // Space bar = the RT shortcut's keyboard equivalent. Only meaningful
+    // inside the on-screen-keyboard dialogs (the only places that set
+    // dpadStickOnly + bind rt), so it's a no-op everywhere else - nothing
+    // else in the app listens for a bare space keypress today.
+    if (e.key === ' ' && this.dpadStickOnly && this.auxActions['rt']) {
+      e.preventDefault();
+      this.zone.run(() => this.auxActions['rt']!());
+      return;
+    }
+
+    if (e.key === 'Escape') {
       e.preventDefault();
       this.goBack();
+      return;
+    }
+
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      // Inside the on-screen-keyboard dialogs (dpadStickOnly + lt bound),
+      // Backspace means "delete a character" - the natural MacBook-keyboard
+      // equivalent of LT/Delete. Everywhere else (including Watch, which
+      // binds lt/rt for seek-jump but never sets dpadStickOnly) Backspace
+      // keeps its existing app-wide meaning: go back/close.
+      if (this.dpadStickOnly && this.auxActions['lt']) {
+        this.zone.run(() => this.auxActions['lt']!());
+      } else {
+        this.goBack();
+      }
     }
   };
+
+  /**
+   * Releasing J or L stops the key-driven scrub it started, but only if
+   * that's the direction actually currently running - releasing the key
+   * that ISN'T driving the current scrub (e.g. briefly tapping L while J
+   * is held) must not stop it. Deliberately does not check
+   * rightStickScrubAction here (unlike startKeyScrub): a page can change
+   * mid-hold (e.g. navigating away from Watch while J is still physically
+   * held down), and the scrub must still stop cleanly on keyup regardless.
+   */
+  private onKeyUp = (e: KeyboardEvent): void => {
+    const key = e.key.toLowerCase();
+    if ((key === 'j' && this.keyScrubDirection === -1) || (key === 'l' && this.keyScrubDirection === 1)) {
+      this.stopKeyScrub();
+    }
+  };
+
+  /**
+   * Starts (or redirects) the J/L keyboard scrub - see the J/L handling in
+   * onKeyDown() above. Idempotent for the same direction so browser key
+   * auto-repeat (which onKeyDown already filters via e.repeat, but this
+   * guard is cheap insurance) can't stack multiple intervals; switching
+   * direction (J held, then L pressed too) just redirects the existing
+   * interval rather than running two at once, matching a real stick which
+   * can only point one way.
+   */
+  private startKeyScrub(direction: -1 | 1): void {
+    this.keyScrubDirection = direction;
+    this.lastKeyScrubAt = 0;
+    if (this.keyScrubTimer !== null) return;
+    this.keyScrubTimer = setInterval(() => this.tickKeyScrub(), SCRUB_UPDATE_INTERVAL_MS);
+  }
+
+  private stopKeyScrub = (): void => {
+    this.keyScrubDirection = 0;
+    if (this.keyScrubTimer !== null) {
+      clearInterval(this.keyScrubTimer);
+      this.keyScrubTimer = null;
+    }
+  };
+
+  /**
+   * Fixed-speed counterpart to handleRightStickScrub()'s analog one: a
+   * physical keyboard has no "how far pushed" to ease in from, so J/L
+   * scrub at the stick's max speed for as long as they're held, using the
+   * same SCRUB_MAX_SECONDS_PER_SEC/SCRUB_UPDATE_INTERVAL_MS constants and
+   * real-elapsed-time dt so it's consistent whichever input drives it. If
+   * the bound page clears its scrub action (or was never one to begin
+   * with) mid-hold, this stops itself rather than silently doing nothing
+   * forever on a dangling interval.
+   */
+  private tickKeyScrub(): void {
+    const action = this.rightStickScrubAction;
+    if (!action || this.keyScrubDirection === 0) {
+      this.stopKeyScrub();
+      return;
+    }
+    const now = performance.now();
+    const dt = this.lastKeyScrubAt ? (now - this.lastKeyScrubAt) / 1000 : SCRUB_UPDATE_INTERVAL_MS / 1000;
+    this.lastKeyScrubAt = now;
+    this.zone.run(() => action(SCRUB_MAX_SECONDS_PER_SEC * this.keyScrubDirection * dt));
+  }
 
   private onGamepadConnected = (): void => {
     if (this.rafId === null) {
