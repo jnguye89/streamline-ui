@@ -22,6 +22,7 @@ import {
   BehaviorSubject,
   Subject,
   combineLatest,
+  filter,
   map,
   shareReplay,
   switchMap,
@@ -188,6 +189,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // private playlist$ = new BehaviorSubject<PlayItem[]>([]);
   private viewReady$ = new BehaviorSubject<boolean>(false);
   private vodItems$ = new BehaviorSubject<PlayItem[]>([]);
+  // Flips true once the first VOD page has resolved (success or failure) -
+  // or the continue-watching item has been seeded. vodItems$ is a
+  // BehaviorSubject that starts as [], so without this gate the playlist
+  // would emit its first value before any videos exist; the chess slot's
+  // clamp (Math.min(chessInsertIndex, videos.length)) would then collapse
+  // to 0 and chess would become the first item - and stick as currentItem.
+  private vodLoaded$ = new BehaviorSubject<boolean>(false);
   private isLoadingMoreVods = false;
   private vodExhausted = false;
   private lastViewCountedId: string | number | null = null;
@@ -304,7 +312,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // 1) VOD: server-randomized, no-repeat feed, paged in as the playlist is
     // consumed (see loadMoreVods / next())
-    const vod$ = this.vodItems$.asObservable();
+    // Held back until the first VOD page has resolved (see vodLoaded$) so
+    // the very first playlist emission - the one that picks currentItem -
+    // already has real videos to position the chess slot against.
+    const vod$ = combineLatest([this.vodItems$, this.vodLoaded$]).pipe(
+      filter(([, loaded]) => loaded),
+      map(([vods]) => vods)
+    );
     this.loadMoreVods();
 
     // Cross-device resume: if logged in and not deep-linked to a specific
@@ -399,10 +413,14 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         }
 
-        // First init
+        // First init: prefer a live stream, then the first non-chess item,
+        // and only land on chess if it's genuinely all there is (e.g. the
+        // VOD fetch failed and nothing is live). Chess should be discovered
+        // partway through the feed, never be the landing item.
         if (!this.currentItem) {
           const firstLiveIndex = this.playlist.findIndex(i => i.type === 'live');
-          this.currentIndex = firstLiveIndex >= 0 ? firstLiveIndex : 0;
+          const firstNonChessIndex = this.playlist.findIndex(i => i.type !== 'chess' && i.type !== 'chess-demo');
+          this.currentIndex = firstLiveIndex >= 0 ? firstLiveIndex : (firstNonChessIndex >= 0 ? firstNonChessIndex : 0);
           this.currentItem = this.playlist[this.currentIndex] ?? null;
           if (this.currentItem) this.pushHistory(this.currentItem);
           void this.tryPlayCurrent();
@@ -1315,8 +1333,11 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
             console.error('[WatchComponent] loadMoreVods() failed to process a page - will retry on the next threshold hit', e);
           }
           this.isLoadingMoreVods = false;
+          // Even an empty/failed page opens the gate, so the playlist
+          // (live + chess) still shows up rather than waiting forever.
+          if (!this.vodLoaded$.value) this.vodLoaded$.next(true);
         },
-        error: () => { this.isLoadingMoreVods = false; }
+        error: () => { this.isLoadingMoreVods = false; if (!this.vodLoaded$.value) this.vodLoaded$.next(true); }
       });
   }
 
@@ -1335,8 +1356,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
           if (!current.some(v => v.id === item.id)) {
             this.vodItems$.next([item, ...current]);
           }
+          // Seeded before the first VOD page may have landed: open the gate
+          // now (after the next() above, so it emits exactly once, with the
+          // item already in) so the playlist lookup below can find it.
+          if (!this.vodLoaded$.value) this.vodLoaded$.next(true);
 
-          if (this.currentItem?.type !== 'live' && this.currentItem?.type !== 'chess' && this.currentItem?.type !== 'chess-demo') {
+          const alreadyCurrent = this.currentItem?.type === 'vod' && this.currentItem.id === item.id;
+          if (!alreadyCurrent && this.currentItem?.type !== 'live' && this.currentItem?.type !== 'chess' && this.currentItem?.type !== 'chess-demo') {
             const idx = this.playlist.findIndex(p => p.type === 'vod' && p.id === item.id);
             if (idx >= 0) {
               this.currentIndex = idx;
