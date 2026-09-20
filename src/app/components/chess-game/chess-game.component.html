@@ -50,6 +50,10 @@
         Play the Computer
       </button>
 
+      <button #newGameBtn gamepadFocusable *ngIf="canStartNewGame" class="chess-cta new-game" (click)="startNewGame()">
+        New Game
+      </button>
+
       <ng-container *ngIf="mySeat && state?.status === 'active'">
         <ng-container *ngIf="incomingDrawOffer; else offerOrPending">
           <button gamepadFocusable class="chess-cta accept" (click)="acceptDraw()">

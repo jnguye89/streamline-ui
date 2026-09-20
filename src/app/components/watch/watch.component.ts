@@ -374,7 +374,21 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         // for a short list (e.g. before more VOD pages have loaded) - chess
         // just settles into its final spot once enough videos are in.
         const insertAt = Math.min(this.chessInsertIndex, videos.length);
-        return [...videos.slice(0, insertAt), ...chessGames, ...videos.slice(insertAt)];
+
+        // chess$ only ever lists 'waiting'/'active' games, so a game that
+        // just ended (checkmate, resignation, timeout...) drops out of it on
+        // the very next 15s poll. Without this, the "current item
+        // disappeared" branch below would then auto-advance the viewer away
+        // from the result screen - before they could read it or click "New
+        // Game". Keep the game on screen in its slot for as long as it's the
+        // current item; once the viewer leaves it, the next poll drops it.
+        const current = this.currentItem;
+        const chessSlot =
+          current?.type === 'chess' && !chessGames.some(g => g.type === 'chess' && g.id === current.id)
+            ? [current]
+            : chessGames;
+
+        return [...videos.slice(0, insertAt), ...chessSlot, ...videos.slice(insertAt)];
       }),
       // distinctUntilChanged((a, b) => idsKey(a) === idsKey(b))
     );

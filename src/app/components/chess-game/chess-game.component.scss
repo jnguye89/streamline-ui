@@ -139,6 +139,12 @@
     background: rgba(255, 71, 87, 0.15);
   }
 
+  &.new-game {
+    border-color: rgba(3, 218, 198, 0.5);
+    background: rgba(3, 218, 198, 0.18);
+    font-weight: 600;
+  }
+
   &.accept {
     border-color: rgba(3, 218, 198, 0.5);
     background: rgba(3, 218, 198, 0.18);

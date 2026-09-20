@@ -11,7 +11,7 @@
 // entirely) still has to be handled explicitly rather than relying on
 // Angular destroying/recreating the component.
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
+import { Component, ElementRef, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, ViewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { Chess } from 'chess.js';
 import { Subject, filter, skip, takeUntil } from 'rxjs';
@@ -28,6 +28,7 @@ import {
   ChessMovePayload,
 } from '../../models/chess/chess-game.model';
 import { DeviceAuthService } from '../../services/device-auth.service';
+import { GamepadNavigationService } from '../../services/gamepad-navigation.service';
 import { ChessViewStateService } from '../../services/chess/chess-view-state.service';
 import { ChessService } from '../../services/chess/chess.service';
 import { RecordingSocketService } from '../../services/socket/recording.service';
@@ -63,6 +64,24 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
   // wants to (not required for v1 - the socket keeps this component's own
   // `state` current regardless).
   @Output() stateChanged = new EventEmitter<ChessGame>();
+  // Asks WatchComponent to start (or join) a fresh game and jump to it -
+  // it owns the login redirect, createGame() call, and playlist selection
+  // (see WatchComponent.startChessGame), same as the bottom-bar Play Chess
+  // button and the demo board's CTA.
+  @Output() newGame = new EventEmitter<void>();
+
+  // The "New Game" button only exists once a game has ended. When that
+  // happens live (the viewer was playing it a moment ago), the d-pad
+  // focus is still on a board square that just became disabled - so move it
+  // to the button as soon as it renders, rather than leaving a TV viewer
+  // with nothing focused. See the newGameBtn setter.
+  private focusNewGameWhenShown = false;
+  @ViewChild('newGameBtn', { read: ElementRef }) set newGameBtn(ref: ElementRef<HTMLElement> | undefined) {
+    if (ref && this.focusNewGameWhenShown) {
+      this.focusNewGameWhenShown = false;
+      setTimeout(() => this.gamepadNav.requestFocus(ref.nativeElement));
+    }
+  }
 
   state: ChessGame | null = null;
   // Whichever side is currently in check (checkmate included), derived from
@@ -82,6 +101,7 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
     private deviceAuth: DeviceAuthService,
     private router: Router,
     private chessViewState: ChessViewStateService,
+    private gamepadNav: GamepadNavigationService,
   ) {
     this.socket.chessMove$.pipe(takeUntil(this.destroy$)).subscribe((p) => this.onMove(p));
     this.socket.chessEnded$.pipe(takeUntil(this.destroy$)).subscribe((p) => this.onEnded(p));
@@ -156,6 +176,22 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
 
   get isMyTurn(): boolean {
     return !!this.mySeat && this.state?.status === 'active' && this.state?.turn === this.mySeat;
+  }
+
+  // Finished for any reason - checkmate, stalemate, draw, resignation,
+  // timeout, or a cancelled game. 'waiting'/'active' are the only live ones.
+  get isFinished(): boolean {
+    return !!this.state && this.state.status !== 'waiting' && this.state.status !== 'active';
+  }
+
+  // Offered to seated players once their game is over (win, lose or draw).
+  // Spectators already have the bottom bar's Play Chess button.
+  get canStartNewGame(): boolean {
+    return this.isFinished && this.mySeat !== null;
+  }
+
+  startNewGame(): void {
+    this.newGame.emit();
   }
 
   get canJoin(): boolean {
@@ -461,7 +497,11 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
   }
 
   private applyState(state: ChessGame): void {
+    const wasLive = this.state?.status === 'active';
     this.state = state;
+    if (wasLive && state.status !== 'active' && this.mySeat) {
+      this.focusNewGameWhenShown = true;
+    }
     this.checkedSide = this.sideInCheck(state);
     this.stateChanged.emit(state);
   }
