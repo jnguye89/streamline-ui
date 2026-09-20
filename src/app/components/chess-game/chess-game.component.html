@@ -27,7 +27,13 @@
       </div>
     </div>
 
-    <div class="status" *ngIf="statusMessage as msg">{{ msg }}</div>
+    <!-- Check / checkmate get their own banner in place of the plain status
+         line (its text already says whose move it is / who won). -->
+    <div class="alert-banner" *ngIf="alert as a" [class.check]="a.kind === 'check'"
+      [class.checkmate]="a.kind === 'checkmate'" role="alert" aria-live="assertive">
+      {{ a.text }}
+    </div>
+    <div class="status" *ngIf="!alert && statusMessage as msg">{{ msg }}</div>
 
     <div class="draw-banner" *ngIf="incomingDrawOffer">
       Your opponent offers a draw
@@ -39,6 +45,9 @@
       </button>
       <button gamepadFocusable *ngIf="isLoggedIn && canJoin" class="chess-cta" (click)="join()">
         Join as Black
+      </button>
+      <button gamepadFocusable *ngIf="isLoggedIn && canPlayComputer" class="chess-cta" (click)="playComputer()">
+        Play the Computer
       </button>
 
       <ng-container *ngIf="mySeat && state?.status === 'active'">

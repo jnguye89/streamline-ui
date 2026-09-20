@@ -24,9 +24,13 @@ export class ChessTurnNotificationService {
     private chessViewState: ChessViewStateService,
   ) {
     this.socket.chessYourTurn$.subscribe((payload) => {
-      const message = payload.opponentUsername
-        ? `${payload.opponentUsername} moved — your turn!`
-        : "It's your turn!";
+      const message = payload.inCheck
+        ? payload.opponentUsername
+          ? `${payload.opponentUsername} put you in check — your turn!`
+          : "You're in check — your turn!"
+        : payload.opponentUsername
+          ? `${payload.opponentUsername} moved — your turn!`
+          : "It's your turn!";
 
       // No point offering to jump to a board the player is already looking
       // at - ChessViewStateService reflects whatever game ChessGameComponent
