@@ -115,6 +115,14 @@
     box-shadow: inset 0 0 0 3px rgba(3, 218, 198, 0.95);
   }
 
+  // The king of the side in check (or checkmated). A background-image glow
+  // rather than a background-color, so it isn't overridden by the
+  // `background-color ... !important` the focus styles below apply.
+  &.in-check {
+    background-image: radial-gradient(circle, rgba(255, 71, 87, 0.95) 0%, rgba(255, 71, 87, 0.55) 45%, rgba(255, 71, 87, 0) 75%);
+    box-shadow: inset 0 0 0 2px rgba(255, 71, 87, 0.9);
+  }
+
   &.gamepad-focused {
     outline: 3px solid #fff;
     outline-offset: -3px;

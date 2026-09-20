@@ -78,6 +78,11 @@ export class ChessBoardComponent implements OnChanges {
   squares: BoardSquare[] = [];
   selected: Square | null = null;
   legalTargets = new Set<string>();
+  // Square of the king currently in check (which includes checkmate), or
+  // null - highlighted red so a check is visible on the board itself, not
+  // just in ChessGameComponent's banner. Derived from the FEN alone, so it's
+  // the same for the players and any spectators.
+  checkSquare: Square | null = null;
 
   private chess = new Chess();
 
@@ -159,6 +164,15 @@ export class ChessBoardComponent implements OnChanges {
       }
     }
     this.squares = built;
+    this.checkSquare = this.findCheckedKing(built);
+  }
+
+  // The side to move is the only side that can be in check. Located by
+  // scanning the freshly-built squares rather than a second chess.js call.
+  private findCheckedKing(squares: BoardSquare[]): Square | null {
+    if (!this.chess.isCheck()) return null;
+    const color = this.chess.turn();
+    return squares.find((s) => s.piece?.type === 'k' && s.piece.color === color)?.square ?? null;
   }
 
   // v1 always auto-promotes to queen - no promotion-choice UI yet.

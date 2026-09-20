@@ -33,6 +33,12 @@ export class ChessService {
     return this.http.post<ChessGame>(`${this.apiUrl}/chess/${id}/join`, {});
   }
 
+  // Creator-only, and only while the game is still 'waiting': seats the
+  // built-in computer as black instead of waiting for a second human.
+  playComputer(id: number): Observable<ChessGame> {
+    return this.http.post<ChessGame>(`${this.apiUrl}/chess/${id}/computer`, {});
+  }
+
   resign(id: number): Observable<ChessGame> {
     return this.http.post<ChessGame>(`${this.apiUrl}/chess/${id}/resign`, {});
   }

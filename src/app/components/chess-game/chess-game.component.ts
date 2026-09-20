@@ -13,6 +13,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { Router } from '@angular/router';
+import { Chess } from 'chess.js';
 import { Subject, filter, skip, takeUntil } from 'rxjs';
 
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
@@ -64,6 +65,10 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
   @Output() stateChanged = new EventEmitter<ChessGame>();
 
   state: ChessGame | null = null;
+  // Whichever side is currently in check (checkmate included), derived from
+  // the FEN in applyState() - not a getter, since it needs a chess.js parse
+  // and getters here re-run on every change-detection pass.
+  checkedSide: ChessColor | null = null;
   loading = false;
   errorMessage: string | null = null;
 
@@ -157,6 +162,12 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
     return !!this.state && this.state.status === 'waiting' && this.mySeat === null;
   }
 
+  // The creator (always seated as white) sitting on a still-open game can
+  // skip the wait and play the built-in computer instead.
+  get canPlayComputer(): boolean {
+    return !!this.state && this.state.status === 'waiting' && this.mySeat === 'white';
+  }
+
   // True only for the seat that does NOT already have an offer standing -
   // covers both "no offer yet" and "opponent offered, it's your call now"
   // via the incomingDrawOffer check below taking over the UI in that case.
@@ -220,6 +231,34 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
     return counts;
   }
 
+  // Prominent, personalised notice for check and checkmate - the plain
+  // statusMessage line below stays for everything else. Null when neither
+  // applies. `kind` drives the banner's colour.
+  get alert(): { kind: 'check' | 'checkmate'; text: string } | null {
+    if (!this.state) return null;
+    const seat = this.mySeat;
+
+    if (this.state.status === 'checkmate') {
+      const winner = this.state.winner;
+      if (seat && winner === seat) return { kind: 'checkmate', text: 'Checkmate — you win!' };
+      if (seat && winner && winner !== seat) return { kind: 'checkmate', text: 'Checkmate — you lost' };
+      return { kind: 'checkmate', text: `Checkmate — ${this.capitalize(winner)} wins` };
+    }
+
+    if (this.state.status === 'active' && this.checkedSide) {
+      if (seat === this.checkedSide) {
+        return { kind: 'check', text: 'Check! Your king is under attack' };
+      }
+      if (seat) {
+        const opponent = this.checkedSide === 'white' ? this.state.whiteUser : this.state.blackUser;
+        return { kind: 'check', text: `You put ${opponent?.username ?? 'your opponent'} in check` };
+      }
+      return { kind: 'check', text: `${this.capitalize(this.checkedSide)} is in check` };
+    }
+
+    return null;
+  }
+
   get statusMessage(): string | null {
     if (!this.state) return this.loading ? 'Loading game…' : null;
     switch (this.state.status) {
@@ -229,6 +268,9 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
         if (this.isSpectator) {
           const name = this.state.turn === 'white' ? this.state.whiteUser?.username : this.state.blackUser?.username;
           return `${name ?? 'White'} to move`;
+        }
+        if (this.state.vsComputer) {
+          return this.isMyTurn ? 'Your move' : 'Computer is thinking…';
         }
         return this.isMyTurn ? 'Your move' : "Opponent's move";
       case 'checkmate':
@@ -265,6 +307,18 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
       .subscribe({
         next: (state) => this.applyState(state),
         error: (err) => this.showError(err?.error?.message ?? 'Could not join this game.'),
+      });
+  }
+
+  playComputer(): void {
+    if (!this.state || !this.canPlayComputer) return;
+
+    this.chessService
+      .playComputer(this.state.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (state) => this.applyState(state),
+        error: (err) => this.showError(err?.error?.message ?? 'Could not start a game against the computer.'),
       });
   }
 
@@ -402,12 +456,25 @@ export class ChessGameComponent implements OnChanges, OnDestroy {
       blackUser: payload.blackUser,
       status: payload.status,
       turn: payload.turn,
+      vsComputer: payload.vsComputer ?? this.state.vsComputer,
     });
   }
 
   private applyState(state: ChessGame): void {
     this.state = state;
+    this.checkedSide = this.sideInCheck(state);
     this.stateChanged.emit(state);
+  }
+
+  private sideInCheck(state: ChessGame): ChessColor | null {
+    if (!state.fen || (state.status !== 'active' && state.status !== 'checkmate')) return null;
+    try {
+      const chess = new Chess(state.fen);
+      if (!chess.isCheck()) return null;
+      return chess.turn() === 'w' ? 'white' : 'black';
+    } catch {
+      return null;
+    }
   }
 
   private showError(message: string): void {

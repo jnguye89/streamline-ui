@@ -30,6 +30,10 @@ export interface ChessGame {
   // mirrors ChessGame.drawOfferedBy on the API entity. Cleared server-side
   // the moment a move is made, so a stale offer never lingers past it.
   drawOfferedBy: ChessColor | null;
+  // True when the black seat is the built-in computer opponent (see
+  // ChessService.playComputer on the API). Optional so older payloads
+  // that predate the column still type-check as "not vs computer".
+  vsComputer?: boolean;
   createdAt: string;
   updatedAt?: string;
   endedAt?: string | null;
@@ -75,6 +79,7 @@ export interface ChessJoinedPayload {
   blackUser: Auth0User | null;
   status: ChessGameStatus;
   turn: ChessColor;
+  vsComputer?: boolean;
 }
 
 export interface ChessDrawOfferedPayload {
@@ -99,4 +104,6 @@ export interface ChessAck {
 export interface ChessYourTurnPayload {
   gameId: number;
   opponentUsername: string | null;
+  // True when the move that just landed put the recipient in check.
+  inCheck?: boolean;
 }
