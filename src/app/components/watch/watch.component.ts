@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatButtonModule } from '@angular/material/button';
@@ -47,7 +48,7 @@ import { DeviceAuthService } from '../../services/device-auth.service';
 import { SafeUrlPipe } from '../../pipes/safe-url.pipe';
 import { ChatColorPipe } from '../../pipes/chat-color.pipe';
 import { environment } from '../../../environments/environment';
-import { ChessDemoItem, ChessGameItem } from '../../models/chess/chess-game.model';
+import { ChessDemoItem, ChessGame, ChessGameItem } from '../../models/chess/chess-game.model';
 import { ChessService } from '../../services/chess/chess.service';
 import { ChessGameComponent } from '../chess-game/chess-game.component';
 import { ChessDemoComponent } from '../chess-demo/chess-demo.component';
@@ -252,6 +253,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private agoraWatch: AgoraWatchService,
     private socket: RecordingSocketService,
     private dialog: MatDialog,
+    private snackBar: MatSnackBar,
     private gamepadNav: GamepadNavigationService,
     private renderer: Renderer2,
     private deviceAuth: DeviceAuthService,
@@ -597,8 +599,64 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     return index >= 0 ? { item: this.playlist[index], index } : null;
   }
 
+  // A seated player (white or black - creator waiting for an opponent
+  // counts too, see the JSDoc on isSeatedInLiveChess) can't page away to a
+  // different video/stream/game mid-game - they have to resign first. This
+  // guards next()/previous() themselves (rather than just the nav buttons)
+  // so it covers every way to trigger them: the buttons' own click
+  // handlers, the D-pad/keyboard left-right bindings (both route through
+  // these same methods - see syncDpadActionsForCurrentItem and the
+  // window:keydown JSDoc above), and any internal auto-advance (e.g. the
+  // recordingStopped$ subscription's unconditional next()) that would
+  // otherwise be able to rip a player out of their own game.
+  private blockNavigationIfSeatedInChess(): boolean {
+    if (!this.isSeatedInLiveChess()) return false;
+    this.snackBar.open(
+      "You're in a chess game - resign to switch videos.",
+      'Dismiss',
+      { duration: 3000 },
+    );
+    return true;
+  }
+
+  // True for a player seated in a chess game that hasn't ended yet -
+  // 'waiting' (you started it and are waiting for an opponent, or waiting
+  // for the computer - see canPlayChess for the same distinction) and
+  // 'active' both count; anything else (checkmate/stalemate/draw/resigned/
+  // timeout/abandoned) means the game is over and normal navigation is
+  // fine again. A spectator (mySeat === null) is never blocked - only
+  // being seated locks navigation, watching one doesn't.
+  // ChessGameComponent's own `state` (kept live over the socket - moves,
+  // resign, draw, checkmate, the computer's replies) is a separate object
+  // from this.currentItem, which otherwise only refreshes on chess$'s 15s
+  // poll. Without this, isSeatedInLiveChess() below could keep the nav
+  // lock engaged for up to 15s after a player resigned (still reading the
+  // stale 'active' status) - wired to ChessGameComponent's (stateChanged)
+  // output so the moment a player forfeits, currentItem (and the matching
+  // playlist entry, so a stray chess$ poll can't stomp it back) reflect
+  // that immediately and the lock releases right away.
+  onChessStateChanged(state: ChessGame): void {
+    if (this.currentItem?.type !== 'chess' || this.currentItem.id !== state.id) return;
+    const updated: ChessGameItem = { ...state, type: 'chess' };
+    this.currentItem = updated;
+    if (this.playlist[this.currentIndex]?.type === 'chess' && this.playlist[this.currentIndex].id === state.id) {
+      this.playlist = this.playlist.map((p, i) => (i === this.currentIndex ? updated : p));
+    }
+  }
+
+  private isSeatedInLiveChess(): boolean {
+    const item = this.currentItem;
+    if (!item || item.type !== 'chess') return false;
+    if (item.status !== 'waiting' && item.status !== 'active') return false;
+
+    const uid = this.deviceAuth.getCurrentUserId();
+    if (!uid) return false;
+    return item.whiteUser?.auth0UserId === uid || item.blackUser?.auth0UserId === uid;
+  }
+
   // Navigation
   next() {
+    if (this.blockNavigationIfSeatedInChess()) return;
     this.stopProgressPing();
     this.sendProgress();
     var curr = this.currentItem as LiveStream;
@@ -649,6 +707,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   previous() {
+    if (this.blockNavigationIfSeatedInChess()) return;
     this.stopProgressPing();
     this.sendProgress();
     if (!this.playlist.length) return;
