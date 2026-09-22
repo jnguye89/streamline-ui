@@ -122,6 +122,21 @@ const DEVICE_REMOVED_ERRORS = new Set([
   'AbortError',
 ]);
 
+/**
+ * Settles a promise into a PromiseSettledResult without racing it against
+ * anything else - used to run initialize()'s video/audio permission
+ * probes one at a time instead of via Promise.allSettled, which starts
+ * both getUserMedia() calls concurrently (see initialize()).
+ */
+async function settle<T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> {
+  try {
+    const value = await promise;
+    return { status: 'fulfilled', value };
+  } catch (reason) {
+    return { status: 'rejected', reason };
+  }
+}
+
 @Injectable({ providedIn: 'root' })
 export class MediaInputService implements OnDestroy {
   private readonly stateSubject = new BehaviorSubject<MediaInputState>(
@@ -238,10 +253,22 @@ export class MediaInputService implements OnDestroy {
       error: null,
     });
 
-    const [videoResult, audioResult] = await Promise.allSettled([
+    // Probe video and audio permissions sequentially, not concurrently.
+    // Most webcams expose camera + mic as a single composite USB device,
+    // and two independent getUserMedia() calls racing to open that same
+    // physical device for different tracks is a known source of
+    // driver-level contention on Windows - one call can reject with
+    // NotFoundError/AbortError even though the device is present and
+    // working, which then gets misreported to the user as "no camera
+    // detected". Awaiting each probe in turn (and releasing its stream
+    // before the next starts, see requestPermission()) avoids that race
+    // while still classifying camera vs. mic failures independently.
+    const videoResult = await settle(
       this.requestPermission({ video: true, audio: false }),
+    );
+    const audioResult = await settle(
       this.requestPermission({ video: false, audio: true }),
-    ]);
+    );
     const granted =
       videoResult.status === 'fulfilled' ||
       audioResult.status === 'fulfilled';
