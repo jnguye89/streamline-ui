@@ -19,9 +19,39 @@ export class PlayerStateService {
     private readonly subject = new BehaviorSubject<PlayItem | LiveStream | null>(this.load());
     readonly current$ = this.subject.asObservable();
 
+    // Volume is stored separately from `current` (its own sessionStorage
+    // key, own subject) since it's a player-wide preference, not tied to
+    // whatever item happens to be playing - it needs to survive not just
+    // page reloads but also switching what's on screen. Default is 100 to
+    // match every playback surface's own out-of-the-box default (native
+    // <video>.volume, a fresh YT.Player) so a viewer who's never touched
+    // volume sees the same starting point either way.
+    private readonly VOLUME_STORAGE_KEY = 'player:volume';
+    private readonly volumeSubject = new BehaviorSubject<number>(this.loadVolume());
+    readonly volume$ = this.volumeSubject.asObservable();
+
     /** Quick sync read without subscribing */
     get snapshot(): PlayItem | LiveStream | null {
         return this.subject.value;
+    }
+
+    /** Quick sync read of the current 0-100 volume, without subscribing. */
+    get volume(): number {
+        return this.volumeSubject.value;
+    }
+
+    /**
+     * Persists a 0-100 volume level (sessionStorage, same lifetime as
+     * `current` above) so it survives navigating away from and back to a
+     * player page - e.g. Watch's D-pad up/down volume control (see
+     * WatchComponent.adjustVolume) would otherwise reset to its field
+     * initializer's default every time the component is torn down and
+     * recreated by a route change.
+     */
+    setVolume(value: number): void {
+        const clamped = Math.min(100, Math.max(0, value));
+        this.volumeSubject.next(clamped);
+        this.saveVolume(clamped);
     }
 
     /** Set entire state */
@@ -54,6 +84,20 @@ export class PlayerStateService {
             return raw ? JSON.parse(raw) as PlayItem : null;
         } catch {
             return null;
+        }
+    }
+
+    private saveVolume(value: number) {
+        try { sessionStorage.setItem(this.VOLUME_STORAGE_KEY, String(value)); } catch { }
+    }
+
+    private loadVolume(): number {
+        try {
+            const raw = sessionStorage.getItem(this.VOLUME_STORAGE_KEY);
+            const parsed = raw !== null ? Number(raw) : NaN;
+            return Number.isFinite(parsed) ? Math.min(100, Math.max(0, parsed)) : 100;
+        } catch {
+            return 100;
         }
     }
 }
