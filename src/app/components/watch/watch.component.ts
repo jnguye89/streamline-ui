@@ -141,7 +141,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly MIN_DURATION_S = 1 * 60;
   // Up/down volume control on Watch (VOD only - see syncDpadActionsForCurrentItem)
   private readonly VOLUME_STEP = 10;
-  volumeLevel = 100; // 0-100, bound in the template for the fading indicator
+  volumeLevel = 100; // 0-100, bound in the template for the fading indicator - overwritten from PlayerStateService in the constructor below so it survives navigating away and back
   showVolumeIndicator = false;
   private volumeIndicatorTimer: ReturnType<typeof setTimeout> | null = null;
   // Guards tryPlayCurrent() against overlapping calls (e.g. mashing the
@@ -257,7 +257,13 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private deviceAuth: DeviceAuthService,
     private chessService: ChessService,
     private zone: NgZone
-  ) { }
+  ) {
+    // Restore whatever volume the viewer last set (Watch's D-pad up/down -
+    // see adjustVolume()) instead of always starting back at the field
+    // initializer's 100 - without this, navigating to another tab/page and
+    // back recreates WatchComponent from scratch and silently resets volume.
+    this.volumeLevel = this.store.volume;
+  }
 
   ngOnInit() {
     this.syncDpadActionsForCurrentItem();
@@ -845,6 +851,10 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // this is only ever called for) and flashes the on-screen indicator.
   private adjustVolume(delta: number): void {
     this.volumeLevel = Math.min(100, Math.max(0, this.volumeLevel + delta));
+    // Persist immediately (not just on component teardown) so the level
+    // sticks even if the viewer navigates away via a route change that
+    // doesn't run any explicit save step.
+    this.store.setVolume(this.volumeLevel);
     if (this.isYouTube(this.currentItem)) {
       // Unlike togglePlayPause()/seekBy() below, this used to call
       // setVolume() off a bare `?.` null-check on the player itself - but
