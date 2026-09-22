@@ -22,7 +22,7 @@
   <!-- Chess: no video/Agora surface, so it's only mounted (not just hidden)
        while a chess item is actually current - see WatchComponent.tryPlayCurrent -->
   <app-chess-game *ngIf="currentItem?.type === 'chess'" [game]="$any(currentItem)"
-    (newGame)="startChessGame()"></app-chess-game>
+    (newGame)="startChessGame()" (stateChanged)="onChessStateChanged($event)"></app-chess-game>
 
   <!-- Demo placeholder: swapped in by WatchComponent whenever there are no
        real chess games to show (see CHESS_DEMO_ITEM) - an auto-playing,
