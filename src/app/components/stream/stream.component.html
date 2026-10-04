@@ -139,18 +139,18 @@
 
     <button
       gamepadFocusable
-      *ngIf="twitchAvailable"
-      class="audio-toggle multistream-toggle"
+      class="twitch-toggle"
       type="button"
-      [class.audio-toggle--muted]="twitchIndicator === 'off'"
-      [ngClass]="'multistream-toggle--' + twitchIndicator"
-      [attr.aria-pressed]="multistreamToTwitch"
-      [attr.aria-label]="twitchChips[twitchIndicator].label"
-      [disabled]="isLive || isStarting"
+      [class.twitch-toggle--on]="twitchState === 'on' || twitchState === 'live'"
+      [class.twitch-toggle--error]="twitchState === 'error'"
+      [class.twitch-toggle--unavailable]="twitchState === 'unavailable'"
+      [attr.aria-pressed]="twitchState === 'on' || twitchState === 'live'"
+      [attr.aria-label]="twitchLabels[twitchState]"
+      [title]="twitchLabels[twitchState]"
+      [disabled]="twitchState === 'unavailable' || isLive || isStarting"
       (click)="toggleTwitchMultistream()"
     >
-      <mat-icon>{{ twitchChips[twitchIndicator].icon }}</mat-icon>
-      Twitch
+      T
     </button>
 
     <div class="stream-toolbar__separator"></div>

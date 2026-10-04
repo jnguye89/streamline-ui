@@ -560,7 +560,7 @@ describe('StreamComponent', () => {
 
   describe('Twitch multistream', () => {
     function twitchToggle(): HTMLButtonElement | null {
-      return fixture.nativeElement.querySelector('.multistream-toggle');
+      return fixture.nativeElement.querySelector('.twitch-toggle');
     }
 
     async function goLive(): Promise<void> {
@@ -574,17 +574,22 @@ describe('StreamComponent', () => {
       fixture.detectChanges();
     }
 
-    it('offers Twitch, on by default, once a Twitch key is saved', () => {
+    it('highlights the T toggle by default once a Twitch key is saved', () => {
       expect(fixture.componentInstance.twitchAvailable).toBeTrue();
+      expect(twitchToggle()?.textContent?.trim()).toBe('T');
+      expect(twitchToggle()?.disabled).toBeFalse();
       expect(twitchToggle()?.getAttribute('aria-pressed')).toBe('true');
+      expect(twitchToggle()?.classList).toContain('twitch-toggle--on');
     });
 
-    it('hides the Twitch option when no Twitch key is saved', async () => {
+    it('shows the T toggle disabled and off when no Twitch key is saved', async () => {
       userService.getStreamKeys.and.returnValue(of([]));
       await fixture.componentInstance.init();
       fixture.detectChanges();
 
-      expect(twitchToggle()).toBeNull();
+      expect(twitchToggle()?.disabled).toBeTrue();
+      expect(twitchToggle()?.getAttribute('aria-pressed')).toBe('false');
+      expect(fixture.componentInstance.twitchState).toBe('unavailable');
     });
 
     it('treats a failed key lookup as no Twitch key', async () => {
@@ -610,14 +615,23 @@ describe('StreamComponent', () => {
         true,
         [StreamPlatform.TWITCH],
       );
-      expect(fixture.componentInstance.twitchIndicator).toBe('live');
+      expect(fixture.componentInstance.twitchState).toBe('live');
+      expect(twitchToggle()?.classList).toContain('twitch-toggle--on');
+    });
+
+    it('locks the T toggle once live', async () => {
+      await goLive();
+
       expect(twitchToggle()?.disabled).toBeTrue();
+      fixture.componentInstance.toggleTwitchMultistream();
+      expect(fixture.componentInstance.multistreamToTwitch).toBeTrue();
     });
 
     it('skips Twitch when the toggle is switched off before going live', async () => {
       twitchToggle()!.click();
       fixture.detectChanges();
       expect(twitchToggle()?.getAttribute('aria-pressed')).toBe('false');
+      expect(twitchToggle()?.classList).not.toContain('twitch-toggle--on');
 
       await goLive();
 
@@ -627,7 +641,7 @@ describe('StreamComponent', () => {
         true,
         [],
       );
-      expect(fixture.componentInstance.twitchIndicator).toBe('off');
+      expect(fixture.componentInstance.twitchState).toBe('off');
     });
 
     it('stays live and explains when Twitch fails to start', async () => {
@@ -646,7 +660,7 @@ describe('StreamComponent', () => {
 
       expect(fixture.componentInstance.isLive).toBeTrue();
       expect(fixture.componentInstance.workflowError).toBeNull();
-      expect(fixture.componentInstance.twitchIndicator).toBe('error');
+      expect(fixture.componentInstance.twitchState).toBe('error');
       expect(
         fixture.nativeElement.querySelector('.status-banner').textContent,
       ).toContain("Could not start streaming to Twitch. You're still live here.");

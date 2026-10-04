@@ -48,14 +48,18 @@ import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
  */
 type DisplayMode = 'webcam' | 'screen' | 'screen-cam';
 
-/** What the Twitch toolbar chip shows: the choice before going live, the outcome after. */
-type TwitchIndicator = 'off' | 'on' | 'live' | 'error';
+/**
+ * What the "T" toolbar button shows: the choice before going live, the
+ * outcome after. Highlighted ('on'/'live') means streaming to Twitch.
+ */
+type TwitchState = 'unavailable' | 'off' | 'on' | 'live' | 'error';
 
-const TWITCH_CHIPS: Record<TwitchIndicator, { icon: string; label: string }> = {
-  off: { icon: 'cast', label: 'Also stream to Twitch: off' },
-  on: { icon: 'cast', label: 'Also stream to Twitch: on' },
-  live: { icon: 'cast_connected', label: 'Live on Twitch' },
-  error: { icon: 'error_outline', label: 'Twitch restream failed' },
+const TWITCH_LABELS: Record<TwitchState, string> = {
+  unavailable: 'Stream to Twitch: save a Twitch stream key in your profile first',
+  off: 'Stream to Twitch: off',
+  on: 'Stream to Twitch: on',
+  live: 'Streaming to Twitch',
+  error: 'Twitch restream failed',
 };
 
 @Component({
@@ -104,7 +108,7 @@ export class StreamComponent
   chatMessages: (ChatMessage & { key: string })[] = [];
   chatText = '';
 
-  readonly twitchChips = TWITCH_CHIPS;
+  readonly twitchLabels = TWITCH_LABELS;
   /** True once the user has a Twitch stream key saved (profile > streaming). */
   twitchAvailable = false;
   /** Whether going live also restreams to Twitch; only changeable while offline. */
@@ -398,16 +402,18 @@ export class StreamComponent
       });
   }
 
-  get twitchIndicator(): TwitchIndicator {
+  get twitchState(): TwitchState {
     if (this.isLive) {
       if (!this.twitchStatus) return 'off';
       return this.twitchStatus.status === 'active' ? 'live' : 'error';
     }
+    if (!this.twitchAvailable) return 'unavailable';
     return this.multistreamToTwitch ? 'on' : 'off';
   }
 
+  /** Only changeable before going live; the choice is locked in while live. */
   toggleTwitchMultistream(): void {
-    if (this.isLive || this.isStarting) return;
+    if (this.isLive || this.isStarting || !this.twitchAvailable) return;
     this.multistreamToTwitch = !this.multistreamToTwitch;
   }
 
