@@ -195,27 +195,62 @@ export class StreamComponent
           this.selectOverlayVideo(screenId),
         );
       }
-    } else if (!this.capturedDefaultDevices && primary && !this.webcamDeviceId) {
-      // Only one video source exists so far. If we can positively
-      // identify it as the console/capture card, surface it as "screen"
-      // rather than mislabeling it "webcam" - a capture card alone should
-      // not make the Webcam button look available. Otherwise there's
-      // nothing to pair it with as "the screen" yet, so treat it as the
-      // webcam and stay in single-source mode. If a second source shows
-      // up later (a camera that enumerates late), the branch above takes
-      // over from here.
-      const primaryDevice = media.videoInputs.find(
-        (device) => device.deviceId === primary,
+    } else if (!this.capturedDefaultDevices && primary && !overlay) {
+      // Exactly one video source is currently selected (no overlay).
+      // That can mean two different things, and they need different
+      // handling:
+      //  (a) only one camera/capture device exists on this hardware at
+      //      all - nothing to pair it with yet, or
+      //  (b) the user previously chose Webcam-only or Screen-only mode
+      //      (selectWebcamMode()/selectScreenMode() null out the overlay
+      //      selection on purpose) and this component instance is
+      //      remounting - e.g. after navigating away to another tab and
+      //      back - with that single-source selection still in effect
+      //      from MediaInputService's persisted state.
+      // Relying only on `overlay` being null to mean "only one device
+      // exists" (as this used to) conflates those two cases: on remount
+      // in case (b), the *other*, deselected device is still sitting in
+      // media.videoInputs, but its id was never learned by this fresh
+      // component instance, so its mode button (Webcam or Screen) stayed
+      // permanently disabled - the "not recognizing the webcam again"
+      // bug. Checking the full device list instead of just the current
+      // selection distinguishes the two cases correctly.
+      const other = media.videoInputs.find(
+        (device) => device.deviceId !== primary,
       );
-      if (primaryDevice?.isCaptureDevice) {
-        this.screenDeviceId = primary;
-        this.webcamDeviceId = null;
-        this.displayMode = 'screen';
+      if (other) {
+        // A second device is still enumerated - classify both ids from
+        // the full list (case (b) above) so both mode buttons stay
+        // usable, and preserve whichever single-source mode was already
+        // active instead of forcing Screen + cam.
+        const { screenId, webcamId } = this.classifyVideoPair(
+          primary,
+          other.deviceId,
+          media.videoInputs,
+        );
+        this.screenDeviceId = screenId;
+        this.webcamDeviceId = webcamId;
+        this.displayMode = primary === webcamId ? 'webcam' : 'screen';
       } else {
-        this.webcamDeviceId = primary;
-        this.screenDeviceId = null;
-        this.displayMode = 'webcam';
+        // Genuinely only one video source exists (case (a) above). If we
+        // can positively identify it as the console/capture card,
+        // surface it as "screen" rather than mislabeling it "webcam" - a
+        // capture card alone should not make the Webcam button look
+        // available. Otherwise treat it as the webcam.
+        const primaryDevice = media.videoInputs.find(
+          (device) => device.deviceId === primary,
+        );
+        if (primaryDevice?.isCaptureDevice) {
+          this.screenDeviceId = primary;
+          this.webcamDeviceId = null;
+          this.displayMode = 'screen';
+        } else {
+          this.webcamDeviceId = primary;
+          this.screenDeviceId = null;
+          this.displayMode = 'webcam';
+        }
       }
+      this.capturedDefaultDevices = true;
     }
 
     this.isWebcamPrimary =

@@ -15,6 +15,16 @@ export interface TextKeyboardSuggestion {
 export interface TextKeyboardDialogData {
   control: FormControl<string | null>;
   placeholder?: string;
+  // Material icon shown left of the input (defaults to 'search').
+  icon?: string;
+  // Enables the glider keyboard's 123/ABC numbers-and-symbols layer, for
+  // non-prose fields like stream keys and RTMP URLs.
+  symbols?: boolean;
+  // Adds a confirm key with this label (e.g. 'Done') to the keyboard's
+  // action row and swaps the header's "esc" chip for a "B · done" hint.
+  // Typing already writes straight into the caller's control, so closing
+  // - via the key, B, or the chip - always keeps what was entered.
+  doneLabel?: string;
   // Optional live results list, shown the same way SearchDialogComponent
   // shows its user-search matches - the caller (e.g. the podcast page's
   // local list filter) owns whatever filtering/debouncing produces this
@@ -45,7 +55,7 @@ export interface TextKeyboardDialogData {
   template: `
     <div class="spotlight-container">
       <div class="search-row">
-        <mat-icon class="search-icon">search</mat-icon>
+        <mat-icon class="search-icon">{{ data.icon ?? 'search' }}</mat-icon>
         <input
           class="search-input"
           [formControl]="data.control"
@@ -55,7 +65,10 @@ export interface TextKeyboardDialogData {
           readonly
           tabindex="-1"
         />
-        <button class="esc-btn" (click)="close()">esc</button>
+        <button class="done-hint" *ngIf="data.doneLabel; else escBtn" (click)="close()">
+          <span class="pad-glyph">B</span>{{ data.doneLabel | lowercase }}
+        </button>
+        <ng-template #escBtn><button class="esc-btn" (click)="close()">esc</button></ng-template>
       </div>
 
       <div class="results" *ngIf="data.suggestions$">
@@ -78,7 +91,8 @@ export interface TextKeyboardDialogData {
         </button>
       </div>
 
-      <app-glider-keyboard #keyboard [control]="data.control"></app-glider-keyboard>
+      <app-glider-keyboard #keyboard [control]="data.control" [symbols]="!!data.symbols"
+        [doneLabel]="data.doneLabel ?? null" (done)="close()"></app-glider-keyboard>
     </div>
   `,
   styles: [`
@@ -129,6 +143,34 @@ export interface TextKeyboardDialogData {
       cursor: pointer;
       letter-spacing: 0.03em;
       flex-shrink: 0;
+    }
+
+    .done-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 999px;
+      color: rgba(255,255,255,0.8);
+      font-size: 0.75rem;
+      padding: 3px 10px 3px 3px;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+    }
+
+    .pad-glyph {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #e5484d;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
     }
 
     .divider {

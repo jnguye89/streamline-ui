@@ -18,14 +18,16 @@
 
       <ng-container *ngIf="entry.showUrl">
         <label class="field-label">stream url{{ entry.requiresUrl ? '' : ' (optional)' }}</label>
-        <input class="field-input" [class.invalid]="isUrlDirty(entry) && urlError(entry)" type="text"
-          [(ngModel)]="entry.streamUrl" placeholder="rtmp://..." autocomplete="off" />
+        <input gamepadFocusable class="field-input" [class.invalid]="isUrlDirty(entry) && urlError(entry)" type="text"
+          [(ngModel)]="entry.streamUrl" placeholder="rtmp://..." autocomplete="off"
+          (click)="onFieldClick($event, entry, 'streamUrl')" />
         <span class="field-error" *ngIf="isUrlDirty(entry) && urlError(entry) as err">{{ err }}</span>
       </ng-container>
 
       <label class="field-label">stream key</label>
-      <input class="field-input" type="password" [(ngModel)]="entry.streamKey" placeholder="paste your stream key"
-        autocomplete="off" />
+      <input gamepadFocusable class="field-input" type="password" [(ngModel)]="entry.streamKey"
+        placeholder="paste your stream key" autocomplete="off"
+        (click)="onFieldClick($event, entry, 'streamKey')" />
 
       <button gamepadFocusable mat-flat-button color="primary" class="save-btn"
         [disabled]="!canSave(entry)" (click)="save(entry)">

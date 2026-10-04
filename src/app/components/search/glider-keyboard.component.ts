@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, Input, OnDestroy } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Input, OnDestroy, Output } from '@angular/core';
 import { FormControl } from '@angular/forms';
 
 const LAYOUT = [
@@ -8,6 +8,19 @@ const LAYOUT = [
   { keys: ['E','A','R','S','L','D','M'], stagger: 0.0 },
   { keys: ['P','F','V','K','J','X'],     stagger: 0.5 },
   { keys: ['Q','Z','.','@','_'],         stagger: 1.0 },
+];
+
+// Optional numbers/symbols layer (enabled via [symbols]="true", toggled with
+// the 123/ABC key on the action row). Same row lengths and staggers as
+// LAYOUT so grid navigation and the glider's proximity math behave the
+// same on both layers - only the key values change. Meant for fields that
+// aren't prose (stream keys, RTMP URLs) and need digits and : / - etc.
+const SYMBOL_LAYOUT = [
+  { keys: ['1','2','3','4','5'],         stagger: 1.0 },
+  { keys: ['6','7','8','9','0','-'],     stagger: 0.5 },
+  { keys: [':','/','?','=','&','#','+'], stagger: 0.0 },
+  { keys: ['!','%','~',',',';','$'],     stagger: 0.5 },
+  { keys: ['.','_','(',')','*'],         stagger: 1.0 },
 ];
 
 const CAPS_ROW   = 4;
@@ -101,7 +114,19 @@ const TRIGRAMS: Record<string, string[]> = {
           </div>
         </div>
 
-        <div class="gk-action-row">
+        <div class="gk-action-row" [class.gk-action-row--fit]="symbols || doneLabel">
+          <div class="gk-key gk-key-sym" *ngIf="symbols"
+               [class.gk-focused]="cursor[0] === ACTION_ROW && cursor[1] === actionCol('SYM')"
+               (mousedown)="$event.preventDefault(); activateKey(ACTION_ROW, actionCol('SYM'))"
+               (touchstart)="$event.preventDefault(); activateKey(ACTION_ROW, actionCol('SYM'))">
+            {{ symMode ? 'ABC' : '123' }}
+          </div>
+          <div class="gk-key gk-key-done" *ngIf="doneLabel"
+               [class.gk-focused]="cursor[0] === ACTION_ROW && cursor[1] === actionCol('DONE')"
+               (mousedown)="$event.preventDefault(); activateKey(ACTION_ROW, actionCol('DONE'))"
+               (touchstart)="$event.preventDefault(); activateKey(ACTION_ROW, actionCol('DONE'))">
+            <span class="gk-done-check">&#10003;</span> {{ doneLabel }}
+          </div>
           <div class="gk-key gk-key-space"
                [class.gk-focused]="cursor[0] === ACTION_ROW && cursor[1] === 0"
                (mousedown)="$event.preventDefault(); activateKey(ACTION_ROW, 0)"
@@ -241,6 +266,47 @@ const TRIGRAMS: Record<string, string[]> = {
       box-shadow: 0 2px 0 rgba(0,0,0,0.5);
     }
 
+    /* With the optional 123/DONE keys the action row would outgrow the letter
+       grid and pull .gk-body (fit-content) wider, leaving the grid off-center.
+       Size the four keys in key units so the row spans exactly the widest
+       (7-key, 7 x 56px) letter row: SPACE/DONE = 2 keys, DEL/123 = 1.5. */
+    .gk-action-row--fit {
+      gap: 0;
+      justify-content: flex-start;
+    }
+    .gk-action-row--fit .gk-key-space,
+    .gk-action-row--fit .gk-key-done { width: 108px; }
+    .gk-action-row--fit .gk-key-del,
+    .gk-action-row--fit .gk-key-sym  { width: 80px; }
+
+    .gk-key-sym {
+      order: 3;
+      width: 80px;
+      height: 44px;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      background: #252527;
+      border-color: rgba(255,255,255,0.06);
+      box-shadow: 0 2px 0 rgba(0,0,0,0.5);
+    }
+
+    .gk-key-done {
+      order: 4;
+      width: 110px;
+      height: 44px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #fff;
+      background: var(--c-primary, #0e52ff);
+      border-color: transparent;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.5);
+      gap: 6px;
+    }
+
+    .gk-done-check { font-size: 13px; }
+
     .gk-key-del {
       width: 110px;
       height: 44px;
@@ -254,6 +320,14 @@ const TRIGRAMS: Record<string, string[]> = {
 })
 export class GliderKeyboardComponent implements OnDestroy {
   @Input() control!: FormControl;
+  // Shows the 123/ABC key on the action row (col 2) for switching to
+  // SYMBOL_LAYOUT. Off by default so the search keyboards are unchanged.
+  @Input() symbols = false;
+  symMode = false;
+  // When set, adds a confirm key with this label as the last key on the
+  // action row; activating it emits (done) so the host dialog can close.
+  @Input() doneLabel: string | null = null;
+  @Output() done = new EventEmitter<void>();
 
   cursor = [2, 1]; // starts on 'A'
   word = '';
@@ -266,7 +340,7 @@ export class GliderKeyboardComponent implements OnDestroy {
 
   readonly ACTION_ROW = ACTION_ROW;
 
-  readonly rows = LAYOUT.map((row, ri) => {
+  private readonly letterRows = LAYOUT.map((row, ri) => {
     const keys = row.keys.map(k => k.toLowerCase());
     if (ri === CAPS_ROW) {
       // CAPS appended makes this a 6-key row; stagger 0.5 keeps its center aligned with the home row
@@ -274,6 +348,11 @@ export class GliderKeyboardComponent implements OnDestroy {
     }
     return { keys, stagger: row.stagger };
   });
+  private readonly symbolRows = SYMBOL_LAYOUT.map(row => ({ keys: [...row.keys], stagger: row.stagger }));
+
+  get rows() {
+    return this.symMode ? this.symbolRows : this.letterRows;
+  }
 
   constructor(private cdr: ChangeDetectorRef) {}
 
@@ -309,10 +388,21 @@ export class GliderKeyboardComponent implements OnDestroy {
   // coordinate between the keyboard and the results list.
 
   private rowKeys(row: number): string[] {
-    if (row === ACTION_ROW) return [' ', 'DEL'];
-    const ks = LAYOUT[row].keys.map(k => k.toLowerCase());
-    if (row === CAPS_ROW) ks.push('caps');
-    return ks;
+    if (row === ACTION_ROW) return this.actionKeys();
+    return this.rows[row].keys;
+  }
+
+  // Action row is SPACE, DEL, then the optional 123/ABC and DONE keys - so
+  // the optional keys' columns depend on which ones are enabled.
+  private actionKeys(): string[] {
+    const keys = [' ', 'DEL'];
+    if (this.symbols) keys.push('SYM');
+    if (this.doneLabel) keys.push('DONE');
+    return keys;
+  }
+
+  actionCol(key: 'SYM' | 'DONE'): number {
+    return this.actionKeys().indexOf(key);
   }
 
   private keyValue(row: number, col: number): string | null {
@@ -420,6 +510,20 @@ export class GliderKeyboardComponent implements OnDestroy {
 
     this.cursor = [row, col];
 
+    if (val === 'DONE') {
+      this.done.emit();
+      return;
+    }
+    if (val === 'SYM') {
+      this.symMode = !this.symMode;
+      this.word = '';
+      this.likely = new Set();
+      this.gActive = true;
+      this.gDisabled = false;
+      this.gLastDir = null;
+      this.cdr.markForCheck();
+      return;
+    }
     if (val === 'caps') {
       this.caps = !this.caps;
       this.cdr.markForCheck();
@@ -434,7 +538,9 @@ export class GliderKeyboardComponent implements OnDestroy {
       return;
     }
 
-    if (val === ' ' || val === '.' || val === '@') {
+    // Symbol-layer keys (digits, : / - ...) break the current word the same
+    // way space/./@ do - letter predictions don't apply across them.
+    if (val === ' ' || val === '.' || val === '@' || this.symMode) {
       this.injectChar(val);
       this.word      = '';
       this.gActive   = true;
