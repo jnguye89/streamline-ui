@@ -305,7 +305,7 @@ export class GamepadNavigationService implements OnDestroy {
       // Defer so all synchronous unregistrations on the same destroy cycle finish first
       Promise.resolve().then(() => {
         if (this.currentEl) return;
-        const candidates = Array.from(this.focusables).filter(e => this.isFocusable(e));
+        const candidates = this.navigableCandidates();
         const next = this.pickInitial(candidates);
         if (next) this.zone.run(() => this.focusElement(next));
       });
@@ -857,7 +857,7 @@ export class GamepadNavigationService implements OnDestroy {
   }
 
   private moveFocus(direction: Direction): void {
-    const candidates = Array.from(this.focusables).filter((el) => this.isFocusable(el));
+    const candidates = this.navigableCandidates();
     if (!candidates.length) {
       this.scroll(direction);
       return;
@@ -963,6 +963,31 @@ export class GamepadNavigationService implements OnDestroy {
     }
   }
 
+  /**
+   * Focusable elements the D-pad/stick may currently move between. While a
+   * modal dialog is open (e.g. profile -> streaming), navigation is trapped
+   * inside the topmost one: the page behind it - and any dialog underneath
+   * a stacked one - is off limits until that dialog closes. Mirrors what
+   * Material's own focus trap does for Tab, which the gamepad bypasses.
+   */
+  private navigableCandidates(): HTMLElement[] {
+    const candidates = Array.from(this.focusables).filter((el) => this.isFocusable(el));
+    const modal = this.activeModal();
+    return modal ? candidates.filter((el) => modal.contains(el)) : candidates;
+  }
+
+  /**
+   * The topmost open Material dialog container, or null when none is open.
+   * Dialogs mid-close-animation are skipped so focus can return to the
+   * page (or the dialog beneath) as soon as the close starts.
+   */
+  private activeModal(): HTMLElement | null {
+    const open = Array.from(
+      document.querySelectorAll<HTMLElement>('.cdk-overlay-container .mat-mdc-dialog-container')
+    ).filter((el) => !el.classList.contains('mdc-dialog--closing'));
+    return open[open.length - 1] ?? null;
+  }
+
   private pickInitial(candidates: HTMLElement[]): HTMLElement | null {
     return candidates.slice().sort((a, b) => {
       const ra = a.getBoundingClientRect();
@@ -1003,6 +1028,16 @@ export class GamepadNavigationService implements OnDestroy {
       if (handled) return;
     }
     if (!this.currentEl) return;
+    // Focus left behind on the page when a dialog opened over it (e.g. the
+    // profile's "streaming" button) mustn't be clickable through the
+    // dialog - A would re-open it, or act on the page underneath. Pull
+    // focus into the dialog instead of clicking.
+    const modal = this.activeModal();
+    if (modal && !modal.contains(this.currentEl)) {
+      const first = this.pickInitial(this.navigableCandidates());
+      if (first) this.focusElement(first);
+      return;
+    }
     if (this.currentEl instanceof HTMLSelectElement) {
       if (this.selectMode === this.currentEl) {
         this.exitSelectMode(true);

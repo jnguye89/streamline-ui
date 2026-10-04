@@ -826,4 +826,81 @@ describe('StreamComponent screen/webcam role detection', () => {
     expect(fixture.componentInstance.screenDeviceId).toBeNull();
     expect(fixture.componentInstance.displayMode).toBe('webcam');
   });
+
+  it('relearns the deselected device after remounting in Webcam-only mode, instead of leaving it null', async () => {
+    // Regression test: navigating away from /stream (destroying this
+    // component) and back (creating a fresh one) while Webcam-only mode
+    // was active leaves MediaInputService's persisted state with a
+    // single selected video device and a null overlay - the same shape
+    // as "only one camera exists at all". The fix classifies from the
+    // full videoInputs list so the still-enumerated capture card is
+    // relearned as `screenDeviceId` instead of staying permanently null
+    // (which used to disable the Screen button until a devicechange
+    // event or full reload).
+    const { fixture } = await createFixture({
+      status: 'ready',
+      permission: 'granted',
+      videoInputs: [
+        {
+          deviceId: 'capture-1',
+          groupId: 'capture-group',
+          kind: 'videoinput',
+          displayLabel: 'Console Video 1',
+          isCaptureDevice: true,
+        },
+        {
+          deviceId: 'webcam-1',
+          groupId: 'webcam-group',
+          kind: 'videoinput',
+          displayLabel: 'Webcam',
+        },
+      ],
+      audioInputs: [],
+      selection: { videoDeviceId: 'webcam-1' },
+      consoleSelection: {
+        overlayVideoDeviceId: null,
+        gameAudioDeviceId: null,
+        microphoneDeviceId: null,
+      },
+      error: null,
+    });
+
+    expect(fixture.componentInstance.webcamDeviceId).toBe('webcam-1');
+    expect(fixture.componentInstance.screenDeviceId).toBe('capture-1');
+    expect(fixture.componentInstance.displayMode).toBe('webcam');
+  });
+
+  it('relearns the deselected device after remounting in Screen-only mode, instead of leaving it null', async () => {
+    const { fixture } = await createFixture({
+      status: 'ready',
+      permission: 'granted',
+      videoInputs: [
+        {
+          deviceId: 'capture-1',
+          groupId: 'capture-group',
+          kind: 'videoinput',
+          displayLabel: 'Console Video 1',
+          isCaptureDevice: true,
+        },
+        {
+          deviceId: 'webcam-1',
+          groupId: 'webcam-group',
+          kind: 'videoinput',
+          displayLabel: 'Webcam',
+        },
+      ],
+      audioInputs: [],
+      selection: { videoDeviceId: 'capture-1' },
+      consoleSelection: {
+        overlayVideoDeviceId: null,
+        gameAudioDeviceId: null,
+        microphoneDeviceId: null,
+      },
+      error: null,
+    });
+
+    expect(fixture.componentInstance.screenDeviceId).toBe('capture-1');
+    expect(fixture.componentInstance.webcamDeviceId).toBe('webcam-1');
+    expect(fixture.componentInstance.displayMode).toBe('screen');
+  });
 });
