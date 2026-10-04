@@ -457,6 +457,31 @@
   }
 }
 
+.multistream-toggle {
+  margin-left: 6px;
+
+  // While live the chip is a read-only status, not a dimmed control.
+  &:disabled {
+    cursor: default;
+  }
+}
+
+.multistream-toggle--on mat-icon,
+.multistream-toggle--live mat-icon {
+  color: #bf94ff;
+}
+
+.multistream-toggle--live {
+  border-color: rgba(169, 112, 255, 0.7);
+  background: rgba(145, 70, 255, 0.28);
+}
+
+.multistream-toggle--error,
+.multistream-toggle--error mat-icon {
+  border-color: rgba(255, 180, 171, 0.6);
+  color: #ffb4ab;
+}
+
 @keyframes pulse {
 
   0%,

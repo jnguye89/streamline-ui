@@ -37,7 +37,7 @@
     class="status-banner"
     *ngIf="
       isAuthenticated &&
-      (media.error || workflowError || previewState.error)
+      (media.error || workflowError || previewState.error || multistreamError)
     "
     role="alert"
   >
@@ -49,6 +49,9 @@
     </p>
     <p class="status-message error" *ngIf="previewState.error as previewError">
       {{ previewError.message }}
+    </p>
+    <p class="status-message error" *ngIf="multistreamError">
+      {{ multistreamError }}
     </p>
     <button
       gamepadFocusable
@@ -132,6 +135,22 @@
       "
     >
       {{ isLive ? 'End stream' : 'Go live' }}
+    </button>
+
+    <button
+      gamepadFocusable
+      *ngIf="twitchAvailable"
+      class="audio-toggle multistream-toggle"
+      type="button"
+      [class.audio-toggle--muted]="twitchIndicator === 'off'"
+      [ngClass]="'multistream-toggle--' + twitchIndicator"
+      [attr.aria-pressed]="multistreamToTwitch"
+      [attr.aria-label]="twitchChips[twitchIndicator].label"
+      [disabled]="isLive || isStarting"
+      (click)="toggleTwitchMultistream()"
+    >
+      <mat-icon>{{ twitchChips[twitchIndicator].icon }}</mat-icon>
+      Twitch
     </button>
 
     <div class="stream-toolbar__separator"></div>

@@ -4,6 +4,8 @@ import { environment } from "../../environments/environment";
 import { LiveStream } from "../models/live-stream.model";
 import { exhaustMap, firstValueFrom, map, Observable, Subject, takeUntil, timer } from "rxjs";
 import { AgoraTokenResponse } from "../models/agora/agora.model";
+import { PublishResponse } from "../models/multistream.model";
+import { StreamPlatform } from "../models/stream-key.model";
 
 export type StreamUpdate = { id: number; phase: string; wowzaState?: string; errorMessage?: string; };
 
@@ -17,11 +19,12 @@ export class StreamService {
         return this.http.post<AgoraTokenResponse>(`${this.apiUrl}/stream/ensure`, { channelName });
     }
 
-    async start(channelName: string, uid?: number, isStreaming: boolean = true) {
+    /** `multistream` lists the platforms to also restream to (using the user's saved stream keys). */
+    async start(channelName: string, uid?: number, isStreaming: boolean = true, multistream: StreamPlatform[] = []): Promise<PublishResponse> {
         // stop any existing heartbeat
         // this.stop();
         console.log('start stream service, channel: ', channelName, ' isStreaming: ', isStreaming);
-        await this.publish(channelName, isStreaming);
+        const response = await this.publish(channelName, isStreaming, multistream);
 
         if (isStreaming) {
             // fire immediately, then every 10s
@@ -34,10 +37,11 @@ export class StreamService {
                 )
             ).subscribe();
         }
+        return response;
     }
 
-    private publish(channelName: string, isStreaming: boolean): Promise<void> {
-        return firstValueFrom(this.http.put<void>(`${this.apiUrl}/stream/publish`, { channelName, isStreaming }));
+    private publish(channelName: string, isStreaming: boolean, multistream: StreamPlatform[] = []): Promise<PublishResponse> {
+        return firstValueFrom(this.http.put<PublishResponse>(`${this.apiUrl}/stream/publish`, { channelName, isStreaming, multistream }));
     }
 
     async stopLive(channelName: string): Promise<void> {
