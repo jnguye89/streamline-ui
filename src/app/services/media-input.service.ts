@@ -27,6 +27,7 @@ import {
   applyAudioMixState,
   connectAudioMixer,
 } from './audio-mixer.service';
+import { createBackgroundFrameScheduler } from './frame-scheduler';
 import {
   createVideoCompositor,
   VideoCompositorSession,
@@ -68,6 +69,7 @@ export const MEDIA_INPUT_ENVIRONMENT =
         typeof cancelAnimationFrame === 'undefined'
           ? undefined
           : (handle) => cancelAnimationFrame(handle),
+      scheduleFrames: createBackgroundFrameScheduler(),
     }),
   });
 
@@ -1162,6 +1164,7 @@ export class MediaInputService implements OnDestroy {
         createCanvasElement: environment.createCanvasElement,
         requestAnimationFrame: environment.requestAnimationFrame,
         cancelAnimationFrame: environment.cancelAnimationFrame,
+        scheduleFrames: environment.scheduleFrames,
       },
       primary,
       overlay,

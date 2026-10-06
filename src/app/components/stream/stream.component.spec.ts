@@ -13,6 +13,8 @@ import { MediaInputService } from '../../services/media-input.service';
 import { RtcStreamService } from '../../services/agora/rtc-stream.service';
 import { SeoService } from '../../services/seo.service';
 import { StreamService } from '../../services/stream.service';
+import { UserService } from '../../services/user.service';
+import { StreamPlatform } from '../../models/stream-key.model';
 import {
   ChatMessage,
   RecordingSocketService,
@@ -69,6 +71,7 @@ describe('StreamComponent', () => {
   let streamService: jasmine.SpyObj<StreamService>;
   let socket: jasmine.SpyObj<RecordingSocketService>;
   let gamepadNavigation: jasmine.SpyObj<GamepadNavigationService>;
+  let userService: jasmine.SpyObj<UserService>;
   let chatMessage$: Subject<ChatMessage>;
   let isLive$: BehaviorSubject<boolean>;
 
@@ -148,6 +151,13 @@ describe('StreamComponent', () => {
       }),
     );
     streamService.stop.and.resolveTo({ filename: '' });
+    streamService.start.and.resolveTo({ ok: true, multistream: [] });
+    userService = jasmine.createSpyObj<UserService>('UserService', [
+      'getStreamKeys',
+    ]);
+    userService.getStreamKeys.and.returnValue(
+      of([{ platform: StreamPlatform.TWITCH, streamKey: 'live_123' }]),
+    );
     chatMessage$ = new Subject<ChatMessage>();
     socket = jasmine.createSpyObj<RecordingSocketService>(
       'RecordingSocketService',
@@ -156,7 +166,12 @@ describe('StreamComponent', () => {
     );
     gamepadNavigation = jasmine.createSpyObj<GamepadNavigationService>(
       'GamepadNavigationService',
-      ['setAuxButtonActions', 'clearAuxButtonActions'],
+      [
+        'setAuxButtonActions',
+        'clearAuxButtonActions',
+        'register',
+        'unregister',
+      ],
     );
 
     await TestBed.configureTestingModule({
@@ -174,6 +189,7 @@ describe('StreamComponent', () => {
         },
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
         { provide: GamepadNavigationService, useValue: gamepadNavigation },
+        { provide: UserService, useValue: userService },
       ],
     }).compileComponents();
 
@@ -541,6 +557,120 @@ describe('StreamComponent', () => {
       'could not be applied',
     );
   });
+
+  describe('Twitch multistream', () => {
+    function twitchToggle(): HTMLButtonElement | null {
+      return fixture.nativeElement.querySelector('.twitch-toggle');
+    }
+
+    async function goLive(): Promise<void> {
+      spyOn(
+        fixture.componentInstance.videoElement.nativeElement,
+        'play',
+      ).and.resolveTo();
+      mediaInput.startPreview.and.resolveTo(new MediaStream());
+      rtc.startPublish.and.callFake(async () => isLive$.next(true));
+      await fixture.componentInstance.resumeWebcam();
+      fixture.detectChanges();
+    }
+
+    it('highlights the T toggle by default once a Twitch key is saved', () => {
+      expect(fixture.componentInstance.twitchAvailable).toBeTrue();
+      expect(twitchToggle()?.textContent?.trim()).toBe('T');
+      expect(twitchToggle()?.disabled).toBeFalse();
+      expect(twitchToggle()?.getAttribute('aria-pressed')).toBe('true');
+      expect(twitchToggle()?.classList).toContain('twitch-toggle--on');
+    });
+
+    it('shows the T toggle disabled and off when no Twitch key is saved', async () => {
+      userService.getStreamKeys.and.returnValue(of([]));
+      await fixture.componentInstance.init();
+      fixture.detectChanges();
+
+      expect(twitchToggle()?.disabled).toBeTrue();
+      expect(twitchToggle()?.getAttribute('aria-pressed')).toBe('false');
+      expect(fixture.componentInstance.twitchState).toBe('unavailable');
+    });
+
+    it('treats a failed key lookup as no Twitch key', async () => {
+      userService.getStreamKeys.and.returnValue(
+        throwError(() => new Error('offline')),
+      );
+      await fixture.componentInstance.init();
+
+      expect(fixture.componentInstance.twitchAvailable).toBeFalse();
+    });
+
+    it('restreams to Twitch when going live with the toggle on', async () => {
+      streamService.start.and.resolveTo({
+        ok: true,
+        multistream: [{ platform: StreamPlatform.TWITCH, status: 'active' }],
+      });
+
+      await goLive();
+
+      expect(streamService.start).toHaveBeenCalledWith(
+        fixture.componentInstance.channelName!,
+        undefined,
+        true,
+        [StreamPlatform.TWITCH],
+      );
+      expect(fixture.componentInstance.twitchState).toBe('live');
+      expect(twitchToggle()?.classList).toContain('twitch-toggle--on');
+    });
+
+    it('locks the T toggle once live', async () => {
+      await goLive();
+
+      expect(twitchToggle()?.disabled).toBeTrue();
+      fixture.componentInstance.toggleTwitchMultistream();
+      expect(fixture.componentInstance.multistreamToTwitch).toBeTrue();
+    });
+
+    it('skips Twitch when the toggle is switched off before going live', async () => {
+      twitchToggle()!.click();
+      fixture.detectChanges();
+      expect(twitchToggle()?.getAttribute('aria-pressed')).toBe('false');
+      expect(twitchToggle()?.classList).not.toContain('twitch-toggle--on');
+
+      await goLive();
+
+      expect(streamService.start).toHaveBeenCalledWith(
+        fixture.componentInstance.channelName!,
+        undefined,
+        true,
+        [],
+      );
+      expect(fixture.componentInstance.twitchState).toBe('off');
+    });
+
+    it('stays live and explains when Twitch fails to start', async () => {
+      streamService.start.and.resolveTo({
+        ok: true,
+        multistream: [
+          {
+            platform: StreamPlatform.TWITCH,
+            status: 'error',
+            error: 'Could not start streaming to Twitch',
+          },
+        ],
+      });
+
+      await goLive();
+
+      expect(fixture.componentInstance.isLive).toBeTrue();
+      expect(fixture.componentInstance.workflowError).toBeNull();
+      expect(fixture.componentInstance.twitchState).toBe('error');
+      expect(
+        fixture.nativeElement.querySelector('.status-banner').textContent,
+      ).toContain("Could not start streaming to Twitch. You're still live here.");
+
+      isLive$.next(false);
+      await fixture.componentInstance.stopWebcam(false);
+      expect(fixture.componentInstance.multistreamError).toBeNull();
+      expect(fixture.componentInstance.twitchStatus).toBeNull();
+    });
+  });
 });
 
 
@@ -635,7 +765,12 @@ describe('StreamComponent screen/webcam role detection', () => {
     );
     const gamepadNavigation = jasmine.createSpyObj<GamepadNavigationService>(
       'GamepadNavigationService',
-      ['setAuxButtonActions', 'clearAuxButtonActions'],
+      [
+        'setAuxButtonActions',
+        'clearAuxButtonActions',
+        'register',
+        'unregister',
+      ],
     );
 
     TestBed.resetTestingModule();
@@ -654,6 +789,10 @@ describe('StreamComponent screen/webcam role detection', () => {
         },
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
         { provide: GamepadNavigationService, useValue: gamepadNavigation },
+        {
+          provide: UserService,
+          useValue: { getStreamKeys: () => of([]) },
+        },
       ],
     }).compileComponents();
 

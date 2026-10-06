@@ -31,6 +31,9 @@ import { MediaInputService } from "../../services/media-input.service";
 import { RtcStreamService } from "../../services/agora/rtc-stream.service";
 import { SeoService } from "../../services/seo.service";
 import { StreamService } from "../../services/stream.service";
+import { UserService } from "../../services/user.service";
+import { MultistreamStatus } from "../../models/multistream.model";
+import { StreamPlatform } from "../../models/stream-key.model";
 import {
   ChatMessage,
   RecordingSocketService,
@@ -44,6 +47,20 @@ import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
  * control surface on top of that same state.
  */
 type DisplayMode = 'webcam' | 'screen' | 'screen-cam';
+
+/**
+ * What the "T" toolbar button shows: the choice before going live, the
+ * outcome after. Highlighted ('on'/'live') means streaming to Twitch.
+ */
+type TwitchState = 'unavailable' | 'off' | 'on' | 'live' | 'error';
+
+const TWITCH_LABELS: Record<TwitchState, string> = {
+  unavailable: 'Stream to Twitch: save a Twitch stream key in your profile first',
+  off: 'Stream to Twitch: off',
+  on: 'Stream to Twitch: on',
+  live: 'Streaming to Twitch',
+  error: 'Twitch restream failed',
+};
 
 @Component({
   selector: "app-stream",
@@ -91,6 +108,15 @@ export class StreamComponent
   chatMessages: (ChatMessage & { key: string })[] = [];
   chatText = '';
 
+  readonly twitchLabels = TWITCH_LABELS;
+  /** True once the user has a Twitch stream key saved (profile > streaming). */
+  twitchAvailable = false;
+  /** Whether going live also restreams to Twitch; only changeable while offline. */
+  multistreamToTwitch = true;
+  /** The Twitch restream's outcome for the current live session. */
+  twitchStatus: MultistreamStatus | null = null;
+  multistreamError: string | null = null;
+
   /** The video source quick-picker's current mode; defaults to both on. */
   displayMode: DisplayMode = 'screen-cam';
   /** Device id for whichever video source is currently treated as "the screen" (main). */
@@ -112,6 +138,7 @@ export class StreamComponent
     private readonly rtcStreamService: RtcStreamService,
     private readonly socket: RecordingSocketService,
     public readonly mediaInput: MediaInputService,
+    private readonly userService: UserService,
   ) {}
 
   ngOnInit(): void {
@@ -329,6 +356,7 @@ export class StreamComponent
       );
       this.isReady = true;
       this.initializeChat();
+      this.loadMultistreamTargets();
     } catch {
       this.mediaInput.stopPreview();
       this.clearVideoElement();
@@ -356,6 +384,37 @@ export class StreamComponent
     } catch {
       // Chat is supplemental and must not invalidate a ready media session.
     }
+  }
+
+  /** Multistreaming is supplemental; failing to look up keys just hides the option. */
+  private loadMultistreamTargets(): void {
+    this.userService
+      .getStreamKeys()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (keys) => {
+          this.twitchAvailable = keys.some(
+            (key) =>
+              key.platform === StreamPlatform.TWITCH && !!key.streamKey?.trim(),
+          );
+        },
+        error: () => (this.twitchAvailable = false),
+      });
+  }
+
+  get twitchState(): TwitchState {
+    if (this.isLive) {
+      if (!this.twitchStatus) return 'off';
+      return this.twitchStatus.status === 'active' ? 'live' : 'error';
+    }
+    if (!this.twitchAvailable) return 'unavailable';
+    return this.multistreamToTwitch ? 'on' : 'off';
+  }
+
+  /** Only changeable before going live; the choice is locked in while live. */
+  toggleTwitchMultistream(): void {
+    if (this.isLive || this.isStarting || !this.twitchAvailable) return;
+    this.multistreamToTwitch = !this.multistreamToTwitch;
   }
 
   retrySetup(): Promise<void> {
@@ -515,7 +574,17 @@ export class StreamComponent
 
       await this.mediaInput.resumeAudioContext();
       await this.rtcStreamService.startPublish(stream);
-      await this.streamService.start(this.channelName);
+      const multistream =
+        this.twitchAvailable && this.multistreamToTwitch
+          ? [StreamPlatform.TWITCH]
+          : [];
+      const response = await this.streamService.start(
+        this.channelName,
+        undefined,
+        true,
+        multistream,
+      );
+      this.applyMultistreamResult(response?.multistream ?? []);
     } catch {
       await this.rtcStreamService.stopPublish();
       await this.restorePreview();
@@ -530,6 +599,8 @@ export class StreamComponent
     if (!this.channelName) {
       return;
     }
+    this.twitchStatus = null;
+    this.multistreamError = null;
 
     let response: { filename: string } | undefined;
     let stopFailed = false;
@@ -596,6 +667,21 @@ export class StreamComponent
     this.chatMessages = [...this.chatMessages, entry].slice(
       -this.chatMaxVisible,
     );
+  }
+
+  /**
+   * The backend reports restream failures instead of failing the publish, so
+   * the stream stays live here - surface the problem without ending it.
+   */
+  private applyMultistreamResult(results: MultistreamStatus[]): void {
+    this.twitchStatus =
+      results.find((result) => result.platform === StreamPlatform.TWITCH) ??
+      null;
+    this.multistreamError =
+      this.twitchStatus?.status === 'error'
+        ? `${this.twitchStatus.error ?? 'Could not start streaming to Twitch'}. ` +
+          "You're still live here."
+        : null;
   }
 
   private async refreshPreview(): Promise<MediaStream | null> {

@@ -1,3 +1,5 @@
+import { FrameScheduler } from '../models/media-input.models';
+
 export interface VideoCompositorSession {
   readonly track: MediaStreamTrack;
   setPrimary(stream: MediaStream): void;
@@ -10,6 +12,12 @@ export interface VideoCompositorEnvironment {
   createCanvasElement: () => HTMLCanvasElement;
   requestAnimationFrame: (callback: FrameRequestCallback) => number;
   cancelAnimationFrame: (handle: number) => void;
+  /**
+   * Preferred repaint driver. requestAnimationFrame stops completely while
+   * the tab is hidden, which left the captured track - and every viewer -
+   * stuck on the last frame whenever the streamer switched tabs.
+   */
+  scheduleFrames?: FrameScheduler;
 }
 
 const DEFAULT_FRAME_RATE = 30;
@@ -33,7 +41,6 @@ export function createVideoCompositor(
   canvas.height = outputSize.height || DEFAULT_HEIGHT;
   const primaryVideo = createSourceVideo(environment, primary);
   const overlayVideo = createSourceVideo(environment, overlay);
-  let frameHandle = 0;
   let disposed = false;
 
   const render = (): void => {
@@ -42,19 +49,19 @@ export function createVideoCompositor(
     context.fillRect(0, 0, canvas.width, canvas.height);
     drawContained(context, primaryVideo, canvas.width, canvas.height);
     drawOverlay(context, overlayVideo, canvas.width, canvas.height);
-    frameHandle = environment.requestAnimationFrame(render);
   };
-  render();
 
   const outputFrameRate =
     outputSize.frameRate && outputSize.frameRate > 0
       ? outputSize.frameRate
       : DEFAULT_FRAME_RATE;
+  const stopFrames = startFrames(environment, render, outputFrameRate);
+
   const output = canvas.captureStream(outputFrameRate);
   const track = output.getVideoTracks()[0];
   if (!track) {
     disposed = true;
-    environment.cancelAnimationFrame(frameHandle);
+    stopFrames();
     detachVideo(primaryVideo);
     detachVideo(overlayVideo);
     return null;
@@ -67,12 +74,35 @@ export function createVideoCompositor(
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      environment.cancelAnimationFrame(frameHandle);
+      stopFrames();
       detachVideo(primaryVideo);
       detachVideo(overlayVideo);
       track.stop();
     },
   };
+}
+
+/** Paints the first frame now and keeps repainting; returns the stopper. */
+function startFrames(
+  environment: VideoCompositorEnvironment,
+  render: () => void,
+  frameRate: number,
+): () => void {
+  render();
+  if (environment.scheduleFrames) {
+    const ticker = environment.scheduleFrames(render, 1000 / frameRate);
+    return () => ticker.stop();
+  }
+
+  let frameHandle = 0;
+  const loop = (): void => {
+    frameHandle = environment.requestAnimationFrame(() => {
+      render();
+      loop();
+    });
+  };
+  loop();
+  return () => environment.cancelAnimationFrame(frameHandle);
 }
 
 function createSourceVideo(

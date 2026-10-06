@@ -108,6 +108,20 @@ export interface VideoCaptureResult {
 
 export type AudioChannel = 'game' | 'microphone';
 
+/** A running frame schedule; stop() ends it. */
+export interface FrameTicker {
+  stop(): void;
+}
+
+/**
+ * Calls `callback` about every `intervalMs`, and keeps doing so while the
+ * tab is hidden - unlike requestAnimationFrame, which stops entirely there.
+ */
+export type FrameScheduler = (
+  callback: () => void,
+  intervalMs: number,
+) => FrameTicker;
+
 export interface MediaInputEnvironment {
   mediaDevices?: MediaDevices;
   storage?: Storage;
@@ -117,4 +131,6 @@ export interface MediaInputEnvironment {
   createCanvasElement?: () => HTMLCanvasElement;
   requestAnimationFrame?: (callback: FrameRequestCallback) => number;
   cancelAnimationFrame?: (handle: number) => void;
+  /** Drives the composited video's repaint; falls back to requestAnimationFrame when absent. */
+  scheduleFrames?: FrameScheduler;
 }

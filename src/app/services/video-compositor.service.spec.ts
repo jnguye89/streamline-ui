@@ -57,6 +57,59 @@ describe('video compositor', () => {
     );
   });
 
+  it('repaints from the frame scheduler instead of requestAnimationFrame when one is provided', () => {
+    const primary = fakeVideo(1280, 720);
+    const context = jasmine.createSpyObj<CanvasRenderingContext2D>(
+      'context',
+      ['fillRect', 'drawImage', 'strokeRect'],
+    );
+    const outputTrack = jasmine.createSpyObj<MediaStreamTrack>('track', ['stop']);
+    const ticker = { stop: jasmine.createSpy('stop') };
+    const scheduleFrames = jasmine
+      .createSpy('scheduleFrames')
+      .and.returnValue(ticker);
+    const requestAnimationFrame = jasmine.createSpy('requestAnimationFrame');
+    const cancelAnimationFrame = jasmine.createSpy('cancelAnimationFrame');
+
+    const session = createVideoCompositor(
+      {
+        createVideoElement: () => primary,
+        createCanvasElement: () =>
+          ({
+            width: 0,
+            height: 0,
+            getContext: () => context,
+            captureStream: () => ({ getVideoTracks: () => [outputTrack] }),
+          }) as unknown as HTMLCanvasElement,
+        requestAnimationFrame,
+        cancelAnimationFrame,
+        scheduleFrames,
+      },
+      mediaStream(),
+      null,
+      { width: 1280, height: 720, frameRate: 30 },
+    )!;
+
+    // First frame is painted immediately, then the scheduler owns the cadence.
+    expect(context.drawImage).toHaveBeenCalledTimes(1);
+    expect(scheduleFrames).toHaveBeenCalledOnceWith(
+      jasmine.any(Function),
+      1000 / 30,
+    );
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
+
+    const repaint = scheduleFrames.calls.mostRecent().args[0] as () => void;
+    repaint();
+    expect(context.drawImage).toHaveBeenCalledTimes(2);
+
+    session.dispose();
+    expect(ticker.stop).toHaveBeenCalled();
+    expect(cancelAnimationFrame).not.toHaveBeenCalled();
+    // A worker tick that lands after dispose must not paint a torn-down canvas.
+    repaint();
+    expect(context.drawImage).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps its output track while replacing sources and cleans up', () => {
     const primary = fakeVideo(1280, 720);
     const overlay = fakeVideo(1280, 720);
