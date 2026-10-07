@@ -14,7 +14,10 @@ import { RtcStreamService } from '../../services/agora/rtc-stream.service';
 import { SeoService } from '../../services/seo.service';
 import { StreamService } from '../../services/stream.service';
 import { UserService } from '../../services/user.service';
-import { StreamPlatform } from '../../models/stream-key.model';
+import {
+  StreamKeyPayload,
+  StreamPlatform,
+} from '../../models/stream-key.model';
 import {
   ChatMessage,
   RecordingSocketService,
@@ -558,9 +561,37 @@ describe('StreamComponent', () => {
     );
   });
 
-  describe('Twitch multistream', () => {
-    function twitchToggle(): HTMLButtonElement | null {
-      return fixture.nativeElement.querySelector('.twitch-toggle');
+  describe('restream targets', () => {
+    const twitchKey: StreamKeyPayload = {
+      platform: StreamPlatform.TWITCH,
+      streamKey: 'live_123',
+    };
+    const kickKey: StreamKeyPayload = {
+      platform: StreamPlatform.KICK,
+      streamKey: 'sk_abc',
+      streamUrl: 'rtmps://x.global-contribute.live-video.net:443/app',
+    };
+
+    function toggle(platform: StreamPlatform): HTMLButtonElement | null {
+      return fixture.nativeElement.querySelector(
+        `.restream-toggle--${platform}`,
+      );
+    }
+
+    function target(platform: StreamPlatform) {
+      return fixture.componentInstance.restreamTargets.find(
+        (candidate) => candidate.platform === platform,
+      )!;
+    }
+
+    function state(platform: StreamPlatform) {
+      return fixture.componentInstance.restreamState(target(platform));
+    }
+
+    async function reloadKeys(keys: StreamKeyPayload[]): Promise<void> {
+      userService.getStreamKeys.and.returnValue(of(keys));
+      await fixture.componentInstance.init();
+      fixture.detectChanges();
     }
 
     async function goLive(): Promise<void> {
@@ -574,38 +605,102 @@ describe('StreamComponent', () => {
       fixture.detectChanges();
     }
 
-    it('highlights the T toggle by default once a Twitch key is saved', () => {
-      expect(fixture.componentInstance.twitchAvailable).toBeTrue();
-      expect(twitchToggle()?.textContent?.trim()).toBe('T');
-      expect(twitchToggle()?.disabled).toBeFalse();
-      expect(twitchToggle()?.getAttribute('aria-pressed')).toBe('true');
-      expect(twitchToggle()?.classList).toContain('twitch-toggle--on');
+    it('shows a lettered circle per platform, on by default once its key is saved', () => {
+      expect(toggle(StreamPlatform.TWITCH)?.textContent?.trim()).toBe('T');
+      expect(toggle(StreamPlatform.KICK)?.textContent?.trim()).toBe('K');
+      expect(toggle(StreamPlatform.TWITCH)?.disabled).toBeFalse();
+      expect(toggle(StreamPlatform.TWITCH)?.getAttribute('aria-pressed')).toBe(
+        'true',
+      );
+      expect(toggle(StreamPlatform.TWITCH)?.classList).toContain(
+        'restream-toggle--on',
+      );
+      // Only a Twitch key is saved in the default setup.
+      expect(toggle(StreamPlatform.KICK)?.disabled).toBeTrue();
+      expect(state(StreamPlatform.KICK)).toBe('unavailable');
+      expect(fixture.componentInstance.selectedRestreams).toEqual([
+        StreamPlatform.TWITCH,
+      ]);
     });
 
-    it('shows the T toggle disabled and off when no Twitch key is saved', async () => {
-      userService.getStreamKeys.and.returnValue(of([]));
-      await fixture.componentInstance.init();
-      fixture.detectChanges();
+    it('disables every circle when no keys are saved', async () => {
+      await reloadKeys([]);
 
-      expect(twitchToggle()?.disabled).toBeTrue();
-      expect(twitchToggle()?.getAttribute('aria-pressed')).toBe('false');
-      expect(fixture.componentInstance.twitchState).toBe('unavailable');
+      expect(toggle(StreamPlatform.TWITCH)?.disabled).toBeTrue();
+      expect(toggle(StreamPlatform.TWITCH)?.getAttribute('aria-pressed')).toBe(
+        'false',
+      );
+      expect(fixture.componentInstance.selectedRestreams).toEqual([]);
     });
 
-    it('treats a failed key lookup as no Twitch key', async () => {
+    it('treats a failed key lookup as no keys', async () => {
       userService.getStreamKeys.and.returnValue(
         throwError(() => new Error('offline')),
       );
       await fixture.componentInstance.init();
 
-      expect(fixture.componentInstance.twitchAvailable).toBeFalse();
+      expect(fixture.componentInstance.selectedRestreams).toEqual([]);
     });
 
-    it('restreams to Twitch when going live with the toggle on', async () => {
+    it('needs both a key and an ingest URL before offering Kick', async () => {
+      await reloadKeys([{ platform: StreamPlatform.KICK, streamKey: 'sk_abc' }]);
+      expect(toggle(StreamPlatform.KICK)?.disabled).toBeTrue();
+
+      await reloadKeys([kickKey]);
+      expect(toggle(StreamPlatform.KICK)?.disabled).toBeFalse();
+      expect(toggle(StreamPlatform.KICK)?.classList).toContain(
+        'restream-toggle--on',
+      );
+      expect(fixture.componentInstance.selectedRestreams).toEqual([
+        StreamPlatform.KICK,
+      ]);
+    });
+
+    it('restreams to every highlighted platform when going live', async () => {
+      await reloadKeys([twitchKey, kickKey]);
       streamService.start.and.resolveTo({
         ok: true,
-        multistream: [{ platform: StreamPlatform.TWITCH, status: 'active' }],
+        multistream: [
+          { platform: StreamPlatform.TWITCH, status: 'active' },
+          { platform: StreamPlatform.KICK, status: 'active' },
+        ],
       });
+
+      await goLive();
+
+      expect(streamService.start).toHaveBeenCalledWith(
+        fixture.componentInstance.channelName!,
+        undefined,
+        true,
+        [StreamPlatform.TWITCH, StreamPlatform.KICK],
+      );
+      expect(state(StreamPlatform.TWITCH)).toBe('live');
+      expect(state(StreamPlatform.KICK)).toBe('live');
+      expect(toggle(StreamPlatform.KICK)?.classList).toContain(
+        'restream-toggle--on',
+      );
+    });
+
+    it('locks the circles once live', async () => {
+      await goLive();
+
+      expect(toggle(StreamPlatform.TWITCH)?.disabled).toBeTrue();
+      fixture.componentInstance.toggleRestream(target(StreamPlatform.TWITCH));
+      expect(fixture.componentInstance.selectedRestreams).toEqual([
+        StreamPlatform.TWITCH,
+      ]);
+    });
+
+    it('skips a platform switched off before going live', async () => {
+      await reloadKeys([twitchKey, kickKey]);
+      toggle(StreamPlatform.KICK)!.click();
+      fixture.detectChanges();
+      expect(toggle(StreamPlatform.KICK)?.getAttribute('aria-pressed')).toBe(
+        'false',
+      );
+      expect(toggle(StreamPlatform.KICK)?.classList).not.toContain(
+        'restream-toggle--on',
+      );
 
       await goLive();
 
@@ -615,36 +710,10 @@ describe('StreamComponent', () => {
         true,
         [StreamPlatform.TWITCH],
       );
-      expect(fixture.componentInstance.twitchState).toBe('live');
-      expect(twitchToggle()?.classList).toContain('twitch-toggle--on');
+      expect(state(StreamPlatform.KICK)).toBe('off');
     });
 
-    it('locks the T toggle once live', async () => {
-      await goLive();
-
-      expect(twitchToggle()?.disabled).toBeTrue();
-      fixture.componentInstance.toggleTwitchMultistream();
-      expect(fixture.componentInstance.multistreamToTwitch).toBeTrue();
-    });
-
-    it('skips Twitch when the toggle is switched off before going live', async () => {
-      twitchToggle()!.click();
-      fixture.detectChanges();
-      expect(twitchToggle()?.getAttribute('aria-pressed')).toBe('false');
-      expect(twitchToggle()?.classList).not.toContain('twitch-toggle--on');
-
-      await goLive();
-
-      expect(streamService.start).toHaveBeenCalledWith(
-        fixture.componentInstance.channelName!,
-        undefined,
-        true,
-        [],
-      );
-      expect(fixture.componentInstance.twitchState).toBe('off');
-    });
-
-    it('stays live and explains when Twitch fails to start', async () => {
+    it('stays live and explains when a restream fails to start', async () => {
       streamService.start.and.resolveTo({
         ok: true,
         multistream: [
@@ -660,7 +729,10 @@ describe('StreamComponent', () => {
 
       expect(fixture.componentInstance.isLive).toBeTrue();
       expect(fixture.componentInstance.workflowError).toBeNull();
-      expect(fixture.componentInstance.twitchState).toBe('error');
+      expect(state(StreamPlatform.TWITCH)).toBe('error');
+      expect(toggle(StreamPlatform.TWITCH)?.classList).toContain(
+        'restream-toggle--error',
+      );
       expect(
         fixture.nativeElement.querySelector('.status-banner').textContent,
       ).toContain("Could not start streaming to Twitch. You're still live here.");
@@ -668,7 +740,30 @@ describe('StreamComponent', () => {
       isLive$.next(false);
       await fixture.componentInstance.stopWebcam(false);
       expect(fixture.componentInstance.multistreamError).toBeNull();
-      expect(fixture.componentInstance.twitchStatus).toBeNull();
+      expect(state(StreamPlatform.TWITCH)).toBe('on');
+    });
+
+    it('names the platforms still live when only one restream fails', async () => {
+      await reloadKeys([twitchKey, kickKey]);
+      streamService.start.and.resolveTo({
+        ok: true,
+        multistream: [
+          { platform: StreamPlatform.TWITCH, status: 'active' },
+          {
+            platform: StreamPlatform.KICK,
+            status: 'error',
+            error: 'Could not start streaming to Kick',
+          },
+        ],
+      });
+
+      await goLive();
+
+      expect(fixture.componentInstance.multistreamError).toBe(
+        "Could not start streaming to Kick. You're still live here and on Twitch.",
+      );
+      expect(state(StreamPlatform.TWITCH)).toBe('live');
+      expect(state(StreamPlatform.KICK)).toBe('error');
     });
   });
 });
