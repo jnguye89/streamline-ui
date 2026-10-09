@@ -571,6 +571,11 @@ describe('StreamComponent', () => {
       streamKey: 'sk_abc',
       streamUrl: 'rtmps://x.global-contribute.live-video.net:443/app',
     };
+    const rumbleKey: StreamKeyPayload = {
+      platform: StreamPlatform.RUMBLE,
+      streamKey: 'r8-xyz',
+      streamUrl: 'rtmp://rtmp.rumble.com/live',
+    };
 
     function toggle(platform: StreamPlatform): HTMLButtonElement | null {
       return fixture.nativeElement.querySelector(
@@ -608,6 +613,7 @@ describe('StreamComponent', () => {
     it('shows a lettered circle per platform, on by default once its key is saved', () => {
       expect(toggle(StreamPlatform.TWITCH)?.textContent?.trim()).toBe('T');
       expect(toggle(StreamPlatform.KICK)?.textContent?.trim()).toBe('K');
+      expect(toggle(StreamPlatform.RUMBLE)?.textContent?.trim()).toBe('R');
       expect(toggle(StreamPlatform.TWITCH)?.disabled).toBeFalse();
       expect(toggle(StreamPlatform.TWITCH)?.getAttribute('aria-pressed')).toBe(
         'true',
@@ -617,7 +623,9 @@ describe('StreamComponent', () => {
       );
       // Only a Twitch key is saved in the default setup.
       expect(toggle(StreamPlatform.KICK)?.disabled).toBeTrue();
+      expect(toggle(StreamPlatform.RUMBLE)?.disabled).toBeTrue();
       expect(state(StreamPlatform.KICK)).toBe('unavailable');
+      expect(state(StreamPlatform.RUMBLE)).toBe('unavailable');
       expect(fixture.componentInstance.selectedRestreams).toEqual([
         StreamPlatform.TWITCH,
       ]);
@@ -657,12 +665,13 @@ describe('StreamComponent', () => {
     });
 
     it('restreams to every highlighted platform when going live', async () => {
-      await reloadKeys([twitchKey, kickKey]);
+      await reloadKeys([twitchKey, kickKey, rumbleKey]);
       streamService.start.and.resolveTo({
         ok: true,
         multistream: [
           { platform: StreamPlatform.TWITCH, status: 'active' },
           { platform: StreamPlatform.KICK, status: 'active' },
+          { platform: StreamPlatform.RUMBLE, status: 'active' },
         ],
       });
 
@@ -672,13 +681,25 @@ describe('StreamComponent', () => {
         fixture.componentInstance.channelName!,
         undefined,
         true,
-        [StreamPlatform.TWITCH, StreamPlatform.KICK],
+        [StreamPlatform.TWITCH, StreamPlatform.KICK, StreamPlatform.RUMBLE],
       );
       expect(state(StreamPlatform.TWITCH)).toBe('live');
       expect(state(StreamPlatform.KICK)).toBe('live');
-      expect(toggle(StreamPlatform.KICK)?.classList).toContain(
+      expect(state(StreamPlatform.RUMBLE)).toBe('live');
+      expect(toggle(StreamPlatform.RUMBLE)?.classList).toContain(
         'restream-toggle--on',
       );
+    });
+
+    it('needs both a key and an ingest URL before offering Rumble', async () => {
+      await reloadKeys([{ platform: StreamPlatform.RUMBLE, streamKey: 'r8' }]);
+      expect(toggle(StreamPlatform.RUMBLE)?.disabled).toBeTrue();
+
+      await reloadKeys([rumbleKey]);
+      expect(toggle(StreamPlatform.RUMBLE)?.disabled).toBeFalse();
+      expect(fixture.componentInstance.selectedRestreams).toEqual([
+        StreamPlatform.RUMBLE,
+      ]);
     });
 
     it('locks the circles once live', async () => {

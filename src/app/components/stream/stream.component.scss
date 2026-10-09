@@ -457,12 +457,11 @@
   }
 }
 
-// Lettered restream circles (T = Twitch, K = Kick), same idea as the W/S
-// source avatars: dim when off, the platform's color with a white ring when
-// the stream will go (or is going) there. Twitch is the default palette.
+// Lettered restream circles (T = Twitch, K = Kick, R = Rumble), same idea
+// as the W/S source avatars: dimmed when off, full color with a white ring
+// when the stream will go (or is going) there. Twitch is the default palette.
 .restream-toggle {
   --rs-color: #9146ff;
-  --rs-bg: color-mix(in srgb, var(--rs-color) 35%, transparent);
 
   display: grid;
   width: 30px;
@@ -472,37 +471,42 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  color: #fff9;
-  background: var(--rs-bg);
+  color: #fff;
+  background: var(--rs-color);
   box-shadow: var(--rs-ring, none);
   font: inherit;
   font-size: 14px;
   font-weight: 800;
-  cursor: pointer;
+  opacity: 0.45;
 
   // Clicking or selecting a circle gives it the app-wide .gamepad-focused
   // class, whose !important background and ring would hide the on/off
   // state. Keep both, and draw the toolbar's blue focus ring outside them.
   &.gamepad-focused {
-    background-color: var(--rs-bg) !important;
+    background-color: var(--rs-color) !important;
     box-shadow: var(--rs-ring, 0 0 #0000), 0 0 0 5px #90caf9 !important;
-  }
-
-  &:disabled {
-    cursor: default;
   }
 }
 
 .restream-toggle--kick {
   --rs-color: #53fc18;
+}
+
+.restream-toggle--rumble {
+  --rs-color: #85c742;
+}
+
+// Both greens need dark lettering when lit.
+.restream-toggle--kick,
+.restream-toggle--rumble {
   --rs-ink: #0b1a03;
 }
 
 .restream-toggle--on,
 .restream-toggle--error {
-  --rs-bg: var(--rs-color);
   --rs-ring: 0 0 0 2px #fffb;
   color: var(--rs-ink, #fff);
+  opacity: 1;
 }
 
 .restream-toggle--error {
@@ -510,7 +514,7 @@
 }
 
 .restream-toggle--unavailable {
-  opacity: 0.45;
+  opacity: 0.2;
 }
 
 @keyframes pulse {

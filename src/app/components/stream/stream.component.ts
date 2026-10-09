@@ -64,6 +64,7 @@ export interface RestreamTarget {
 const RESTREAM_TARGETS: readonly RestreamTarget[] = [
   { platform: StreamPlatform.TWITCH, letter: 'T', label: 'Twitch', needsUrl: false },
   { platform: StreamPlatform.KICK, letter: 'K', label: 'Kick', needsUrl: true },
+  { platform: StreamPlatform.RUMBLE, letter: 'R', label: 'Rumble', needsUrl: true },
 ];
 
 /**
@@ -428,12 +429,12 @@ export class StreamComponent
   }
 
   restreamState(target: RestreamTarget): RestreamState {
+    if (!this.restreamAvailable.has(target.platform)) return 'unavailable';
     if (this.isLive) {
       const status = this.restreamStatus.get(target.platform);
       if (!status) return 'off';
       return status.status === 'active' ? 'live' : 'error';
     }
-    if (!this.restreamAvailable.has(target.platform)) return 'unavailable';
     return this.restreamDisabled.has(target.platform) ? 'off' : 'on';
   }
 
