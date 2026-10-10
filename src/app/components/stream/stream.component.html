@@ -137,21 +137,27 @@
       {{ isLive ? 'End stream' : 'Go live' }}
     </button>
 
-    <button
-      gamepadFocusable
-      class="twitch-toggle"
-      type="button"
-      [class.twitch-toggle--on]="twitchState === 'on' || twitchState === 'live'"
-      [class.twitch-toggle--error]="twitchState === 'error'"
-      [class.twitch-toggle--unavailable]="twitchState === 'unavailable'"
-      [attr.aria-pressed]="twitchState === 'on' || twitchState === 'live'"
-      [attr.aria-label]="twitchLabels[twitchState]"
-      [title]="twitchLabels[twitchState]"
-      [disabled]="twitchState === 'unavailable' || isLive || isStarting"
-      (click)="toggleTwitchMultistream()"
+    <ng-container
+      *ngFor="let target of restreamTargets; trackBy: trackRestreamTarget"
     >
-      T
-    </button>
+      <button
+        gamepadFocusable
+        *ngIf="restreamState(target) as state"
+        class="restream-toggle"
+        type="button"
+        [ngClass]="'restream-toggle--' + target.platform"
+        [class.restream-toggle--on]="state === 'on' || state === 'live'"
+        [class.restream-toggle--error]="state === 'error'"
+        [class.restream-toggle--unavailable]="state === 'unavailable'"
+        [attr.aria-pressed]="state === 'on' || state === 'live'"
+        [attr.aria-label]="restreamLabel(target)"
+        [title]="restreamLabel(target)"
+        [disabled]="state === 'unavailable' || isLive || isStarting"
+        (click)="toggleRestream(target)"
+      >
+        {{ target.letter }}
+      </button>
+    </ng-container>
 
     <div class="stream-toolbar__separator"></div>
 

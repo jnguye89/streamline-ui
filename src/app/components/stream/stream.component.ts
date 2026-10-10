@@ -49,17 +49,37 @@ import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 type DisplayMode = 'webcam' | 'screen' | 'screen-cam';
 
 /**
- * What the "T" toolbar button shows: the choice before going live, the
- * outcome after. Highlighted ('on'/'live') means streaming to Twitch.
+ * A platform the live stream can also be pushed to, shown as a lettered
+ * circle in the toolbar. Listing a platform here (and in the API's
+ * allow-list) is all it takes to offer it.
  */
-type TwitchState = 'unavailable' | 'off' | 'on' | 'live' | 'error';
+export interface RestreamTarget {
+  platform: StreamPlatform;
+  letter: string;
+  label: string;
+  /** The saved stream key must also carry an ingest URL (per-account ingests like Kick's). */
+  needsUrl: boolean;
+}
 
-const TWITCH_LABELS: Record<TwitchState, string> = {
-  unavailable: 'Stream to Twitch: save a Twitch stream key in your profile first',
-  off: 'Stream to Twitch: off',
-  on: 'Stream to Twitch: on',
-  live: 'Streaming to Twitch',
-  error: 'Twitch restream failed',
+const RESTREAM_TARGETS: readonly RestreamTarget[] = [
+  { platform: StreamPlatform.TWITCH, letter: 'T', label: 'Twitch', needsUrl: false },
+  { platform: StreamPlatform.KICK, letter: 'K', label: 'Kick', needsUrl: true },
+  { platform: StreamPlatform.RUMBLE, letter: 'R', label: 'Rumble', needsUrl: true },
+];
+
+/**
+ * What a restream circle shows: the choice before going live, the outcome
+ * after. Highlighted ('on'/'live') means the stream goes to that platform.
+ */
+type RestreamState = 'unavailable' | 'off' | 'on' | 'live' | 'error';
+
+const RESTREAM_LABELS: Record<RestreamState, (name: string) => string> = {
+  unavailable: (name) =>
+    `Stream to ${name}: save a ${name} stream key in your profile first`,
+  off: (name) => `Stream to ${name}: off`,
+  on: (name) => `Stream to ${name}: on`,
+  live: (name) => `Streaming to ${name}`,
+  error: (name) => `${name} restream failed`,
 };
 
 @Component({
@@ -108,13 +128,13 @@ export class StreamComponent
   chatMessages: (ChatMessage & { key: string })[] = [];
   chatText = '';
 
-  readonly twitchLabels = TWITCH_LABELS;
-  /** True once the user has a Twitch stream key saved (profile > streaming). */
-  twitchAvailable = false;
-  /** Whether going live also restreams to Twitch; only changeable while offline. */
-  multistreamToTwitch = true;
-  /** The Twitch restream's outcome for the current live session. */
-  twitchStatus: MultistreamStatus | null = null;
+  readonly restreamTargets = RESTREAM_TARGETS;
+  /** Platforms the user has saved credentials for (profile > streaming). */
+  private restreamAvailable = new Set<StreamPlatform>();
+  /** Platforms switched off for the next go-live; everything available is on by default. */
+  private restreamDisabled = new Set<StreamPlatform>();
+  /** Each restream's outcome for the current live session. */
+  private restreamStatus = new Map<StreamPlatform, MultistreamStatus>();
   multistreamError: string | null = null;
 
   /** The video source quick-picker's current mode; defaults to both on. */
@@ -386,35 +406,64 @@ export class StreamComponent
     }
   }
 
-  /** Multistreaming is supplemental; failing to look up keys just hides the option. */
+  /** Multistreaming is supplemental; failing to look up keys just disables the circles. */
   private loadMultistreamTargets(): void {
     this.userService
       .getStreamKeys()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (keys) => {
-          this.twitchAvailable = keys.some(
-            (key) =>
-              key.platform === StreamPlatform.TWITCH && !!key.streamKey?.trim(),
+          this.restreamAvailable = new Set(
+            RESTREAM_TARGETS.filter((target) =>
+              keys.some(
+                (key) =>
+                  key.platform === target.platform &&
+                  !!key.streamKey?.trim() &&
+                  (!target.needsUrl || !!key.streamUrl?.trim()),
+              ),
+            ).map((target) => target.platform),
           );
         },
-        error: () => (this.twitchAvailable = false),
+        error: () => (this.restreamAvailable = new Set()),
       });
   }
 
-  get twitchState(): TwitchState {
+  restreamState(target: RestreamTarget): RestreamState {
+    if (!this.restreamAvailable.has(target.platform)) return 'unavailable';
     if (this.isLive) {
-      if (!this.twitchStatus) return 'off';
-      return this.twitchStatus.status === 'active' ? 'live' : 'error';
+      const status = this.restreamStatus.get(target.platform);
+      if (!status) return 'off';
+      return status.status === 'active' ? 'live' : 'error';
     }
-    if (!this.twitchAvailable) return 'unavailable';
-    return this.multistreamToTwitch ? 'on' : 'off';
+    return this.restreamDisabled.has(target.platform) ? 'off' : 'on';
+  }
+
+  restreamLabel(target: RestreamTarget): string {
+    return RESTREAM_LABELS[this.restreamState(target)](target.label);
   }
 
   /** Only changeable before going live; the choice is locked in while live. */
-  toggleTwitchMultistream(): void {
-    if (this.isLive || this.isStarting || !this.twitchAvailable) return;
-    this.multistreamToTwitch = !this.multistreamToTwitch;
+  toggleRestream(target: RestreamTarget): void {
+    if (this.isLive || this.isStarting) return;
+    if (!this.restreamAvailable.has(target.platform)) return;
+    if (this.restreamDisabled.has(target.platform)) {
+      this.restreamDisabled.delete(target.platform);
+    } else {
+      this.restreamDisabled.add(target.platform);
+    }
+  }
+
+  /** Platforms the next go-live will also stream to. */
+  get selectedRestreams(): StreamPlatform[] {
+    return RESTREAM_TARGETS.map((target) => target.platform).filter(
+      (platform) =>
+        this.restreamAvailable.has(platform) &&
+        !this.restreamDisabled.has(platform),
+    );
+  }
+
+  trackRestreamTarget(_: number, target: RestreamTarget): StreamPlatform {
+    return target.platform;
   }
 
   retrySetup(): Promise<void> {
@@ -574,15 +623,11 @@ export class StreamComponent
 
       await this.mediaInput.resumeAudioContext();
       await this.rtcStreamService.startPublish(stream);
-      const multistream =
-        this.twitchAvailable && this.multistreamToTwitch
-          ? [StreamPlatform.TWITCH]
-          : [];
       const response = await this.streamService.start(
         this.channelName,
         undefined,
         true,
-        multistream,
+        this.selectedRestreams,
       );
       this.applyMultistreamResult(response?.multistream ?? []);
     } catch {
@@ -599,7 +644,7 @@ export class StreamComponent
     if (!this.channelName) {
       return;
     }
-    this.twitchStatus = null;
+    this.restreamStatus.clear();
     this.multistreamError = null;
 
     let response: { filename: string } | undefined;
@@ -674,14 +719,28 @@ export class StreamComponent
    * the stream stays live here - surface the problem without ending it.
    */
   private applyMultistreamResult(results: MultistreamStatus[]): void {
-    this.twitchStatus =
-      results.find((result) => result.platform === StreamPlatform.TWITCH) ??
-      null;
-    this.multistreamError =
-      this.twitchStatus?.status === 'error'
-        ? `${this.twitchStatus.error ?? 'Could not start streaming to Twitch'}. ` +
-          "You're still live here."
-        : null;
+    this.restreamStatus = new Map(
+      results.map((result) => [result.platform, result]),
+    );
+    const byOutcome = (outcome: MultistreamStatus['status']) =>
+      RESTREAM_TARGETS.filter(
+        (target) => this.restreamStatus.get(target.platform)?.status === outcome,
+      );
+    const failed = byOutcome('error');
+    if (failed.length === 0) {
+      this.multistreamError = null;
+      return;
+    }
+    const reasons = failed.map(
+      (target) =>
+        this.restreamStatus.get(target.platform)?.error ??
+        `Could not start streaming to ${target.label}`,
+    );
+    const live = byOutcome('active').map((target) => target.label);
+    const stillLive = live.length
+      ? `You're still live here and on ${live.join(' and ')}.`
+      : "You're still live here.";
+    this.multistreamError = `${reasons.join('. ')}. ${stillLive}`;
   }
 
   private async refreshPreview(): Promise<MediaStream | null> {

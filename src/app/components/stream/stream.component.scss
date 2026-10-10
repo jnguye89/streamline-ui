@@ -457,11 +457,11 @@
   }
 }
 
-// Same idea as the W/S source avatars: dim when off, full color with a
-// white ring when the stream will go (or is going) to Twitch.
-.twitch-toggle {
-  --twitch-bg: rgba(145, 70, 255, 0.35);
-  --twitch-ring: 0 0 0 0 transparent;
+// Lettered restream circles (T = Twitch, K = Kick, R = Rumble), same idea
+// as the W/S source avatars: dimmed when off, full color with a white ring
+// when the stream will go (or is going) there. Twitch is the default palette.
+.restream-toggle {
+  --rs-color: #9146ff;
 
   display: grid;
   width: 30px;
@@ -471,41 +471,50 @@
   padding: 0;
   border: 0;
   border-radius: 50%;
-  color: rgba(255, 255, 255, 0.6);
-  background: var(--twitch-bg);
-  box-shadow: var(--twitch-ring);
+  color: #fff;
+  background: var(--rs-color);
+  box-shadow: var(--rs-ring, none);
   font: inherit;
   font-size: 14px;
   font-weight: 800;
-  cursor: pointer;
+  opacity: 0.45;
 
-  // Clicking or selecting the T gives it the app-wide .gamepad-focused class,
-  // whose !important background and ring would hide the on/off state. Keep
-  // both, and draw the toolbar's blue focus ring outside them.
+  // Clicking or selecting a circle gives it the app-wide .gamepad-focused
+  // class, whose !important background and ring would hide the on/off
+  // state. Keep both, and draw the toolbar's blue focus ring outside them.
   &.gamepad-focused {
-    background-color: var(--twitch-bg) !important;
-    box-shadow: var(--twitch-ring), 0 0 0 5px #90caf9 !important;
-  }
-
-  &:disabled {
-    cursor: default;
+    background-color: var(--rs-color) !important;
+    box-shadow: var(--rs-ring, 0 0 #0000), 0 0 0 5px #90caf9 !important;
   }
 }
 
-.twitch-toggle--on,
-.twitch-toggle--error {
-  --twitch-bg: #9146ff;
-  --twitch-ring: 0 0 0 2px rgba(255, 255, 255, 0.7);
-  color: #fff;
+.restream-toggle--kick {
+  --rs-color: #53fc18;
 }
 
-.twitch-toggle--error {
-  --twitch-ring: 0 0 0 2px #ffb4ab;
+.restream-toggle--rumble {
+  --rs-color: #85c742;
 }
 
-.twitch-toggle--unavailable {
-  --twitch-bg: rgba(145, 70, 255, 0.15);
-  color: rgba(255, 255, 255, 0.3);
+// Both greens need dark lettering when lit.
+.restream-toggle--kick,
+.restream-toggle--rumble {
+  --rs-ink: #0b1a03;
+}
+
+.restream-toggle--on,
+.restream-toggle--error {
+  --rs-ring: 0 0 0 2px #fffb;
+  color: var(--rs-ink, #fff);
+  opacity: 1;
+}
+
+.restream-toggle--error {
+  --rs-ring: 0 0 0 2px #ffb4ab;
+}
+
+.restream-toggle--unavailable {
+  opacity: 0.2;
 }
 
 @keyframes pulse {
