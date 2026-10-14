@@ -612,6 +612,7 @@ describe('StreamComponent', () => {
 
     it('shows a lettered circle per platform, on by default once its key is saved', () => {
       expect(toggle(StreamPlatform.TWITCH)?.textContent?.trim()).toBe('T');
+      expect(toggle(StreamPlatform.YOUTUBE)?.textContent?.trim()).toBe('Y');
       expect(toggle(StreamPlatform.KICK)?.textContent?.trim()).toBe('K');
       expect(toggle(StreamPlatform.RUMBLE)?.textContent?.trim()).toBe('R');
       expect(toggle(StreamPlatform.TWITCH)?.disabled).toBeFalse();
@@ -622,6 +623,7 @@ describe('StreamComponent', () => {
         'restream-toggle--on',
       );
       // Only a Twitch key is saved in the default setup.
+      expect(toggle(StreamPlatform.YOUTUBE)?.disabled).toBeTrue();
       expect(toggle(StreamPlatform.KICK)?.disabled).toBeTrue();
       expect(toggle(StreamPlatform.RUMBLE)?.disabled).toBeTrue();
       expect(state(StreamPlatform.KICK)).toBe('unavailable');
@@ -648,6 +650,20 @@ describe('StreamComponent', () => {
       await fixture.componentInstance.init();
 
       expect(fixture.componentInstance.selectedRestreams).toEqual([]);
+    });
+
+    it('offers YouTube with just a key, like Twitch', async () => {
+      await reloadKeys([
+        { platform: StreamPlatform.YOUTUBE, streamKey: 'abcd-1234' },
+      ]);
+
+      expect(toggle(StreamPlatform.YOUTUBE)?.disabled).toBeFalse();
+      expect(toggle(StreamPlatform.YOUTUBE)?.classList).toContain(
+        'restream-toggle--on',
+      );
+      expect(fixture.componentInstance.selectedRestreams).toEqual([
+        StreamPlatform.YOUTUBE,
+      ]);
     });
 
     it('needs both a key and an ingest URL before offering Kick', async () => {
