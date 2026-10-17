@@ -457,7 +457,7 @@
   }
 }
 
-// Lettered restream circles (T = Twitch, K = Kick, R = Rumble), same idea
+// Lettered restream circles (T = Twitch, Y = YouTube, K = Kick), same idea
 // as the W/S source avatars: dimmed when off, full color with a white ring
 // when the stream will go (or is going) there. Twitch is the default palette.
 .restream-toggle {
@@ -488,17 +488,13 @@
   }
 }
 
+.restream-toggle--youtube {
+  --rs-color: #f00;
+}
+
 .restream-toggle--kick {
   --rs-color: #53fc18;
-}
-
-.restream-toggle--rumble {
-  --rs-color: #85c742;
-}
-
-// Both greens need dark lettering when lit.
-.restream-toggle--kick,
-.restream-toggle--rumble {
+  // Kick's green needs dark lettering when lit.
   --rs-ink: #0b1a03;
 }
 

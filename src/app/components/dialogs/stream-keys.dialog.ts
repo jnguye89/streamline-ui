@@ -36,8 +36,8 @@ interface PlatformFormState {
 export class StreamKeysDialog implements OnInit, OnDestroy {
   platforms: PlatformFormState[] = [
     this.makeEntry(StreamPlatform.TWITCH, 'Twitch', false, false),
+    this.makeEntry(StreamPlatform.YOUTUBE, 'YouTube', false, false),
     this.makeEntry(StreamPlatform.KICK, 'Kick', true, true),
-    this.makeEntry(StreamPlatform.RUMBLE, 'Rumble', true, true),
   ];
   loading = true;
 

@@ -571,11 +571,6 @@ describe('StreamComponent', () => {
       streamKey: 'sk_abc',
       streamUrl: 'rtmps://x.global-contribute.live-video.net:443/app',
     };
-    const rumbleKey: StreamKeyPayload = {
-      platform: StreamPlatform.RUMBLE,
-      streamKey: 'r8-xyz',
-      streamUrl: 'rtmp://rtmp.rumble.com/live',
-    };
 
     function toggle(platform: StreamPlatform): HTMLButtonElement | null {
       return fixture.nativeElement.querySelector(
@@ -612,8 +607,9 @@ describe('StreamComponent', () => {
 
     it('shows a lettered circle per platform, on by default once its key is saved', () => {
       expect(toggle(StreamPlatform.TWITCH)?.textContent?.trim()).toBe('T');
+      expect(toggle(StreamPlatform.YOUTUBE)?.textContent?.trim()).toBe('Y');
       expect(toggle(StreamPlatform.KICK)?.textContent?.trim()).toBe('K');
-      expect(toggle(StreamPlatform.RUMBLE)?.textContent?.trim()).toBe('R');
+      expect(toggle(StreamPlatform.RUMBLE)).toBeNull();
       expect(toggle(StreamPlatform.TWITCH)?.disabled).toBeFalse();
       expect(toggle(StreamPlatform.TWITCH)?.getAttribute('aria-pressed')).toBe(
         'true',
@@ -622,10 +618,9 @@ describe('StreamComponent', () => {
         'restream-toggle--on',
       );
       // Only a Twitch key is saved in the default setup.
+      expect(toggle(StreamPlatform.YOUTUBE)?.disabled).toBeTrue();
       expect(toggle(StreamPlatform.KICK)?.disabled).toBeTrue();
-      expect(toggle(StreamPlatform.RUMBLE)?.disabled).toBeTrue();
       expect(state(StreamPlatform.KICK)).toBe('unavailable');
-      expect(state(StreamPlatform.RUMBLE)).toBe('unavailable');
       expect(fixture.componentInstance.selectedRestreams).toEqual([
         StreamPlatform.TWITCH,
       ]);
@@ -650,6 +645,20 @@ describe('StreamComponent', () => {
       expect(fixture.componentInstance.selectedRestreams).toEqual([]);
     });
 
+    it('offers YouTube with just a key, like Twitch', async () => {
+      await reloadKeys([
+        { platform: StreamPlatform.YOUTUBE, streamKey: 'abcd-1234' },
+      ]);
+
+      expect(toggle(StreamPlatform.YOUTUBE)?.disabled).toBeFalse();
+      expect(toggle(StreamPlatform.YOUTUBE)?.classList).toContain(
+        'restream-toggle--on',
+      );
+      expect(fixture.componentInstance.selectedRestreams).toEqual([
+        StreamPlatform.YOUTUBE,
+      ]);
+    });
+
     it('needs both a key and an ingest URL before offering Kick', async () => {
       await reloadKeys([{ platform: StreamPlatform.KICK, streamKey: 'sk_abc' }]);
       expect(toggle(StreamPlatform.KICK)?.disabled).toBeTrue();
@@ -665,13 +674,12 @@ describe('StreamComponent', () => {
     });
 
     it('restreams to every highlighted platform when going live', async () => {
-      await reloadKeys([twitchKey, kickKey, rumbleKey]);
+      await reloadKeys([twitchKey, kickKey]);
       streamService.start.and.resolveTo({
         ok: true,
         multistream: [
           { platform: StreamPlatform.TWITCH, status: 'active' },
           { platform: StreamPlatform.KICK, status: 'active' },
-          { platform: StreamPlatform.RUMBLE, status: 'active' },
         ],
       });
 
@@ -681,25 +689,13 @@ describe('StreamComponent', () => {
         fixture.componentInstance.channelName!,
         undefined,
         true,
-        [StreamPlatform.TWITCH, StreamPlatform.KICK, StreamPlatform.RUMBLE],
+        [StreamPlatform.TWITCH, StreamPlatform.KICK],
       );
       expect(state(StreamPlatform.TWITCH)).toBe('live');
       expect(state(StreamPlatform.KICK)).toBe('live');
-      expect(state(StreamPlatform.RUMBLE)).toBe('live');
-      expect(toggle(StreamPlatform.RUMBLE)?.classList).toContain(
+      expect(toggle(StreamPlatform.KICK)?.classList).toContain(
         'restream-toggle--on',
       );
-    });
-
-    it('needs both a key and an ingest URL before offering Rumble', async () => {
-      await reloadKeys([{ platform: StreamPlatform.RUMBLE, streamKey: 'r8' }]);
-      expect(toggle(StreamPlatform.RUMBLE)?.disabled).toBeTrue();
-
-      await reloadKeys([rumbleKey]);
-      expect(toggle(StreamPlatform.RUMBLE)?.disabled).toBeFalse();
-      expect(fixture.componentInstance.selectedRestreams).toEqual([
-        StreamPlatform.RUMBLE,
-      ]);
     });
 
     it('locks the circles once live', async () => {
