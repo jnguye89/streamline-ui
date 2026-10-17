@@ -65,7 +65,6 @@ const RESTREAM_TARGETS: readonly RestreamTarget[] = [
   { platform: StreamPlatform.TWITCH, letter: 'T', label: 'Twitch', needsUrl: false },
   { platform: StreamPlatform.YOUTUBE, letter: 'Y', label: 'YouTube', needsUrl: false },
   { platform: StreamPlatform.KICK, letter: 'K', label: 'Kick', needsUrl: true },
-  { platform: StreamPlatform.RUMBLE, letter: 'R', label: 'Rumble', needsUrl: true },
 ];
 
 /**
