@@ -118,6 +118,24 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.dialog.open(YoutubeChannelsDialog, { panelClass: 'spotlight-panel', autoFocus: false });
   }
 
+  logout(): void {
+    const dialogRef = this.dialog.open(ConfirmEndStreamDialog, {
+      panelClass: 'spotlight-panel',
+      data: {
+        title: 'Log Out',
+        body: 'Are you sure you want to log out?',
+        confirmBtnText: 'Log Out',
+        cancelBtnText: 'Cancel',
+      },
+    });
+
+    dialogRef.afterClosed().pipe(first()).subscribe((confirmed) => {
+      if (!confirmed) return;
+      this.deviceAuth.logout();
+      this.router.navigate(['/']);
+    });
+  }
+
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
