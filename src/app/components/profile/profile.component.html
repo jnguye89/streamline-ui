@@ -42,12 +42,12 @@
           allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
         <mat-icon *ngIf="video.processedPath" class="processed-badge" matTooltip="Processed by Streamline">auto_awesome</mat-icon>
         <div *ngIf="video.source !== 'YOUTUBE'" class="video-stat views">
-          <span class="count">{{ video.viewCount ?? 0 | number }}</span>
+          <span class="count">{{ video.viewCount | compactCount }}</span>
           <mat-icon>visibility</mat-icon>
         </div>
         <div *ngIf="video.source !== 'YOUTUBE'" class="video-stat likes">
           <mat-icon>favorite</mat-icon>
-          <span class="count">{{ video.likeCount ?? 0 | number }}</span>
+          <span class="count">{{ video.likeCount | compactCount }}</span>
         </div>
         <button *ngIf="isOwnProfile && (isAuthenticated$ | async)"
                 mat-icon-button class="delete-btn"

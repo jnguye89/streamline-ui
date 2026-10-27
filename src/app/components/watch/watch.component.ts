@@ -47,6 +47,7 @@ import { GamepadNavigationService } from '../../services/gamepad-navigation.serv
 import { DeviceAuthService } from '../../services/device-auth.service';
 import { SafeUrlPipe } from '../../pipes/safe-url.pipe';
 import { ChatColorPipe } from '../../pipes/chat-color.pipe';
+import { CompactCountPipe } from '../../pipes/compact-count.pipe';
 import { environment } from '../../../environments/environment';
 import { ChessDemoItem, ChessGame, ChessGameItem } from '../../models/chess/chess-game.model';
 import { ChessService } from '../../services/chess/chess.service';
@@ -75,6 +76,7 @@ const CHESS_DEMO_ITEM: ChessDemoItem = { type: 'chess-demo', id: 'chess-demo' };
     GamepadFocusableDirective,
     SafeUrlPipe,
     ChatColorPipe,
+    CompactCountPipe,
     FormsModule,
     ChessGameComponent,
     ChessDemoComponent

@@ -20,11 +20,12 @@ import { ConfirmEndStreamDialog } from "../dialogs/confirm-stream.dialog";
 import { StreamKeysDialog } from "../dialogs/stream-keys.dialog";
 import { YoutubeChannelsDialog } from "../dialogs/youtube-channels.dialog";
 import { SafeUrlPipe } from "../../pipes/safe-url.pipe";
+import { CompactCountPipe } from "../../pipes/compact-count.pipe";
 
 @Component({
   selector: "app-profile",
   standalone: true,
-  imports: [MatIconModule, MatTooltipModule, MatButtonModule, FlexLayoutModule, CommonModule, GamepadFocusableDirective, SafeUrlPipe],
+  imports: [MatIconModule, MatTooltipModule, MatButtonModule, FlexLayoutModule, CommonModule, GamepadFocusableDirective, SafeUrlPipe, CompactCountPipe],
   providers: [VideoService],
   templateUrl: "./profile.component.html",
   styleUrl: "./profile.component.scss",
