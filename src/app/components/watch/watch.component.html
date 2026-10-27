@@ -82,8 +82,8 @@
 
     <!-- Bottom action row: view count, profile/down, like count -->
     <div class="bottom-actions" data-gamepad-row="bottom">
-      <div *ngIf="currentItem?.type === 'vod' && !isYouTube(currentItem)" class="action view" aria-label="View count">
-        <span class="count">{{ $any(currentItem).viewCount ?? 0 | number }}</span>
+      <div *ngIf="currentItem?.type === 'vod' && !isYouTube(currentItem)" class="action view" [attr.aria-label]="($any(currentItem).viewCount ?? 0) + ' views'">
+        <span class="count">{{ $any(currentItem).viewCount | compactCount }}</span>
         <mat-icon>visibility</mat-icon>
       </div>
 
@@ -94,7 +94,7 @@
       <button *ngIf="currentItem?.type === 'vod' && !isYouTube(currentItem)" gamepadFocusable class="action like" [class.liked]="$any(currentItem).liked"
         [disabled]="$any(currentItem).liked" (click)="onLike()" [attr.aria-label]="$any(currentItem).liked ? 'Already liked' : 'Like'">
         <mat-icon>{{ $any(currentItem).liked ? 'favorite' : 'favorite_border' }}</mat-icon>
-        <span class="count">{{ $any(currentItem).likeCount ?? 0 | number }}</span>
+        <span class="count">{{ $any(currentItem).likeCount | compactCount }}</span>
       </button>
 
       <!-- Only on the chess page itself (a real game or the no-games-yet
