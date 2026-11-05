@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import {
   AfterViewInit,
   Component,
@@ -32,6 +33,8 @@ import { RtcStreamService } from "../../services/agora/rtc-stream.service";
 import { SeoService } from "../../services/seo.service";
 import { StreamService } from "../../services/stream.service";
 import { UserService } from "../../services/user.service";
+import { AgeService, MIN_GO_LIVE_AGE } from "../../services/age.service";
+import { BirthdayPromptService } from "../../services/birthday-prompt.service";
 import { MultistreamStatus } from "../../models/multistream.model";
 import { StreamPlatform } from "../../models/stream-key.model";
 import {
@@ -159,6 +162,8 @@ export class StreamComponent
     private readonly socket: RecordingSocketService,
     public readonly mediaInput: MediaInputService,
     private readonly userService: UserService,
+    private readonly age: AgeService,
+    private readonly birthdayPrompt: BirthdayPromptService,
   ) {}
 
   ngOnInit(): void {
@@ -356,6 +361,19 @@ export class StreamComponent
         ),
       );
 
+      // Going live is 18+ (the API checks too). Ask for a birthday first if there's none.
+      const me = await this.age.getMe();
+      const birthDate = await this.birthdayPrompt.ensureBirthDate(me.birthDate);
+      if (!birthDate) {
+        this.channelName = undefined;
+        return;
+      }
+      if (this.age.ageOf(birthDate) < MIN_GO_LIVE_AGE) {
+        this.workflowError = `You need to be ${MIN_GO_LIVE_AGE} or older to go live.`;
+        this.channelName = undefined;
+        return;
+      }
+
       const token = await firstValueFrom(
         this.streamService.ensureReady(this.channelName),
       );
@@ -377,7 +395,7 @@ export class StreamComponent
       this.isReady = true;
       this.initializeChat();
       this.loadMultistreamTargets();
-    } catch {
+    } catch (e) {
       this.mediaInput.stopPreview();
       this.clearVideoElement();
       try {
@@ -385,8 +403,13 @@ export class StreamComponent
       } catch {
         // Preserve the actionable setup error even if Agora cleanup also fails.
       }
+      const code = e instanceof HttpErrorResponse ? e.error?.code : undefined;
       this.workflowError =
-        'The stream could not be prepared. Check your connection and retry.';
+        code === 'too_young_to_go_live'
+          ? `You need to be ${MIN_GO_LIVE_AGE} or older to go live.`
+          : code === 'birthdate_required'
+            ? 'Add your date of birth to go live, then try again.'
+            : 'The stream could not be prepared. Check your connection and retry.';
       this.isReady = false;
       this.channelName = undefined;
     } finally {
