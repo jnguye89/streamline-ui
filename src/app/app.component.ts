@@ -5,12 +5,14 @@ import { MatButtonModule } from "@angular/material/button";
 import { MatDialog } from "@angular/material/dialog";
 import { MatIconModule } from "@angular/material/icon";
 import { Router, RouterModule, RouterOutlet } from "@angular/router";
-import { first, tap } from "rxjs";
+import { distinctUntilChanged, filter, first, tap } from "rxjs";
 import { SearchDialogComponent } from "./components/search/search-dialog.component";
 import { DeviceAuthService } from "./services/device-auth.service";
 import { GamepadNavigationService } from "./services/gamepad-navigation.service";
 import { GamepadFocusableDirective } from "./directives/gamepad-focusable.directive";
 import { RecordingSocketService } from "./services/socket/recording.service";
+import { AgeService } from "./services/age.service";
+import { BirthdayPromptService } from "./services/birthday-prompt.service";
 // Not referenced directly below - injecting it here is what instantiates
 // this singleton (and its chessYourTurn$ subscription) as soon as the app
 // boots, rather than lazily whenever some other component first happens to
@@ -42,6 +44,8 @@ export class AppComponent implements OnInit {
     private dialog: MatDialog,
     private gamepadNav: GamepadNavigationService,
     private socket: RecordingSocketService,
+    private age: AgeService,
+    private birthdayPrompt: BirthdayPromptService,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private chessTurnNotifications: ChessTurnNotificationService
   ) {}
@@ -57,6 +61,18 @@ export class AppComponent implements OnInit {
     // no-ops if a socket is already connected, and an anonymous (logged-out)
     // connection is already how anonymous spectating works elsewhere.
     this.socket.connect();
+
+    // Once per sign-in (and once for accounts from before this existed), ask for a date of
+    // birth if there's none on file. If the check itself fails, don't block the app; the
+    // API still enforces the go-live age.
+    this.isAuthenticated$
+      .pipe(distinctUntilChanged(), filter(Boolean))
+      .subscribe(() => {
+        this.age
+          .getMe()
+          .then((me) => this.birthdayPrompt.ensureBirthDate(me.birthDate))
+          .catch((e) => console.warn("Couldn't check the birth date:", e));
+      });
   }
 
   public handleProfileClick() {
