@@ -188,7 +188,7 @@ export class ConverseComponent implements OnInit, OnDestroy {
   }
 
   private setUpSeo() {
-    const title = "skriin AI TV";
+    const title = "skriin ai tv";
     const description =
       "Natural-language chat with on-screen AI. Ask anything, control playback, search shows or get trivia while you watch.";
     const keywords =
