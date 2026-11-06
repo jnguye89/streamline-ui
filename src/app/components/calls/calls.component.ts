@@ -176,7 +176,7 @@ export class CallsComponent implements OnInit, OnDestroy {
   }
 
   private setUpSeo() {
-    const title = 'skriin AI TV';
+    const title = 'skriin ai tv';
     const description =
       "Place crystal-clear AI-enhanced video and voice calls from any smart-TV. Auto-framing, noise cleanup, instant family conferencing.";
     const keywords =

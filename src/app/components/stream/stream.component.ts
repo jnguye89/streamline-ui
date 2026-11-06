@@ -875,7 +875,7 @@ export class StreamComponent
 
   private setUpSeo(): void {
     this.seo.setTags({
-      title: 'skriin AI TV | stream (beta)',
+      title: 'skriin ai tv | stream (beta)',
       description:
         'One-click streaming hub: push gameplay, camera or both to ' +
         'Twitch, YouTube & skriin Cloud. AI overlays, chat integration, ' +
