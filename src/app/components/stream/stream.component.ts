@@ -30,7 +30,6 @@ import { ChatColorPipe } from "../../pipes/chat-color.pipe";
 import { GamepadNavigationService } from "../../services/gamepad-navigation.service";
 import { MediaInputService } from "../../services/media-input.service";
 import { RtcStreamService } from "../../services/agora/rtc-stream.service";
-import { SeoService } from "../../services/seo.service";
 import { StreamService } from "../../services/stream.service";
 import { UserService } from "../../services/user.service";
 import { AgeService, MIN_GO_LIVE_AGE } from "../../services/age.service";
@@ -155,7 +154,6 @@ export class StreamComponent
   constructor(
     private readonly streamService: StreamService,
     public readonly deviceAuth: DeviceAuthService,
-    private readonly seo: SeoService,
     private readonly router: Router,
     private readonly gamepadNavigation: GamepadNavigationService,
     private readonly rtcStreamService: RtcStreamService,
@@ -344,7 +342,6 @@ export class StreamComponent
   }
 
   ngAfterViewInit(): void {
-    this.setUpSeo();
   }
 
   async init(): Promise<void> {
@@ -873,17 +870,4 @@ export class StreamComponent
     dialogRef.afterClosed().subscribe(() => clearTimeout(timeout));
   }
 
-  private setUpSeo(): void {
-    this.seo.setTags({
-      title: 'skriin ai tv | stream (beta)',
-      description:
-        'One-click streaming hub: push gameplay, camera or both to ' +
-        'Twitch, YouTube & skriin Cloud. AI overlays, chat integration, ' +
-        '0.6 s latency.',
-      keywords:
-        'live game streaming, smart tv streamer, ai overlays, low latency ' +
-        'broadcast, twitch youtube stream',
-      path: '/watch',
-    });
-  }
 }

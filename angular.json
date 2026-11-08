@@ -41,7 +41,8 @@
               "src/favicon.ico",
               "src/assets",
               "src/runtime-config.js",
-              "src/manifest.webmanifest"
+              "src/manifest.webmanifest",
+              "src/robots.txt"
             ],
             "styles": [
               "@angular/material/prebuilt-themes/purple-green.css",

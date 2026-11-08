@@ -13,7 +13,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { Router } from '@angular/router';
 import { DeviceAuthService } from '../../services/device-auth.service';
 import { animate, style, transition, trigger } from '@angular/animations';
-import { SeoService } from '../../services/seo.service';
 
 @Component({
   selector: 'app-read',
@@ -49,14 +48,12 @@ export default class ReadComponent implements OnInit, OnDestroy {
   constructor(
     private threadService: ThreadService,
     public deviceAuth: DeviceAuthService,
-    private router: Router,
-    private seo: SeoService) { }
+    private router: Router) { }
 
 
   trackById = (_: number, t: ThreadModel) => t.id;
 
   ngOnInit() {
-    this.setUpSeo();
     this.init()
   }
 
@@ -109,15 +106,6 @@ export default class ReadComponent implements OnInit, OnDestroy {
     this.currentIndex = (this.currentIndex - 1 + total) % total;
   }
 
-  // Helpers
-  private setUpSeo() {
-    const title = 'skriin ai tv';
-    const description =
-      'Discover and watch creators, VODs, podcasts and live channels in one curated interface powered by AI recommendations and voice search.';
-    const keywords =
-      'watch streaming content, creator hub tv, ai recommendations, vod player, voice search tv, live channels';
-    this.seo.setTags({ title, description, keywords, path: '/podcast' });
-  }
 }
 
 function shuffle<T>(array: T[]): T[] {
