@@ -3,8 +3,6 @@ import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 import { environment } from "../../environments/environment";
 import { Station } from "../models/station.model";
-import { Meta, Title } from "@angular/platform-browser";
-import { SeoService } from "./seo.service";
 
 @Injectable({
   providedIn: "root",
@@ -12,10 +10,9 @@ import { SeoService } from "./seo.service";
 export class ListenService implements OnInit {
   private apiUrl = environment.baseUrl;
 
-  constructor(private http: HttpClient, private seo: SeoService) {}
+  constructor(private http: HttpClient) {}
 
   ngOnInit(): void {
-    this.setUpSeo();
   }
 
   getStations(limit = 100): Observable<Station[]> {
@@ -26,19 +23,4 @@ export class ListenService implements OnInit {
     return this.http.get<any[]>(`${this.apiUrl}/listen`);
   }
 
-  private setUpSeo() {
-    const title = "Listen – skriin ai tv";
-    const description =
-      "Browse, queue and cast podcasts, radio and ambient mixes with AI suggestions and 3-D spatial audio upmix.";
-    const keywords =
-      "podcast player tv, smart tv radio, ambient soundscapes, ai audio recommendations, spatial audio tv";
-
-    this.seo.setTags({
-      title,
-      description,
-      keywords,
-      path: "/watch",
-      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
-    });
-  }
 }

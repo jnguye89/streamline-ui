@@ -1,2 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /login
+Disallow: /call
+
+Sitemap: https://skriin.com/sitemap.xml

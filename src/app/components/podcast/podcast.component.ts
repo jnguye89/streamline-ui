@@ -1,7 +1,6 @@
 import { CommonModule } from "@angular/common";
 import { AfterViewInit, Component, ElementRef, inject, OnDestroy, OnInit, ViewChild, ViewEncapsulation } from "@angular/core";
 import { FormControl, FormsModule, ReactiveFormsModule } from "@angular/forms";
-import { SeoService } from "../../services/seo.service";
 import { CallOrchestratorService } from "../../services/agora/call-orchestrator.service";
 import { RtmService } from "../../services/agora/rtm.service";
 import { combineLatest, concatMap, filter, firstValueFrom, map, Observable, of, startWith, Subject, take, takeUntil } from "rxjs";
@@ -61,7 +60,6 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private orchestrator: CallOrchestratorService,
     public rtm: RtmService,
-    private seo: SeoService,
     private deviceAuth: DeviceAuthService,
     private userService: UserService,
     private tokenApi: AgoraService,
@@ -273,7 +271,6 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
 
   init() {
     this.isPodcast = this.route.snapshot.url.map(u => u.path).indexOf('podcast') != -1;
-    this.setUpSeo();
     this.user$ = this.deviceAuth.user$;
     this.user$.pipe(
       filter(r => !!r?.sub),
@@ -362,18 +359,4 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
     })();
   }
 
-  private setUpSeo() {
-    const title = 'skriin ai tv';
-    const description =
-      "Place crystal-clear AI-enhanced video and voice calls from any smart-TV. Auto-framing, noise cleanup, instant family conferencing.";
-    const keywords =
-      "ai video calls on tv, smart tv calling, skriin calls, family video chat, noise cancelling tv calls";
-
-    this.seo.setTags({
-      title,
-      description,
-      keywords,
-      path: "/watch",
-    });
-  }
 }

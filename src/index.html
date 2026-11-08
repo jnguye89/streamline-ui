@@ -2,99 +2,104 @@
 <html lang="en">
 
 <head>
-  <script src="runtime-config.js"></script>
-  <title>skriin ai tv</title>
-  <meta name="description" content="View videos, add your own and talk with your friends." />
-  <meta name="robots" content="index, follow" />
   <meta charset="utf-8" />
+  <script src="runtime-config.js"></script>
+  <title>skriin ai tv: watch, go live and podcast from your TV</title>
+  <meta name="description"
+    content="skriin turns the TV you already own into a two-way TV. Watch live shows and video podcasts, go live from your couch and simulcast to YouTube, Twitch and Kick." />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
   <base href="/" />
-  <link rel="canonical" href="https://skriin.com" />
-  <meta property="og:title" content="skriin ai tv – Talk to your TV" />
-  <meta property="og:description" content="The mini-PC smart-TV box that streams, chats, and curates with AI." />
-  <meta property="og:image" content="assets/MainLogo.png" />
+  <!-- The canonical link is set per route by SeoService (see app.routes.ts). -->
+
+  <meta property="og:site_name" content="skriin ai tv" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://skriin.com/" />
+  <meta property="og:title" content="skriin ai tv: watch, go live and podcast from your TV" />
+  <meta property="og:description"
+    content="A small box that turns the TV you already own into a two-way TV. Watch, go live, podcast and talk to your TV, right from the couch." />
+  <meta property="og:image" content="https://skriin.com/assets/MainLogo.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="600" />
+  <meta property="og:image:alt" content="skriin ai tv" />
   <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="skriin ai tv: watch, go live and podcast from your TV" />
+  <meta name="twitter:description"
+    content="A small box that turns the TV you already own into a two-way TV. Watch, go live, podcast and talk to your TV." />
+  <meta name="twitter:image" content="https://skriin.com/assets/MainLogo.png" />
+
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <!-- <meta name="viewport" content="width=device-width, initial-scale=1" /> -->
   <link rel="icon" type="image/x-icon" href="favicon.ico" />
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
-  <script src="https://player.live-video.net/1.40.0/amazon-ivs-player.min.js"></script>
-  <script src="https://cdn.voximplant.com/voximplant.min.js"></script>
   <link rel="manifest" href="manifest.webmanifest" />
   <meta name="theme-color" content="#0e76ff" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#001122" media="(prefers-color-scheme: dark)" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&amp;display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <!-- Deferred so they don't block first paint; deferred scripts still run
+       before Angular's module bundle, so window.IVSPlayer / VoxImplant exist
+       by the time the app boots. -->
   <script src="https://player.live-video.net/1.40.0/amazon-ivs-player.min.js" defer></script>
   <script src="https://cdn.voximplant.com/voximplant.min.js" defer></script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        "@id": "https://skriin.com/#organization",
+        "name": "skriin ai tv",
+        "alternateName": "skriin",
+        "url": "https://skriin.com/",
+        "logo": "https://skriin.com/assets/icons/icon-512x512.png",
+        "email": "him@skriin.com",
+        "telephone": "+1-650-509-7773",
+        "sameAs": ["https://skriin.tv/"]
+      },
+      {
+        "@type": "WebSite",
+        "@id": "https://skriin.com/#website",
+        "name": "skriin ai tv",
+        "url": "https://skriin.com/",
+        "publisher": { "@id": "https://skriin.com/#organization" },
+        "inLanguage": "en"
+      }
+    ]
+  }
+  </script>
 </head>
 
 <body class="mat-typography">
-  <noscript>
+  <app-root>
+    <!-- Shown until the app boots (and to crawlers and visitors without
+         JavaScript). Angular replaces everything inside <app-root>. -->
     <style>
-      /* basic layout so it doesn’t look broken */
-      .no-js-wrapper {
-        max-width: 680px;
-        margin: 2rem auto;
-        padding: 1rem;
-        font-family: Arial, sans-serif;
-        text-align: center;
-      }
-
-      .no-js-wrapper h1 {
-        font-size: 1.75rem;
-        margin: 0.5rem 0;
-      }
-
-      .no-js-wrapper p {
-        margin: 0.75rem 0 1.25rem;
-      }
-
-      .no-js-wrapper form {
-        display: flex;
-        gap: 0.5rem;
-        justify-content: center;
-      }
-
-      .no-js-wrapper input[type="email"] {
-        padding: 0.5rem;
-        font-size: 1rem;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        width: 240px;
-      }
-
-      .no-js-wrapper button {
-        padding: 0.55rem 1rem;
-        font-size: 1rem;
-        border: none;
-        border-radius: 4px;
-        background: #0e76ff;
-        color: #fff;
-        cursor: pointer;
-      }
+      .shell { max-width: 720px; margin: 0 auto; padding: 12vh 20px 40px; color: #e8e8e8; font-family: Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.55; }
+      .shell h1 { font-size: 2rem; font-weight: 500; margin: 0 0 .5rem; color: #fff; }
+      .shell p { margin: 0 0 1rem; }
+      .shell nav { margin-top: 1.5rem; font-size: .95rem; }
+      .shell nav a { color: #8fb4ff; margin-right: 1rem; display: inline-block; padding: 4px 0; }
     </style>
-
-    <div class="no-js-wrapper">
-      <h1>skriin ai tv</h1>
-
-      <p>
-        skriin turns any screen into an AI-powered Smart-TV box.<br />
-        Stream. Chat. Discover. All from your couch.
-      </p>
-
-      <form action="https://example.us1.list-manage.com/subscribe/post" method="post" target="_blank">
-        <input type="email" name="EMAIL" placeholder="Your email" required />
-        <button type="submit">Join the wait-list</button>
-      </form>
-
-      <p style="font-size: 0.9rem; margin-top: 1rem">
-        (You’re seeing this message because JavaScript is off or failed to
-        load.)
-      </p>
+    <div class="shell">
+      <h1>skriin ai tv: the two-way TV</h1>
+      <p>skriin turns the TV you already own into a two-way TV. Watch live shows, streams and video podcasts from real
+        people, go live from your couch with one button, record a video podcast and talk to your TV out loud.</p>
+      <p>Go live to skriin, YouTube, Twitch and Kick at the same time, with no streaming PC and no encoder settings.
+        Watching is free in any browser, and you can start going live from your iPhone with the free app.</p>
+      <nav aria-label="About skriin">
+        <a href="/features">How skriin works</a>
+        <a href="/guides">Guides</a>
+        <a href="/guides/go-live-from-your-tv">Go live from your TV</a>
+        <a href="/guides/simulcast-to-youtube-twitch-and-kick">Simulcast to YouTube, Twitch and Kick</a>
+        <a href="/guides/video-podcast-without-a-computer">Video podcast without a computer</a>
+        <a href="https://skriin.tv/">Get the box</a>
+      </nav>
     </div>
-  </noscript>
-  <app-root></app-root>
+  </app-root>
 </body>
 
 </html>

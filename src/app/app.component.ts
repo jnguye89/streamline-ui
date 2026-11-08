@@ -13,6 +13,7 @@ import { GamepadFocusableDirective } from "./directives/gamepad-focusable.direct
 import { RecordingSocketService } from "./services/socket/recording.service";
 import { AgeService } from "./services/age.service";
 import { BirthdayPromptService } from "./services/birthday-prompt.service";
+import { SeoService } from "./services/seo.service";
 // Not referenced directly below - injecting it here is what instantiates
 // this singleton (and its chessYourTurn$ subscription) as soon as the app
 // boots, rather than lazily whenever some other component first happens to
@@ -46,11 +47,14 @@ export class AppComponent implements OnInit {
     private socket: RecordingSocketService,
     private age: AgeService,
     private birthdayPrompt: BirthdayPromptService,
+    private seo: SeoService,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     private chessTurnNotifications: ChessTurnNotificationService
   ) {}
 
   ngOnInit(): void {
+    // Per-route title, description and canonical (see data.seo in app.routes.ts).
+    this.seo.init();
     this.gamepadNav.start();
     // Connect the realtime socket app-wide, on launch, regardless of which
     // route the user lands on - previously this only happened inside

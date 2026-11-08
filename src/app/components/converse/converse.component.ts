@@ -4,7 +4,6 @@ import { Conversation, type Mode, type VoiceConversation } from "@elevenlabs/cli
 import { firstValueFrom } from "rxjs";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 import { ElevenLabsService } from "../../services/elevenlabs.service";
-import { SeoService } from "../../services/seo.service";
 
 type ViewState = "idle" | "connecting" | "connected" | "error";
 
@@ -28,12 +27,10 @@ export class ConverseComponent implements OnInit, OnDestroy {
   private animationFrameId: number | null = null;
 
   constructor(
-    private seo: SeoService,
     private elevenLabsService: ElevenLabsService
   ) {}
 
   ngOnInit() {
-    this.setUpSeo();
   }
 
   ngOnDestroy() {
@@ -187,19 +184,4 @@ export class ConverseComponent implements OnInit, OnDestroy {
     return bars;
   }
 
-  private setUpSeo() {
-    const title = "skriin ai tv";
-    const description =
-      "Natural-language chat with on-screen AI. Ask anything, control playback, search shows or get trivia while you watch.";
-    const keywords =
-      "ai voice assistant tv, talk to tv, llm search, conversational ui, smart tv chatbot";
-
-    this.seo.setTags({
-      title,
-      description,
-      keywords,
-      path: "/watch",
-      // image: "https://www.yoursite.com/assets/calls-og-image.jpg",
-    });
-  }
 }

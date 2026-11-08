@@ -33,7 +33,6 @@ import {
 } from 'rxjs';
 
 import { VideoService } from '../../services/video.service';
-import { SeoService } from '../../services/seo.service';
 import { PlayItem } from '../../models/play-item.model';
 import { Video } from '../../models/video.model';
 import { StreamService } from '../../services/stream.service';
@@ -250,7 +249,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private route: ActivatedRoute,
     private streamService: StreamService,
     private router: Router,
-    private seo: SeoService,
     private store: PlayerStateService,
     private agoraWatch: AgoraWatchService,
     private socket: RecordingSocketService,
@@ -294,7 +292,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // = speed") - same seekBy() the LT/RT taps use, just with a variable
     // delta computed by GamepadNavigationService instead of a fixed one.
     this.gamepadNav.setRightStickScrubAction((delta) => this.seekBy(delta));
-    this.setUpSeo();
     this.socket.connect();
 
     this.socket.recordingStopped$.pipe(takeUntil(this.destroy$)).subscribe(e => {
@@ -1334,14 +1331,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
 
   // Helpers
-  private setUpSeo() {
-    const title = 'skriin ai tv';
-    const description =
-      'Discover and watch creators, VODs, podcasts and live channels in one curated interface powered by AI recommendations and voice search.';
-    const keywords =
-      'watch streaming content, creator hub tv, ai recommendations, vod player, voice search tv, live channels';
-    this.seo.setTags({ title, description, keywords, path: '/watch' });
-  }
 
   private mapVod(v: Video): PlayItem {
     return {
