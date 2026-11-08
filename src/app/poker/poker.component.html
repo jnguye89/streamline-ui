@@ -1,0 +1,91 @@
+<div class="pk-stage" [style.--pk-scale]="scale()">
+  @if (couch(); as p) {
+    <pk-couch-preview
+      [tvView]="p.view"
+      [tvFlags]="flags()"
+      [phoneView]="p.phoneView ?? p.view"
+      [raiseTo]="p.phoneRaiseTo ?? null"
+      [previewLabel]="previewLabel()"
+    />
+  } @else {
+    <pk-table-screen
+      [view]="view()"
+      [flags]="flags()"
+      [bar]="bar()"
+      [preFocus]="preFocus()"
+      [now]="now()"
+      [previewLabel]="previewLabel()"
+      [levelUp]="levelUp()"
+      (barPick)="onBarPick($event)"
+      (presetPick)="onPresetPick($event)"
+      (prePick)="onPrePick($event)"
+      (legendPick)="onLegendPick($event)"
+      (backToWatch)="backToWatch()"
+    />
+  }
+
+  @if (!preview()) {
+    @if (screen() === 'start' && !showAge()) {
+      <pk-start-overlay (play)="play()" (lobby)="openLobby($event)" (exit)="exit.emit()" />
+    }
+    @if (screen() === 'lobby') {
+      <pk-lobby [mode]="lobbyMode()" (back)="screen.set('start')" />
+    }
+    @if (menuOpen()) {
+      <pk-menu
+        [settings]="session.settings()"
+        [canTopUp]="menuTopUp()"
+        [sittingOut]="sittingOut()"
+        [live]="flags().live"
+        (pick)="onMenu($event)"
+        (close)="closeMenu()"
+      />
+    }
+    @if (logHands(); as hands) {
+      <pk-hand-log [hands]="hands" [mySeat]="view().me?.seat ?? null" (close)="closeLog()" />
+    }
+  }
+
+  @if (bar()?.confirm === 'checkInstead') {
+    <pk-choice
+      title="Check instead?"
+      lead="Checking is free, so you can stay in this hand."
+      [choices]="checkInsteadChoices"
+      [width]="820"
+      [small]="true"
+      [light]="true"
+      (picked)="onCheckInstead($event)"
+    />
+  }
+
+  @if (showAge()) {
+    <pk-choice
+      #age
+      title="Poker is 18+"
+      lead="Chips are free, worth nothing, and never leave the game."
+      [choices]="ageChoices"
+      backId="no"
+      (picked)="onAge($event)"
+    />
+  }
+
+  @if (showTopUp()) {
+    <pk-choice
+      #topUp
+      title="Top up to 1,000?"
+      lead="You're out of chips. Top-ups are free."
+      [choices]="topUpChoices()"
+      backId="later"
+      [light]="true"
+      (picked)="onTopUp($event)"
+    />
+  }
+
+  @if (showFinished()) {
+    <pk-finished [standings]="view().standings" (picked)="onFinished($event)" />
+  }
+
+  @if (toast(); as t) {
+    <div class="ck-toast">{{ t }}</div>
+  }
+</div>

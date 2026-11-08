@@ -106,6 +106,16 @@
         <mat-icon>sports_esports</mat-icon>
         <span class="count">Play Chess</span>
       </button>
+
+      <!-- Poker sits in the same games slot as chess (it has no feed item
+           of its own yet) and opens full screen at /play/poker. Hidden
+           while you're seated in a live chess game, same as the feed's
+           navigation lock (see canPlayPoker). -->
+      <button *ngIf="canPlayPoker" gamepadFocusable class="action play-poker" routerLink="/play/poker"
+        aria-label="Play Poker">
+        <mat-icon>style</mat-icon>
+        <span class="count">Play Poker</span>
+      </button>
     </div>
 
   </div>

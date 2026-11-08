@@ -1240,6 +1240,15 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // spectating a real game, but hidden once you're actually seated in the
   // one currently on screen - clicking it there would abandon your own
   // game to start a second one, which is never what a seated player wants.
+  // Shown on the games slot of the feed (a chess game or the chess demo),
+  // never on videos/live. A player seated in a live chess game can't leave
+  // it from here, matching the navigation lock in isSeatedInLiveChess().
+  get canPlayPoker(): boolean {
+    const type = this.currentItem?.type;
+    if (type !== 'chess' && type !== 'chess-demo') return false;
+    return !this.isSeatedInLiveChess();
+  }
+
   get canPlayChess(): boolean {
     if (this.currentItem?.type === 'chess-demo') return true;
     if (this.currentItem?.type !== 'chess') return false;

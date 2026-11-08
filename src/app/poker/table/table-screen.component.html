@@ -1,0 +1,187 @@
+<!-- Top bar: game, blinds, hand number · controls -->
+<header class="top">
+  <div class="game">
+    <div class="title-row">
+      <h1>Poker</h1>
+      <!-- skriin.com: always-visible way back to the feed (also in the menu for the controller). -->
+      <button type="button" class="back-to-watch" (click)="backToWatch.emit()">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>Back to watch
+      </button>
+    </div>
+    <p class="line">{{ title() }}</p>
+    @if (levelUp(); as up) {
+      <p class="level-up">{{ up }}</p>
+    } @else {
+      <p class="line dim">{{ levelLine() ?? flags().modeLine }}</p>
+    }
+  </div>
+  <div class="right">
+  <div class="legend">
+    @if (flags().live) {
+      <span class="live"><i></i>Live</span>
+    }
+    @if (view().handNumber > 0) {
+      <button type="button" class="key" (click)="legendPick.emit('undo')"><span class="ck-glyph">X</span>Last hand</button>
+    }
+    @if (me()) {
+      <button type="button" class="key" (click)="legendPick.emit('hint')"><span class="ck-glyph">Y</span>{{ legendCards() }}</button>
+    }
+    <button type="button" class="key" (click)="legendPick.emit('menu')">
+      <span class="ck-glyph menu"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14" /></svg></span>Menu
+    </button>
+  </div>
+  @if (previewLabel(); as p) {
+    <p class="preview-chip">{{ p }}</p>
+  }
+  </div>
+</header>
+
+<!-- Table -->
+<div class="felt" [class.spotlight]="view().allInRunout"></div>
+
+@if (moment(); as m) {
+  <div class="moment" [class.allin]="m === 'All-in'">{{ m }}</div>
+}
+
+<div class="board">
+  @for (b of boardSlots(); track b.i) {
+    @if (b.card; as c) {
+      <pk-card class="deal-in" [card]="c" size="board" [state]="b.state" />
+    } @else {
+      <div class="slot"></div>
+    }
+  }
+</div>
+
+@if (pots().length) {
+  <div class="pots">
+    @for (p of pots(); track p.label) {
+      <span class="pot"><i class="chipdot"></i>{{ p.label }} <b>{{ p.amount }}</b></span>
+    }
+  </div>
+}
+
+@for (b of bets(); track b.key) {
+  <span class="bet" [style.left.px]="b.pos.x" [style.top.px]="b.pos.y"><i class="chipdot"></i>{{ b.amount }}</span>
+}
+
+@for (s of slots(); track s.seat.seat) {
+  <pk-seat
+    [style.left.px]="s.pos.x"
+    [style.top.px]="s.pos.y"
+    [seat]="s.seat"
+    [name]="s.name"
+    [isMe]="s.isMe"
+    [isTurn]="s.isTurn"
+    [turn]="view().turn"
+    [engineNow]="view().engineNow"
+    [clockOn]="view().config.actionTimeMs > 0"
+    [winner]="s.winner"
+    [winning]="winning()"
+    [showdown]="showdown()"
+    [markers]="s.markers"
+  />
+}
+
+<!-- Bottom left: my cards (or where they went) -->
+<section class="hand">
+  @switch (hand().kind) {
+    @case ('cards') {
+      @if (myCards(); as h) {
+        <div class="cards">
+          <pk-card class="deal-in" [card]="h.cards[0]" size="hole" [state]="myCardState(h.cards[0])" />
+          <pk-card class="deal-in" [card]="h.cards[1]" size="hole" [state]="myCardState(h.cards[1])" />
+        </div>
+        @if (h.folded) {
+          <p class="hand-label muted">Folded</p>
+        } @else {
+          @if (handLabel(); as label) {
+            <p class="hand-label">{{ label }}</p>
+          }
+        }
+      }
+    }
+    @case ('hidden') {
+      <div class="cards"><pk-card size="hole" /><pk-card size="hole" /></div>
+      <p class="hand-label muted">Hidden · Y to show</p>
+    }
+    @case ('phone') {
+      <div class="phone-panel">
+        @if (flags().joinUrl; as url) {
+          <pk-qr [text]="'https://' + url" [size]="200" />
+        }
+        <div class="phone-copy">
+          <p class="big">Cards on your phone</p>
+          @if (flags().joinUrl; as url) {
+            <p class="url">{{ url }}</p>
+          }
+          <p class="small">You're live, so your cards stay off the TV.</p>
+        </div>
+      </div>
+    }
+    @case ('public') {
+      <div class="phone-panel public">
+        @if (flags().joinUrl; as url) {
+          <pk-qr [text]="'https://' + url" [size]="200" />
+        }
+        <div class="phone-copy">
+          <p class="big">Cards are on phones</p>
+          @if (flags().joinUrl; as url) {
+            <p class="url">{{ url }}</p>
+          }
+          <p class="small">Scan to join. The TV shows only what everyone can see.</p>
+        </div>
+      </div>
+    }
+  }
+</section>
+
+<!-- Bottom right: status or bet sizing -->
+@if (sizing(); as z) {
+  <section class="sizing">
+    <div class="presets">
+      @for (p of z.presets; track p.label; let i = $index) {
+        <button type="button" class="preset" [class.on]="p.on" (click)="presetPick.emit(i)">{{ p.label }}</button>
+      }
+    </div>
+    <p class="amount">{{ z.verb }} <b>{{ z.amount }}</b></p>
+    <p class="hint">▲▼ {{ z.step }} · LT/RT presets · A confirm · B back</p>
+  </section>
+} @else {
+  <section class="status" [class]="status().tone">
+    <h2 class="hero">{{ status().hero }}</h2>
+    <p class="sub">
+      {{ status().sub }}
+      @if (clockText(); as c) {
+        <span class="clock">{{ c }}</span>
+      }
+    </p>
+  </section>
+}
+
+@if (buttons().length) {
+  <nav class="bar" aria-label="Your actions">
+    @for (b of buttons(); track b.id) {
+      <button
+        type="button"
+        class="ck-btn"
+        [class.primary]="b.primary"
+        [class.focus]="bar()?.focus === b.id"
+        (click)="barPick.emit(b.id)"
+      >
+        {{ b.label }}
+      </button>
+    }
+  </nav>
+} @else {
+  @if (pre(); as options) {
+    <nav class="bar pre" aria-label="Before your turn">
+      <span class="pre-label">Before your turn</span>
+      @for (o of options; track o.i) {
+        <button type="button" class="toggle" [class.on]="o.on" [class.focus]="o.focus" (click)="prePick.emit(o.i)">
+          <i class="box"></i>{{ o.label }}
+        </button>
+      }
+    </nav>
+  }
+}

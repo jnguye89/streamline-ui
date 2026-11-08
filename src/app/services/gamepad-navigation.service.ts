@@ -164,6 +164,12 @@ export class GamepadNavigationService implements OnDestroy {
   private selectInitialIndex = -1;
   private rangeMode: HTMLInputElement | null = null;
   private rangeInitialValue = '';
+  // Set by a full-screen page that reads the controller and keys itself
+  // (e.g. poker's TvInputService) - see suspend()/resume(). While true,
+  // nothing here reacts to keys or buttons except the app-wide
+  // hard-refresh combo, so one press never drives both the page and the
+  // spatial focus behind it.
+  private suspended = false;
 
   constructor(
     @Inject(PLATFORM_ID) platformId: object,
@@ -226,6 +232,25 @@ export class GamepadNavigationService implements OnDestroy {
     this.dpadActions = { ...actions };
     this.dpadStickOnly = opts?.stickOnly ?? false;
     this.dpadActionsIncludeStick = (opts?.includeStick ?? false) || this.dpadStickOnly;
+  }
+
+  /**
+   * Hand the controller and keyboard to a page that handles input itself.
+   * Spatial focus, A/B, aux buttons, D-pad overrides and arrow/Enter/Escape
+   * keys all go quiet; only the both-sticks hard refresh keeps working.
+   * Call resume() when that page goes away.
+   */
+  suspend(): void {
+    this.suspended = true;
+    this.stopKeyScrub();
+    this.clearFocus();
+  }
+
+  resume(): void {
+    this.suspended = false;
+    // Drop held state from the suspended stretch so a button still held
+    // on the way out isn't read as a fresh press by the next page.
+    this.inputWindowActive = false;
   }
 
   clearDpadActions(): void {
@@ -317,6 +342,7 @@ export class GamepadNavigationService implements OnDestroy {
   }
 
   private onKeyDown = (e: KeyboardEvent): void => {
+    if (this.suspended) return;
     const t = e.target as HTMLElement | null;
     const inputType = t instanceof HTMLInputElement ? t.type : '';
     const isTyping = !!t && (
@@ -553,6 +579,12 @@ export class GamepadNavigationService implements OnDestroy {
     );
     if (!this.inputWindowActive) {
       this.inputWindowActive = true;
+      this.prevButtons = buttons;
+      return;
+    }
+
+    if (this.suspended) {
+      this.handleHardRefreshCombo(buttons);
       this.prevButtons = buttons;
       return;
     }
