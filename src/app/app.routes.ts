@@ -91,6 +91,12 @@ export const routes: Routes = [
     component: ProfileComponent,
   },
   {
+    path: "play/poker",
+    data: { seo: { title: 'Poker on your TV | skriin ai tv', description: "Play no-limit Texas hold'em with free chips on your TV, with a controller, the remote or a keyboard.", canonicalPath: '/play/poker' } },
+    loadComponent: () =>
+      import('./components/play-poker/play-poker.component').then(m => m.PlayPokerComponent),
+  },
+  {
     path: "read",
     data: { seo: { title: 'Read | skriin ai tv', description: 'Read on skriin ai tv.', noindex: true } },
     component: ReadComponent,

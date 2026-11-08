@@ -856,4 +856,38 @@ describe('GamepadNavigationService', () => {
     expect(range.value).toBe('50');
     expect(range.classList).not.toContain('gamepad-adjusting');
   });
+
+  describe('suspend()/resume() for pages that read input themselves (e.g. poker)', () => {
+    type Internals = { pollGamepad(): void; onKeyDown(e: KeyboardEvent): void; activateCurrent(): void };
+
+    it('ignores pad buttons and keys while suspended, and reacts again after resume()', () => {
+      const internals = service as unknown as Internals;
+      const up = jasmine.createSpy('up');
+      service.setDpadActions({ up });
+      const activate = spyOn(internals, 'activateCurrent');
+      spyOn(document, 'hasFocus').and.returnValue(true);
+      spyOnProperty(document, 'visibilityState').and.returnValue('visible');
+      let pressed: number[] = [];
+      spyOn(navigator, 'getGamepads').and.callFake(() => [makePad(pressed)]);
+
+      service.suspend();
+      internals.pollGamepad(); // first frame only primes the button state
+      pressed = [0, 12]; // A + D-pad up
+      internals.pollGamepad();
+      internals.onKeyDown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+      expect(activate).not.toHaveBeenCalled();
+      expect(up).not.toHaveBeenCalled();
+
+      service.resume();
+      pressed = [];
+      internals.pollGamepad();
+      internals.pollGamepad();
+      pressed = [0, 12];
+      internals.pollGamepad();
+      expect(activate).toHaveBeenCalledTimes(1);
+      expect(up).toHaveBeenCalledTimes(1);
+      internals.onKeyDown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+      expect(up).toHaveBeenCalledTimes(2);
+    });
+  });
 });

@@ -1,0 +1,238 @@
+/* skriin ai TV · Poker — tokens and shared TV primitives, copied from checkers v2 so the look
+   matches exactly. Unencapsulated; everything is scoped under .skriin-poker. */
+
+.skriin-poker {
+  position: fixed;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-ui);
+
+  /* Brand */
+  --indigo: #4f46e5;
+  --indigo-hover: #4338ca;
+  --lav: #8f89f5;
+  --lav-soft: #c7d2fe;
+  --navy: #1e1b4b;
+  --red: #ef4444;
+
+  /* Text on black (64% = TV nav "not selected") */
+  --text-2: rgba(255, 255, 255, 0.64);
+  --text-3: rgba(255, 255, 255, 0.42);
+
+  --surface: #0e0e13;
+  --line: rgba(255, 255, 255, 0.08);
+  --ease: cubic-bezier(0.2, 0.75, 0.25, 1);
+
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.skriin-poker *,
+.skriin-poker *::before,
+.skriin-poker *::after {
+  box-sizing: border-box;
+}
+
+
+/* ── Stage: fixed 1920×1080, scaled to fit (same as checkers v2) ─────────── */
+.pk-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--pk-scale, 1));
+}
+
+/* ── Shared primitives ───────────────────────────────────────────────────── */
+.skriin-poker .ck-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+}
+
+.skriin-poker .ck-glyph {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #1d1d26;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font: 700 28px/1 var(--font-ui);
+  color: #fff;
+}
+.skriin-poker .ck-glyph.menu {
+  border-radius: 12px;
+}
+.skriin-poker .ck-glyph.sm {
+  width: 46px;
+  height: 46px;
+  font-size: 28px;
+  background: rgba(255, 255, 255, 0.16);
+  border-color: transparent;
+}
+
+.skriin-poker .ck-scrim {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 10;
+}
+.skriin-poker .ck-modal {
+  background: #0f0f15;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 32px;
+  padding: 56px;
+}
+.skriin-poker .ck-title {
+  margin: 0;
+  font: 600 84px/1 var(--font-display);
+  letter-spacing: -0.03em;
+}
+.skriin-poker .ck-title.sm {
+  font-size: 52px;
+}
+.skriin-poker .ck-lead {
+  margin: 18px 0 0;
+  font: 500 28px/1.35 var(--font-ui);
+  color: var(--text-2);
+}
+.skriin-poker .ck-lead.sm {
+  font-size: 28px;
+}
+
+/* Buttons. TV focus = white ring + 1.06× (primary) or 18% white pill (secondary). */
+.skriin-poker .ck-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 76px;
+  padding: 0 40px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: 600 28px/1 var(--font-ui);
+  cursor: pointer;
+  transition:
+    transform 140ms var(--ease),
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.skriin-poker .ck-btn.primary {
+  background: var(--indigo);
+}
+.skriin-poker .ck-btn.focus {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px #fff;
+}
+.skriin-poker .ck-btn.focus:not(.primary) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Option rows (start screen) */
+.skriin-poker .ck-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 10px 10px 24px;
+  border-radius: 999px;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.skriin-poker .ck-row.focus {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px #fff;
+}
+.skriin-poker .ck-row-label {
+  font: 600 28px/1 var(--font-ui);
+  color: var(--text-2);
+}
+.skriin-poker .ck-row.focus .ck-row-label {
+  color: #fff;
+}
+.skriin-poker .ck-seg {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.skriin-poker .ck-seg button {
+  height: 60px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font: 600 28px/1 var(--font-ui);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+.skriin-poker .ck-seg button.on {
+  background: #fff;
+  color: #0b0b10;
+}
+
+/* Menu list (pause) */
+.skriin-poker .ck-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: 600 28px/1 var(--font-ui);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 140ms var(--ease),
+    background 140ms ease;
+}
+.skriin-poker .ck-item .val {
+  color: var(--text-2);
+  font-weight: 500;
+}
+.skriin-poker .ck-item.focus {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(1.03);
+}
+
+.skriin-poker .ck-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  padding: 14px 28px;
+  border-radius: 999px;
+  background: #1b1b23;
+  border: 1px solid var(--line);
+  font: 500 28px/1 var(--font-ui);
+  white-space: nowrap;
+  z-index: 20;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skriin-poker .ck-btn,
+  .skriin-poker .ck-item,
+  .skriin-poker .ck-row {
+    transition: none;
+  }
+}
