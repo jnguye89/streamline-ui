@@ -7,7 +7,7 @@ import { filter } from 'rxjs';
 /** The one domain search engines should treat as the home of skriin's content. */
 export const SITE_ORIGIN = 'https://skriin.com';
 export const SITE_NAME = 'skriin ai tv';
-export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/assets/MainLogo.png`;
+export const DEFAULT_OG_IMAGE = `${SITE_ORIGIN}/assets/brand/social-share.jpg`;
 
 export interface SeoData {
   title: string;
@@ -22,6 +22,14 @@ export interface SeoData {
   /** Absolute URL of the share image. */
   image?: string;
 }
+
+/** Homepage tags. /watch renders the same feed, so it canonicalizes to "/". */
+export const HOME_SEO: SeoData = {
+  title: 'skriin ai tv: watch, go live and podcast from your TV',
+  description:
+    'skriin turns the TV you already own into a two-way TV. Watch live shows and video podcasts, go live from your couch and simulcast to YouTube, Twitch and Kick.',
+  canonicalPath: '/',
+};
 
 /**
  * Sets the title, description, canonical, robots and social tags for every

@@ -1,26 +1,12 @@
 import { Routes } from "@angular/router";
 import { WatchComponent } from "./components/watch/watch.component";
-import { StreamComponent } from "./components/stream/stream.component";
-import { ListenComponent } from "./components/listen/listen.component";
-import { ProfileComponent } from "./components/profile/profile.component";
-import { ConverseComponent } from "./components/converse/converse.component";
-import ReadComponent from "./components/read/read.component";
-import { DeviceLoginComponent } from "./components/device-login/device-login.component";
-import { SeoData } from "./services/seo.service";
-
-// Homepage tags. /watch renders the same feed, so it canonicalizes to "/".
-const HOME_SEO: SeoData = {
-  title: "skriin ai tv: watch, go live and podcast from your TV",
-  description:
-    "skriin turns the TV you already own into a two-way TV. Watch live shows and video podcasts, go live from your couch and simulcast to YouTube, Twitch and Kick.",
-  canonicalPath: "/",
-};
+import { HOME_SEO } from "./services/seo.service";
 
 export const routes: Routes = [
   {
     path: "login",
     data: { seo: { title: 'Sign in on your TV | skriin ai tv', description: 'Sign in to skriin ai tv on your TV by scanning a code with your phone.', noindex: true } },
-    component: DeviceLoginComponent,
+    loadComponent: () => import("./components/device-login/device-login.component").then((m) => m.DeviceLoginComponent),
   },
   {
     path: "",
@@ -30,12 +16,12 @@ export const routes: Routes = [
   {
     path: "profile/:id",
     data: { seo: { title: 'Channel | skriin ai tv', description: 'Watch live streams, video podcasts and replays from this skriin channel, on your TV, phone or any browser.' } },
-    component: ProfileComponent
+    loadComponent: () => import("./components/profile/profile.component").then((m) => m.ProfileComponent)
   },
   {
     path: "yap",
     data: { seo: { title: 'Yap: talk to your TV, out loud | skriin ai tv', description: 'Press start and talk. Ask anything out loud and your TV talks back. Yap is the voice AI built into skriin ai tv.', canonicalPath: '/yap' } },
-    component: ConverseComponent,
+    loadComponent: () => import("./components/converse/converse.component").then((m) => m.ConverseComponent),
   },
   {
     path: "podcast",
@@ -78,17 +64,17 @@ export const routes: Routes = [
   {
     path: "stream",
     data: { seo: { title: 'Go live from your TV | skriin ai tv', description: 'Go live from your couch with a camera, a screen or both, and simulcast to skriin, YouTube, Twitch and Kick at the same time. No streaming PC.', canonicalPath: '/stream' } },
-    component: StreamComponent
+    loadComponent: () => import("./components/stream/stream.component").then((m) => m.StreamComponent)
   },
   {
     path: "listen",
     data: { seo: { title: 'Listen | skriin ai tv', description: 'Listen on skriin ai tv.', noindex: true } },
-    component: ListenComponent,
+    loadComponent: () => import("./components/listen/listen.component").then((m) => m.ListenComponent),
   },
   {
     path: "profile",
     data: { seo: { title: 'Your profile | skriin ai tv', description: 'Manage your skriin channel and settings.', noindex: true } },
-    component: ProfileComponent,
+    loadComponent: () => import("./components/profile/profile.component").then((m) => m.ProfileComponent),
   },
   {
     path: "play/poker",
@@ -99,6 +85,6 @@ export const routes: Routes = [
   {
     path: "read",
     data: { seo: { title: 'Read | skriin ai tv', description: 'Read on skriin ai tv.', noindex: true } },
-    component: ReadComponent,
+    loadComponent: () => import("./components/read/read.component").then((m) => m.default),
   },
 ];

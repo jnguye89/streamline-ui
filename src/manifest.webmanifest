@@ -1,8 +1,8 @@
 {
-  "name": "skriin",
+  "name": "skriin ai tv",
   "short_name": "skriin",
-  "theme_color": "#1976d2",
-  "background_color": "#fafafa",
+  "theme_color": "#4F46E5",
+  "background_color": "#000000",
   "display": "standalone",
   "apple-mobile-web-app-capable": "yes",
   "orientation": "landscape",
@@ -57,5 +57,6 @@
       "type": "image/png",
       "purpose": "maskable any"
     }
-  ]
+  ],
+  "description": "The two-way TV: watch, go live, podcast and talk to your TV from the couch."
 }
