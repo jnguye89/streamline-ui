@@ -1,0 +1,12 @@
+# Firebase App Hosting (skriin.com).
+# The Angular build is unchanged (App Hosting runs `npm run build`, which also
+# generates the static SEO pages). Only the web server is overridden, so that
+# unknown URLs return real 404s, old paths 301, and caching/HSTS headers are
+# set. See scripts/serve.mjs. Remove `scripts` and `outputFiles` to go back to
+# App Hosting's default static serving.
+scripts:
+  runCommand: node scripts/serve.mjs
+
+outputFiles:
+  serverApp:
+    include: [dist, scripts/serve.mjs]

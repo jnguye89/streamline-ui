@@ -10,7 +10,8 @@ import {
   Renderer2,
   ViewChild
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, Location } from '@angular/common';
+import { HOME_SEO, SeoService } from '../../services/seo.service';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatIconModule } from '@angular/material/icon';
@@ -258,7 +259,9 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private renderer: Renderer2,
     private deviceAuth: DeviceAuthService,
     private chessService: ChessService,
-    private zone: NgZone
+    private zone: NgZone,
+    private location: Location,
+    private seo: SeoService
   ) {
     // Restore whatever volume the viewer last set (Watch's D-pad up/down -
     // see adjustVolume()) instead of always starting back at the field
@@ -492,6 +495,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       this.currentIndex = selectedIndex;
       this.currentItem = this.playlist[this.currentIndex];
       this.pushHistory(this.currentItem);
+      this.setVideoTags();
       void this.tryPlayCurrent();
       return true;
     }
@@ -534,6 +538,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
           this.currentIndex = this.playlist.findIndex(p => `${p.id}` === videoId);
           this.currentItem = this.playlist[this.currentIndex];
           this.pushHistory(this.currentItem);
+          this.setVideoTags();
           void this.tryPlayCurrent();
         },
         // Doesn't exist (deleted, bad id) - leave appliedRouteId unset and
@@ -701,6 +706,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.currentIndex = resolved.index;
     this.currentItem = resolved.item;
+    this.syncUrlToCurrentItem();
     this.clearAutoHide();
     void this.tryPlayCurrent();
   }
@@ -725,8 +731,44 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.historyIndex = idx;
     this.currentIndex = resolved.index;
     this.currentItem = resolved.item;
+    this.syncUrlToCurrentItem();
     this.clearAutoHide();
     void this.tryPlayCurrent();
+  }
+
+  // Gives the video being watched its own shareable URL (/watch/:id) as the
+  // viewer moves through the feed, and retitles the page to match. Only
+  // called on viewer navigation, never for the item auto-picked on load, so
+  // "/" keeps its own URL and canonical for crawlers. replaceState doesn't
+  // go through the router, so the route's :id (and selectFromRouteId,
+  // which reads it) only ever reflects real navigations.
+  private syncUrlToCurrentItem(): void {
+    const id = this.currentVodId();
+    const path = id ? `/watch/${id}` : '/watch';
+    if (this.location.path() !== path) this.location.replaceState(path);
+    this.setVideoTags();
+  }
+
+  private setVideoTags(): void {
+    const id = this.currentVodId();
+    if (!id) {
+      this.seo.setTags(HOME_SEO);
+      return;
+    }
+    const item = this.currentItem as { title?: string; user?: string };
+    const name = item.title && item.title !== 'Video' ? item.title : 'Video';
+    const by = item.user ? ` from ${item.user}` : '';
+    this.seo.setTags({
+      title: `${name}${by} | skriin ai tv`,
+      description: `Watch ${name === 'Video' ? 'this video' : `"${name}"`}${by} on skriin, free on your TV, your phone or any browser.`,
+      canonicalPath: `/watch/${id}`,
+    });
+  }
+
+  /** Numeric id of the current item when it's a skriin video (not live, chess or YouTube). */
+  private currentVodId(): string | null {
+    const item = this.currentItem as { type?: string; id?: unknown } | null;
+    return item?.type === 'vod' && /^\d+$/.test(`${item.id}`) ? `${item.id}` : null;
   }
 
   select(i: number) {
@@ -736,6 +778,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.currentIndex = i;
     this.currentItem = this.playlist[i];
     this.pushHistory(this.currentItem);
+    this.syncUrlToCurrentItem();
     this.clearAutoHide();
     void this.tryPlayCurrent();
   }

@@ -127,9 +127,14 @@ ${noindex ? '' : `<link rel="canonical" href="${canonical}">`}
 <meta property="og:title" content="${esc(title)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:image" content="${SITE.ogImage}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="628">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="/favicon.ico">
-<meta name="theme-color" content="#0b0d12">
+<meta name="twitter:site" content="@skriintv">
+<link rel="icon" type="image/svg+xml" href="/assets/brand/favicon.svg">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+<meta name="theme-color" content="#4F46E5">
 <style>${CSS.replace(/\n/g, '')}</style>
 <script type="application/ld+json">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script>
 </head>
@@ -146,6 +151,7 @@ ${body}
 <ul>${GUIDES.map((g) => `<li><a href="${guidePath(g)}">${esc(g.h1)}</a></li>`).join('')}</ul>
 <p><a href="/features">How skriin works</a> · <a href="/">Watch on skriin.com</a> · <a href="${SITE.store}">Shop at skriin.tv</a></p>
 <p>Questions? <a href="mailto:${SITE.email}">${SITE.email}</a> · ${esc(SITE.phone)}</p>
+<p><a href="${SITE.x}">X (Twitter)</a> · <a href="${SITE.privacy}">Privacy</a> · <a href="${SITE.terms}">Terms</a></p>
 </div></footer>
 </body>
 </html>

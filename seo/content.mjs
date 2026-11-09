@@ -10,7 +10,10 @@ export const SITE = {
   store: 'https://skriin.tv/',
   email: 'him@skriin.com',
   phone: '+1 (650) 509-7773',
-  ogImage: 'https://skriin.com/assets/MainLogo.png',
+  ogImage: 'https://skriin.com/assets/brand/social-share.jpg',
+  x: 'https://x.com/skriintv',
+  privacy: 'https://skriin.tv/policies/privacy-policy',
+  terms: 'https://skriin.tv/policies/terms-of-service',
 };
 
 const UPDATED = '2026-11-08';
