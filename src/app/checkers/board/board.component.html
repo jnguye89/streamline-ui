@@ -1,0 +1,51 @@
+<div class="frame">
+  <div class="grid">
+    @for (cell of cells(); track cell.key) {
+      @if (cell.sq < 0) {
+        <div class="sq light" (click)="store.clickSquare(-1)"></div>
+      } @else {
+        <div
+          class="sq dark"
+          [class.last]="lastSquares().has(cell.sq)"
+          (pointerenter)="store.hoverSquare(cell.sq)"
+          (click)="store.clickSquare(cell.sq)"
+        >
+          @if (store.settings().numbers) {
+            <span class="num">{{ cell.sq + 1 }}</span>
+          }
+          @if (hintSquares().has(cell.sq)) {
+            <span class="hint"></span>
+          }
+          @if (dests().has(cell.sq) && store.ghost()?.sq !== cell.sq) {
+            <span class="dot"></span>
+          }
+        </div>
+      }
+    }
+  </div>
+
+  <div class="layer">
+    @if (focusTransform(); as t) {
+      <div class="focus" [style.transform]="t"></div>
+    }
+    @for (p of store.displayPieces(); track p.id) {
+      <div
+        class="piece"
+        [style.transform]="tf(p.sq)"
+        [class.gone]="p.gone"
+        [class.moving]="p.id === store.movingId()"
+        [class.sel]="p.id === store.selectedId()"
+        [class.focused]="p.sq === store.focus() && p.id !== store.selectedId()"
+        [class.movable]="movable().has(p.sq)"
+        [class.threat]="!p.gone && store.threats().has(p.sq)"
+      >
+        <div class="disc"><ck-piece [color]="p.color" [king]="p.king" /></div>
+      </div>
+    }
+    @if (store.ghost(); as g) {
+      <div class="piece ghost" [style.transform]="tf(g.sq)">
+        <div class="disc"><ck-piece [color]="g.color" [king]="g.king" /></div>
+      </div>
+    }
+  </div>
+</div>

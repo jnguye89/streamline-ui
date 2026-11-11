@@ -1,0 +1,10 @@
+/* Web worker build: checkers' computer player thinks off the UI thread (src/app/checkers/engine/ai.worker.ts). */
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./out-tsc/worker",
+    "lib": ["es2022", "webworker"],
+    "types": []
+  },
+  "include": ["src/**/*.worker.ts"]
+}
