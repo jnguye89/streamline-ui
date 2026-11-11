@@ -1,0 +1,55 @@
+<div class="ck-stage" [class]="'theme-' + store.settings().theme" [style.--ck-scale]="scale()">
+  <!-- skriin.com: always-visible way back to the feed, in the free band above the left column
+       (controller: Menu › Back to watch). -->
+  @if (store.screen() !== 'start') {
+    <button type="button" class="ck-back-to-watch" (click)="onExit()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>Back to watch
+    </button>
+  }
+
+  <!-- Left: computer, turn status, you -->
+  <section class="ck-col ck-col-left">
+    <ck-player-card who="cpu" />
+
+    <div class="ck-status" [class]="status().tone">
+      @if (store.screen() !== 'start') {
+        <h1 class="hero">{{ status().hero }}</h1>
+        <p class="sub">{{ status().sub }}</p>
+        <div class="meta">
+          <span>Move {{ moveNo() }}</span>
+          <span>{{ clock() }}</span>
+        </div>
+      }
+    </div>
+
+    <ck-player-card who="you" />
+  </section>
+
+  <!-- Center: board -->
+  <div class="ck-board-wrap">
+    <ck-board />
+  </div>
+
+  <!-- Right: title, moves, controls -->
+  <section class="ck-col ck-col-right">
+    <header class="ck-head">
+      <h2>Checkers</h2>
+      <p>vs Computer · {{ levelLabel() }}</p>
+    </header>
+    <ck-move-list />
+    <ck-controls-legend />
+  </section>
+
+  @if (store.screen() === 'start') {
+    <ck-start-overlay (exit)="onExit()" />
+  }
+  @if (store.paused()) {
+    <ck-pause-menu (exit)="onExit()" />
+  }
+  @if (store.screen() === 'over') {
+    <ck-game-over (exit)="onExit()" />
+  }
+  @if (store.toast(); as t) {
+    <div class="ck-toast">{{ t }}</div>
+  }
+</div>

@@ -83,6 +83,12 @@ export const routes: Routes = [
       import('./components/play-poker/play-poker.component').then(m => m.PlayPokerComponent),
   },
   {
+    path: "play/checkers",
+    data: { seo: { title: 'Checkers on your TV | skriin ai tv', description: 'Play checkers against the computer on your TV, with a controller, the remote or a keyboard. Three levels, hints and undo.', canonicalPath: '/play/checkers' } },
+    loadComponent: () =>
+      import('./components/play-checkers/play-checkers.component').then(m => m.PlayCheckersComponent),
+  },
+  {
     path: "play/mahjong",
     data: { seo: { title: 'Mahjong on your TV | skriin ai tv', description: 'Play Hong Kong mahjong against computer players on your TV, with a controller, the remote or a keyboard.', canonicalPath: '/play/mahjong' } },
     loadComponent: () =>
