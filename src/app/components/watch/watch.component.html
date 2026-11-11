@@ -116,6 +116,13 @@
         <mat-icon>style</mat-icon>
         <span class="count">Play Poker</span>
       </button>
+
+      <!-- Same games slot and rule as Play Poker (see canPlayPoker). -->
+      <button *ngIf="canPlayPoker" gamepadFocusable class="action play-mahjong" routerLink="/play/mahjong"
+        aria-label="Play Mahjong">
+        <mat-icon>grid_view</mat-icon>
+        <span class="count">Play Mahjong</span>
+      </button>
     </div>
 
   </div>

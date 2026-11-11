@@ -1,0 +1,61 @@
+<div class="mj-stage" [style.--mj-scale]="scale()">
+  @if (seats(); as s) {
+    <!-- Corners: round info, controls -->
+    <mj-round-info class="mj-round" />
+    <!-- skriin.com: always-visible way back to the feed (controller: Menu › Leave game). -->
+    <button type="button" class="mj-back-to-watch" (click)="onExit()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>Back to watch
+    </button>
+    <mj-controls-legend class="mj-legend" />
+
+    <!-- Opponents: left plays before you, right plays after you -->
+    <mj-opponent-seat class="mj-seat-top" [seat]="s.top" layout="top" />
+    <mj-opponent-seat class="mj-seat-left" [seat]="s.left" layout="side" />
+    <mj-opponent-seat class="mj-seat-right" [seat]="s.right" layout="side" />
+
+    <!-- Center: four discard ponds around the wall / wind box -->
+    <mj-pond class="mj-pond mj-pond-top" [seat]="s.top" />
+    <mj-pond class="mj-pond mj-pond-left" [seat]="s.left" />
+    <mj-pond class="mj-pond mj-pond-right" [seat]="s.right" />
+    <mj-pond class="mj-pond mj-pond-bottom" [seat]="s.bottom" />
+    <mj-center-box class="mj-center" />
+
+    <!-- You -->
+    @if (store.status(); as st) {
+      <div class="mj-status" [class]="st.tone">
+        <h1 class="hero">{{ st.hero }}</h1>
+        @for (l of st.lines; track $index) {
+          <p class="sub">{{ l }}</p>
+        }
+      </div>
+    }
+    <mj-turn-actions class="mj-actions" />
+    <mj-self-card class="mj-self" />
+    <mj-hand class="mj-hand" />
+    <mj-claim-bar class="mj-claim" />
+    <mj-callouts />
+  }
+
+  @if (store.screen() === 'start') {
+    <mj-start-overlay [previewEnabled]="previewEnabled()" (exit)="onExit()" />
+  } @else if (phase() === 'game-over') {
+    <mj-game-end (exit)="onExit()" />
+  } @else if (phase() === 'hand-over') {
+    <mj-hand-result />
+  }
+  @if (store.paused()) {
+    <mj-pause-menu (exit)="onExit()" />
+  }
+  @if (store.rulesOpen()) {
+    <mj-rules-sheet />
+  }
+
+  @if (store.preview(); as p) {
+    <button type="button" class="mj-preview-pill" (click)="store.cyclePreview()">
+      Preview {{ p.index + 1 }}/{{ sceneCount }} · {{ p.scene.label }} · <b>P</b> next
+    </button>
+  }
+  @if (store.toast(); as t) {
+    <div class="mj-toast">{{ t }}</div>
+  }
+</div>

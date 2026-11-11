@@ -1,0 +1,10 @@
+{
+  "name": "@skriin/mahjong-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "skriin ai TV mahjong core: tiles, views, actions, engine contract, points. Pure TypeScript, shared by the TV app, the iOS app and the server.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false
+}

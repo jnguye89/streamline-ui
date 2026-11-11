@@ -22,7 +22,11 @@
     "lib": [
       "ES2022",
       "dom"
-    ]
+    ],
+    // Pure-TypeScript game cores shared by the TV app, the iOS app and (later) the API.
+    "paths": {
+      "@skriin/mahjong-core": ["./packages/mahjong-core/src/index.ts"]
+    }
   },
   "files": [],
   "references": [
