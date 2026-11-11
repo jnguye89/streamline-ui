@@ -146,6 +146,7 @@
               "zone.js/testing"
             ],
             "tsConfig": "tsconfig.spec.json",
+            "include": ["**/*.spec.ts", "../packages/**/*.spec.ts"],
             "inlineStyleLanguage": "scss",
             "stylePreprocessorOptions": {
               "includePaths": [
