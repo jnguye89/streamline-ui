@@ -25,7 +25,8 @@
     ],
     // Pure-TypeScript game cores shared by the TV app, the iOS app and (later) the API.
     "paths": {
-      "@skriin/mahjong-core": ["./packages/mahjong-core/src/index.ts"]
+      "@skriin/mahjong-core": ["./packages/mahjong-core/src/index.ts"],
+      "@skriin/backgammon-core": ["./packages/backgammon-core/src/index.ts"]
     }
   },
   "files": [],

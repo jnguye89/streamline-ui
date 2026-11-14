@@ -130,6 +130,18 @@
         <mat-icon>apps</mat-icon>
         <span class="count">Play Checkers</span>
       </button>
+
+      <!-- Same games slot and rule as Play Poker (see canPlayPoker). -->
+      <button *ngIf="canPlayPoker" gamepadFocusable class="action play-backgammon" routerLink="/play/backgammon"
+        aria-label="Play Backgammon">
+        <mat-icon>casino</mat-icon>
+        <span class="count">Play Backgammon</span>
+      </button>
+      <button *ngIf="canPlayPoker" gamepadFocusable class="action play-bot-or-not" routerLink="/play/bot-or-not"
+        aria-label="Play Bot or Not">
+        <mat-icon>smart_toy</mat-icon>
+        <span class="count">Play Bot or Not</span>
+      </button>
     </div>
 
   </div>

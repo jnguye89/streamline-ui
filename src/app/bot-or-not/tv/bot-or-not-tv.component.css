@@ -1,0 +1,348 @@
+/* skriin ai TV · Bot or Not (TV) — tokens and shared TV primitives.
+   Same tokens, buttons, focus ring, menus and modals as checkers v2 (ck- → bon-).
+   This file is unencapsulated; every class is prefixed bon- (or scoped under .skriin-bot-or-not). */
+
+.skriin-bot-or-not {
+  position: fixed;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-ui);
+
+  /* Brand */
+  --indigo: #4f46e5;
+  --indigo-hover: #4338ca;
+  --lav: #8f89f5;
+  --lav-soft: #c7d2fe;
+  --navy: #1e1b4b;
+  --red: #ef4444;
+
+  /* Text on black (64% = TV nav "not selected") */
+  --text-2: rgba(255, 255, 255, 0.64);
+  --text-3: rgba(255, 255, 255, 0.42);
+
+  --surface: #0e0e13;
+  --line: rgba(255, 255, 255, 0.08);
+  --ease: cubic-bezier(0.2, 0.75, 0.25, 1);
+
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+/* In the review preview the TV sits in a box next to the phone instead of filling the window. */
+.skriin-bot-or-not.in-box {
+  position: absolute;
+}
+
+.skriin-bot-or-not *,
+.skriin-bot-or-not *::before,
+.skriin-bot-or-not *::after {
+  box-sizing: border-box;
+}
+
+/* ── Stage layout (1920×1080) ─────────────────────────────────────────────── */
+.skriin-bot-or-not .bon-stage {
+  position: absolute;
+  inset: 0;
+}
+.skriin-bot-or-not .bon-top {
+  position: absolute;
+  left: 72px;
+  right: 72px;
+  top: 44px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 2;
+}
+.skriin-bot-or-not .bon-top .brand,
+.skriin-bot-or-not .bon-top .right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.skriin-bot-or-not .bon-top .right {
+  gap: 30px;
+}
+.skriin-bot-or-not .bon-back-to-watch {
+  /* skriin.com: always-visible way back to the watch feed (also B on the lobby, and in the menu). */
+  display: inline-flex;
+  align-items: center;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+  font: 600 28px/1 var(--font-ui);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.skriin-bot-or-not .bon-back-to-watch:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.skriin-bot-or-not .wordmark {
+  font: 600 36px/1 var(--font-display);
+  letter-spacing: -0.02em;
+  margin-right: 8px;
+}
+.skriin-bot-or-not .code-chip {
+  font: 500 28px/1 var(--font-mono);
+  color: var(--text-2);
+}
+.skriin-bot-or-not .code-chip b {
+  color: #fff;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+.skriin-bot-or-not .live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: #fff;
+  color: #0b0b10;
+  font: 700 28px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+}
+.skriin-bot-or-not .live-badge i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--red);
+}
+.skriin-bot-or-not .bon-main {
+  position: absolute;
+  left: 72px;
+  right: 72px;
+  top: 132px;
+  height: 690px;
+}
+
+/* ── Shared primitives (as checkers) ─────────────────────────────────────── */
+.skriin-bot-or-not .bon-panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 32px;
+}
+.skriin-bot-or-not .bon-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 52px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: 600 28px/1 var(--font-ui);
+  white-space: nowrap;
+}
+.skriin-bot-or-not .bon-pill.hot {
+  background: var(--indigo);
+}
+.skriin-bot-or-not .bon-pill.paused {
+  background: #fff;
+  color: #0b0b10;
+}
+
+.skriin-bot-or-not .bon-glyph {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1d1d26;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font: 700 21px/1 var(--font-ui);
+  color: #fff;
+}
+.skriin-bot-or-not .bon-glyph.menu {
+  border-radius: 12px;
+}
+.skriin-bot-or-not .bon-glyph.sm {
+  width: 40px;
+  height: 40px;
+  font-size: 19px;
+  background: rgba(255, 255, 255, 0.16);
+  border-color: transparent;
+}
+
+.skriin-bot-or-not .bon-scrim {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 10;
+}
+.skriin-bot-or-not .bon-modal {
+  background: #0f0f15;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 32px;
+  padding: 56px;
+}
+.skriin-bot-or-not .bon-title {
+  margin: 0;
+  font: 600 84px/1 var(--font-display);
+  letter-spacing: -0.03em;
+}
+.skriin-bot-or-not .bon-title.sm {
+  font-size: 52px;
+}
+
+/* Buttons. TV focus = white ring + 1.06× (primary) or 18% white pill (secondary). */
+.skriin-bot-or-not .bon-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 80px;
+  padding: 0 42px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: 600 30px/1 var(--font-ui);
+  cursor: pointer;
+  transition:
+    transform 140ms var(--ease),
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.skriin-bot-or-not .bon-btn.primary {
+  background: var(--indigo);
+}
+.skriin-bot-or-not .bon-btn.focus {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px #fff;
+}
+.skriin-bot-or-not .bon-btn.focus:not(.primary) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Option rows (settings) */
+.skriin-bot-or-not .bon-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 10px 10px 26px;
+  border-radius: 999px;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.skriin-bot-or-not .bon-row.focus {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px #fff;
+}
+.skriin-bot-or-not .bon-row-label {
+  font: 600 28px/1 var(--font-ui);
+  color: var(--text-2);
+}
+.skriin-bot-or-not .bon-row.focus .bon-row-label {
+  color: #fff;
+}
+.skriin-bot-or-not .bon-seg {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.skriin-bot-or-not .bon-seg button {
+  height: 60px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font: 600 28px/1 var(--font-ui);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+.skriin-bot-or-not .bon-seg button.on {
+  background: #fff;
+  color: #0b0b10;
+}
+
+/* Menu list */
+.skriin-bot-or-not .bon-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: 600 30px/1 var(--font-ui);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 140ms var(--ease),
+    background 140ms ease;
+}
+.skriin-bot-or-not .bon-item .val {
+  color: var(--text-2);
+  font-weight: 500;
+}
+.skriin-bot-or-not .bon-item.focus {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(1.03);
+}
+
+.skriin-bot-or-not .bon-toast {
+  position: absolute;
+  left: 50%;
+  top: 124px;
+  transform: translateX(-50%);
+  padding: 16px 30px;
+  border-radius: 999px;
+  background: #fff;
+  color: #0b0b10;
+  font: 600 28px/1 var(--font-ui);
+  white-space: nowrap;
+  z-index: 20;
+}
+
+/* Voters' faces fly from the strip onto the card they picked. */
+.skriin-bot-or-not .bon-fly-ready:not(.bon-fly) {
+  opacity: 0;
+}
+.skriin-bot-or-not .bon-fly {
+  animation: bon-fly 680ms var(--ease) both;
+}
+@keyframes bon-fly {
+  0% {
+    opacity: 0;
+    transform: translate(var(--fx, 0), var(--fy, 0)) scale(1.6);
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skriin-bot-or-not .bon-btn,
+  .skriin-bot-or-not .bon-item,
+  .skriin-bot-or-not .bon-row {
+    transition: none;
+  }
+  .skriin-bot-or-not .bon-fly {
+    animation: none;
+  }
+}
