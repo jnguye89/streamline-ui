@@ -42,7 +42,10 @@ export class RtcService {
           .then(({ default: AgoraRTC }) => {
               AgoraRTC.setLogLevel(0);
               this.agora = AgoraRTC;
-              const client = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+              // 'live', not 'rtc': Agora only connects people in a channel who use the same
+              // channel profile, and the mobile app's broadcasts (which calls join as podcast
+              // guests) and every stream here use live broadcasting. Callers join as hosts.
+              const client = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
 
               client.on('user-published', async (user, mediaType) => {
                   await this.subscribeAndRender(user, mediaType);
@@ -173,6 +176,8 @@ export class RtcService {
         const agora = this.agora;
         if (!agora) throw new Error('Agora RTC is unavailable.');
         this.socket.joinRoom(channel);
+        // Hosts send and receive; live mode starts everyone as audience (receive only).
+        await client.setClientRole('host');
         await client.join(appId, channel, token, uid);
 
         this.localAudio = await agora.createMicrophoneAudioTrack();

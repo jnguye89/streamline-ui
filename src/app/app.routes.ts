@@ -1,6 +1,16 @@
-import { Routes } from "@angular/router";
+import { Routes, UrlMatcher, UrlSegment } from "@angular/router";
 import { WatchComponent } from "./components/watch/watch.component";
 import { HOME_SEO } from "./services/seo.service";
+
+/**
+ * skriin.com/play/CODE: a 4-letter room code a phone opens from the TV's QR code. Only exact
+ * 4-letter codes match, so /play/poker, /play/mahjong etc. never land here. Bot or Not is the only
+ * game with phone rooms so far; when another game gets them, a resolver picks the game from the code.
+ */
+const roomCodeMatcher: UrlMatcher = (segments: UrlSegment[]) =>
+  segments.length === 2 && segments[0].path === 'play' && /^[A-Za-z]{4}$/.test(segments[1].path)
+    ? { consumed: segments, posParams: { code: segments[1] } }
+    : null;
 
 export const routes: Routes = [
   {
@@ -83,10 +93,28 @@ export const routes: Routes = [
       import('./components/play-poker/play-poker.component').then(m => m.PlayPokerComponent),
   },
   {
+    path: "play/backgammon",
+    data: { seo: { title: 'Backgammon on your TV | skriin ai tv', description: 'Play backgammon on your TV against the computer or a friend on the same couch, with a controller, the remote or a keyboard.', canonicalPath: '/play/backgammon' } },
+    loadComponent: () =>
+      import('./components/play-backgammon/play-backgammon.component').then(m => m.PlayBackgammonComponent),
+  },
+  {
     path: "play/checkers",
     data: { seo: { title: 'Checkers on your TV | skriin ai tv', description: 'Play checkers against the computer on your TV, with a controller, the remote or a keyboard. Three levels, hints and undo.', canonicalPath: '/play/checkers' } },
     loadComponent: () =>
       import('./components/play-checkers/play-checkers.component').then(m => m.PlayCheckersComponent),
+  },
+  {
+    path: "play/bot-or-not",
+    data: { seo: { title: 'Bot or Not on your TV | skriin ai tv', description: 'A party game for the TV: everyone answers a prompt on their phone, one answer is written by a bot, and the room votes on which one.', canonicalPath: '/play/bot-or-not' } },
+    loadComponent: () =>
+      import('./components/play-bot-or-not/play-bot-or-not.component').then(m => m.PlayBotOrNotComponent),
+  },
+  {
+    matcher: roomCodeMatcher,
+    data: { seo: { title: 'Join a game | skriin ai tv', description: 'Join the game on the TV from your phone.', noindex: true } },
+    loadComponent: () =>
+      import('./components/play-bot-or-not/play-bot-or-not-phone.component').then(m => m.PlayBotOrNotPhoneComponent),
   },
   {
     path: "play/mahjong",

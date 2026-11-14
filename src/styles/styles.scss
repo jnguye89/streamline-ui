@@ -166,3 +166,9 @@ app-stream {
     padding: 0 !important;
   }
 }
+
+/* Bot or Not phone controller (/play/CODE) is a portrait phone screen: don't block it with the
+   app-wide "rotate your device" overlay (app.component). */
+body:has(app-play-bot-or-not-phone) #rotate-overlay {
+  display: none !important;
+}

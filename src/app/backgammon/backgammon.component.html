@@ -1,0 +1,70 @@
+<div class="bg-stage" [class]="'theme-' + store.settings().theme" [style.--bg-scale]="scale()">
+  <!-- skriin.com: always-visible way back to the feed, in the free band above the left column
+       (controller: Menu › Back to watch). -->
+  @if (store.screen() !== 'start') {
+    <button type="button" class="bg-back-to-watch" (click)="onExit()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>Back to watch
+    </button>
+  }
+
+  <!-- Left: opponent, turn status, you -->
+  <section class="bg-col bg-col-left">
+    <bg-player-card [side]="top()" />
+
+    <div class="bg-status" [class]="status().tone">
+      @if (store.playing()) {
+        @if (chip(); as c) {
+          <span class="who-chip">{{ c }}</span>
+        }
+        <h1 class="hero">{{ status().hero }}</h1>
+        <p class="sub">{{ status().sub }}</p>
+        @if (store.grace(); as ms) {
+          <div class="grace"><i [style.animation-duration.ms]="ms"></i></div>
+        }
+        <div class="meta">
+          <span>Game {{ store.view().match.game }}</span>
+          <span>{{ clock() }}</span>
+        </div>
+      }
+    </div>
+
+    <bg-player-card [side]="store.bottom()" />
+  </section>
+
+  <!-- Center: board -->
+  <div class="bg-board-wrap">
+    <bg-board />
+  </div>
+
+  <!-- Right: match, cube, moves, controls -->
+  <section class="bg-col bg-col-right">
+    <bg-match-info />
+    <bg-move-list />
+    <bg-controls-legend />
+  </section>
+
+  @if (showDouble()) {
+    <bg-double-overlay />
+  }
+  @if (showResign()) {
+    <bg-resign-overlay />
+  }
+  @if (showResult()) {
+    <bg-result-overlay (exit)="onExit()" />
+  }
+  @if (store.screen() === 'start') {
+    <bg-start-overlay (exit)="onExit()" />
+  }
+  @if (store.overlay() === 'menu') {
+    <bg-pause-menu (exit)="onExit()" />
+  }
+  @if (store.overlay() === 'verify') {
+    <bg-verify-dice />
+  }
+  @if (store.toast(); as t) {
+    <div class="bg-toast">{{ t }}</div>
+  }
+  @if (previewLabel(); as p) {
+    <div class="bg-preview-chip">{{ p }} · P next · Shift+P back</div>
+  }
+</div>

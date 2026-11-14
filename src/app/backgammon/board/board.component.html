@@ -1,0 +1,133 @@
+<div class="frame">
+  <svg class="field" [attr.viewBox]="'0 0 ' + BW + ' ' + BH" aria-hidden="true">
+    <rect class="bar" [attr.x]="bar().x" y="0" [attr.width]="bar().w" [attr.height]="BH" />
+    @for (r of rects(); track r.key) {
+      <rect [attr.class]="r.cls" [attr.x]="r.x" [attr.y]="r.y" [attr.width]="r.w" [attr.height]="r.h" rx="12" />
+    }
+    @if (column(); as c) {
+      <rect class="column" [attr.x]="c.x" [attr.y]="c.y" [attr.width]="c.w" [attr.height]="c.h" rx="10" />
+    }
+    @for (t of triangles(); track t.a) {
+      <polygon [attr.class]="t.cls" [attr.points]="t.points" />
+    }
+  </svg>
+
+  @for (n of numbers(); track n.p) {
+    <span class="num" [style.left.px]="n.x" [style.top.px]="n.y">{{ n.p }}</span>
+  }
+
+  <div class="layer">
+    @for (t of trayCounts(); track t.side) {
+      <div class="tray-count" [style.left.px]="t.xy.x" [style.top.px]="t.xy.y">
+        <b>{{ t.n }}</b><span>off</span>
+      </div>
+    }
+
+    @for (s of slabs(); track s.key) {
+      <div
+        class="slab"
+        [class]="s.tone"
+        [style.width.px]="SLAB_W"
+        [style.height.px]="SLAB_H"
+        [style.transform]="tf(s.xy, SLAB_W, SLAB_H)"
+        [bgArrive]="s.arrive"
+        [bgAt]="s.xy"
+        [bgW]="SLAB_W"
+        [bgH]="SLAB_H"
+      ></div>
+    }
+
+    @for (c of checkers(); track c.key) {
+      <div
+        class="ck"
+        [class]="c.cls"
+        [style.transform]="tf(c.xy)"
+        [bgArrive]="c.arrive"
+        [bgAt]="c.xy"
+        (pointerenter)="hover(c.cand)"
+        (click)="click(c.cand)"
+      >
+        <div class="disc"><bg-checker [tone]="c.tone" /></div>
+        @if (c.label) {
+          <span class="count" [class]="c.tone">{{ c.label }}</span>
+        }
+      </div>
+    }
+
+    @for (t of threats(); track t.key) {
+      <div class="threat" [class.strong]="t.strong" [style.transform]="tf(t.xy, 76, 76)"></div>
+    }
+
+    @if (ghost(); as g) {
+      @if (g.off) {
+        <div class="slab ghost" [class]="g.tone" [style.width.px]="SLAB_W" [style.height.px]="SLAB_H" [style.transform]="tf(g.xy, SLAB_W, SLAB_H)"></div>
+      } @else {
+        <div class="ck ghost" [style.transform]="tf(g.xy)">
+          <div class="disc"><bg-checker [tone]="g.tone" /></div>
+        </div>
+      }
+    }
+
+    @for (d of dots(); track d.id) {
+      <button
+        type="button"
+        class="dot"
+        [class.focused]="d.focused"
+        [class.hit]="d.hit"
+        [class.wide]="d.label.length > 2"
+        [style.left.px]="d.xy.x"
+        [style.top.px]="d.xy.y"
+        (pointerenter)="store.hoverCand(d.id)"
+        (click)="store.clickCand(d.id)"
+      >
+        {{ d.label }}
+      </button>
+    }
+
+    @if (arrows().length) {
+      <svg class="arrows" [attr.viewBox]="'0 0 ' + BW + ' ' + BH" aria-hidden="true">
+        <defs>
+          <marker id="bg-arrowhead" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" class="head" />
+          </marker>
+        </defs>
+        @for (a of arrows(); track a.key) {
+          <path class="arrow" [attr.d]="a.d" marker-end="url(#bg-arrowhead)" />
+          <circle class="arrow-end" [attr.cx]="a.to.x" [attr.cy]="a.to.y" r="26" />
+        }
+      </svg>
+    }
+
+    @for (grp of store.dice(); track grp.key) {
+      <div class="dice" [class.four]="grp.dice.length === 4" [style.left.px]="grp.at.x" [style.top.px]="grp.at.y">
+        @for (d of grp.dice; track $index) {
+          <bg-die [value]="d.value" [tone]="toneOf(grp.side)" [used]="d.used" [rolling]="grp.rolling" [win]="grp.winner" />
+        }
+      </div>
+    }
+
+    @if (buttons(); as b) {
+      <div class="buttons" [style.left.px]="b.at.x" [style.top.px]="b.at.y">
+        @for (btn of b.list; track btn.id) {
+          <button
+            type="button"
+            class="bg-btn"
+            [class.primary]="btn.primary"
+            [class.focus]="btn.focused"
+            (pointerenter)="store.hoverCand(btn.id)"
+            (click)="store.clickCand(btn.id)"
+          >
+            {{ btn.label }}
+            @if (btn.focused) {
+              <span class="bg-glyph sm">A</span>
+            }
+          </button>
+        }
+      </div>
+    }
+
+    @if (noMoves(); as nm) {
+      <div class="no-moves" [style.left.px]="nm.x" [style.top.px]="nm.y">No moves</div>
+    }
+  </div>
+</div>

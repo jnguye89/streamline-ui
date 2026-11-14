@@ -1,0 +1,433 @@
+/* skriin ai TV · Backgammon — tokens, board styles and shared TV primitives.
+   This file is unencapsulated; every class is prefixed bg- (or scoped under .skriin-backgammon).
+   Tokens and primitives match skriin checkers v2. */
+/* skriin.com: every bg- rule is scoped under .skriin-backgammon so it beats Angular Material's
+   `.mat-typography h1/h2/p` (the app's <body> has that class), which otherwise wins on specificity. */
+
+.skriin-backgammon {
+  position: fixed;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  background: #000;
+  color: #fff;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-ui);
+
+  /* Brand */
+  --indigo: #4f46e5;
+  --indigo-hover: #4338ca;
+  --lav: #8f89f5;
+  --lav-soft: #c7d2fe;
+  --navy: #1e1b4b;
+  --red: #ef4444;
+
+  /* Text on black (64% = TV nav "not selected") */
+  --text-2: rgba(255, 255, 255, 0.64);
+  --text-3: rgba(255, 255, 255, 0.42);
+
+  --surface: #0e0e13;
+  --line: rgba(255, 255, 255, 0.08);
+  --ease: cubic-bezier(0.2, 0.75, 0.25, 1);
+
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.skriin-backgammon *,
+.skriin-backgammon *::before,
+.skriin-backgammon *::after {
+  box-sizing: border-box;
+}
+
+/* ── Board styles ─────────────────────────────────────────────────────────── */
+.skriin-backgammon .bg-stage.theme-indigo {
+  --frame: #111117;
+  --bar: #111117;
+  --bed: #1e1b4b;
+  --tray: #0b0b10;
+  --pt-a: #4f46e5;
+  --pt-b: #c7d2fe;
+  --num: rgba(255, 255, 255, 0.5);
+  --dot: rgba(255, 255, 255, 0.9);
+  --movable: rgba(255, 255, 255, 0.6);
+  --hint: #ffffff;
+  --ck-light-top: #f8f8fc;
+  --ck-light-edge: #a3a8c3;
+  --ck-light-ring: rgba(30, 27, 75, 0.13);
+  --ck-light-line: rgba(30, 27, 75, 0.18);
+  --ck-dark-top: #17171f;
+  --ck-dark-edge: #000000;
+  --ck-dark-ring: rgba(255, 255, 255, 0.14);
+  --ck-dark-line: rgba(255, 255, 255, 0.34);
+}
+.skriin-backgammon .bg-stage.theme-midnight {
+  --frame: #101016;
+  --bar: #101016;
+  --bed: #0d0c1f;
+  --tray: #0a0a12;
+  --pt-a: #3730a3;
+  --pt-b: #2a2670;
+  --num: rgba(255, 255, 255, 0.42);
+  --dot: rgba(199, 210, 254, 0.94);
+  --movable: rgba(199, 210, 254, 0.6);
+  --hint: #c7d2fe;
+  --ck-light-top: #f8f8fc;
+  --ck-light-edge: #9da3c4;
+  --ck-light-ring: rgba(30, 27, 75, 0.13);
+  --ck-light-line: rgba(30, 27, 75, 0.18);
+  --ck-dark-top: #818cf8;
+  --ck-dark-edge: #4338ca;
+  --ck-dark-ring: rgba(255, 255, 255, 0.28);
+  --ck-dark-line: rgba(255, 255, 255, 0.3);
+}
+.skriin-backgammon .bg-stage.theme-graphite {
+  --frame: #101014;
+  --bar: #101014;
+  --bed: #1a1a20;
+  --tray: #0b0b0e;
+  --pt-a: #3a3a44;
+  --pt-b: #5b5b66;
+  --num: rgba(255, 255, 255, 0.4);
+  --dot: rgba(255, 255, 255, 0.9);
+  --movable: rgba(255, 255, 255, 0.55);
+  --hint: #c7d2fe;
+  --ck-light-top: #f8f8fc;
+  --ck-light-edge: #9b9bab;
+  --ck-light-ring: rgba(0, 0, 0, 0.12);
+  --ck-light-line: rgba(0, 0, 0, 0.16);
+  --ck-dark-top: #4f46e5;
+  --ck-dark-edge: #2e2898;
+  --ck-dark-ring: rgba(255, 255, 255, 0.22);
+  --ck-dark-line: rgba(255, 255, 255, 0.26);
+}
+
+/* ── Stage: fixed 1920×1080, scaled to fit ────────────────────────────────── */
+.skriin-backgammon .bg-stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform: translate(-50%, -50%) scale(var(--bg-scale, 1));
+}
+
+.skriin-backgammon .bg-col {
+  position: absolute;
+  top: 92px;
+  width: 340px;
+  height: 896px;
+  display: flex;
+  flex-direction: column;
+}
+.skriin-backgammon .bg-col-left {
+  left: 72px;
+  justify-content: space-between;
+}
+.skriin-backgammon .bg-col-right {
+  left: 1508px;
+  gap: 18px;
+}
+.skriin-backgammon .bg-board-wrap {
+  position: absolute;
+  left: 452px;
+  top: 92px;
+}
+
+/* skriin.com: Back to watch, above the left column (columns and board start at 92px). */
+.skriin-backgammon .bg-back-to-watch {
+  position: absolute;
+  left: 72px;
+  top: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  margin: 0;
+  padding: 0 22px 0 14px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font: 600 24px/1 var(--font-ui);
+  cursor: pointer;
+  z-index: 2;
+}
+.skriin-backgammon .bg-back-to-watch:hover {
+  background: rgba(255, 255, 255, 0.22);
+  border-color: #fff;
+}
+.skriin-backgammon .bg-back-to-watch svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Turn status */
+.skriin-backgammon .bg-status {
+  padding: 0 6px;
+}
+.skriin-backgammon .bg-status .who-chip {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--indigo);
+  font: 600 22px/1 var(--font-ui);
+}
+.skriin-backgammon .bg-status .hero {
+  margin: 0;
+  font: 600 60px/1.04 var(--font-display);
+  letter-spacing: -0.025em;
+}
+.skriin-backgammon .bg-status .sub {
+  margin: 16px 0 0;
+  font: 500 28px/1.3 var(--font-ui);
+  color: var(--text-2);
+}
+.skriin-backgammon .bg-status.hint .sub {
+  color: var(--lav-soft);
+  font-family: var(--font-mono);
+}
+.skriin-backgammon .bg-status.warn .sub {
+  color: #fca5a5;
+}
+.skriin-backgammon .bg-status.good .hero {
+  color: var(--lav-soft);
+}
+.skriin-backgammon .bg-status .grace {
+  margin-top: 14px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.skriin-backgammon .bg-status .grace i {
+  display: block;
+  height: 100%;
+  background: var(--lav-soft);
+  border-radius: inherit;
+  animation: bg-grace linear forwards;
+}
+@keyframes bg-grace {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+.skriin-backgammon .bg-status .meta {
+  display: flex;
+  gap: 22px;
+  margin-top: 26px;
+  font: 500 22px/1 var(--font-mono);
+  color: var(--text-3);
+}
+
+/* ── Shared primitives ───────────────────────────────────────────────────── */
+.skriin-backgammon .bg-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+}
+
+.skriin-backgammon .bg-glyph {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #1d1d26;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font: 700 21px/1 var(--font-ui);
+  color: #fff;
+}
+.skriin-backgammon .bg-glyph.menu {
+  border-radius: 12px;
+}
+.skriin-backgammon .bg-glyph.sm {
+  width: 38px;
+  height: 38px;
+  font-size: 18px;
+  background: rgba(255, 255, 255, 0.18);
+  border-color: transparent;
+}
+
+.skriin-backgammon .bg-scrim {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 10;
+}
+.skriin-backgammon .bg-modal {
+  background: #0f0f15;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 32px;
+  padding: 56px;
+}
+.skriin-backgammon .bg-title {
+  margin: 0;
+  font: 600 84px/1.02 var(--font-display);
+  letter-spacing: -0.03em;
+}
+.skriin-backgammon .bg-title.sm {
+  font-size: 52px;
+}
+.skriin-backgammon .bg-lead {
+  margin: 18px 0 0;
+  font: 500 28px/1.35 var(--font-ui);
+  color: var(--text-2);
+}
+.skriin-backgammon .bg-lead.sm {
+  font-size: 24px;
+}
+
+/* Buttons. TV focus = white ring + 1.06× (primary) or 18% white pill (secondary). */
+.skriin-backgammon .bg-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 76px;
+  padding: 0 40px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font: 600 28px/1 var(--font-ui);
+  cursor: pointer;
+  transition:
+    transform 140ms var(--ease),
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.skriin-backgammon .bg-btn.primary {
+  background: var(--indigo);
+}
+.skriin-backgammon .bg-btn.focus {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 4px #fff;
+}
+.skriin-backgammon .bg-btn.focus:not(.primary) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+/* Option rows (start screen) */
+.skriin-backgammon .bg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 10px 10px 10px 24px;
+  border-radius: 999px;
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.skriin-backgammon .bg-row.focus {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 0 4px #fff;
+}
+.skriin-backgammon .bg-row-label {
+  font: 600 26px/1 var(--font-ui);
+  color: var(--text-2);
+}
+.skriin-backgammon .bg-row.focus .bg-row-label {
+  color: #fff;
+}
+.skriin-backgammon .bg-seg {
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.skriin-backgammon .bg-seg button {
+  height: 60px;
+  padding: 0 26px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font: 600 24px/1 var(--font-ui);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+.skriin-backgammon .bg-seg button.on {
+  background: #fff;
+  color: #0b0b10;
+}
+
+/* Menu list */
+.skriin-backgammon .bg-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: #fff;
+  font: 600 28px/1 var(--font-ui);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    transform 140ms var(--ease),
+    background 140ms ease;
+}
+.skriin-backgammon .bg-item .val {
+  color: var(--text-2);
+  font-weight: 500;
+}
+.skriin-backgammon .bg-item.focus {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(1.03);
+}
+
+.skriin-backgammon .bg-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  padding: 14px 28px;
+  border-radius: 999px;
+  background: #1b1b23;
+  border: 1px solid var(--line);
+  font: 500 24px/1 var(--font-ui);
+  white-space: nowrap;
+  z-index: 20;
+}
+
+/* Review only: which preview state is showing (P key). */
+.skriin-backgammon .bg-preview-chip {
+  position: absolute;
+  left: 50%;
+  top: 26px;
+  transform: translateX(-50%);
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.92);
+  font: 600 22px/1 var(--font-ui);
+  white-space: nowrap;
+  z-index: 30;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skriin-backgammon .bg-btn,
+  .skriin-backgammon .bg-item,
+  .skriin-backgammon .bg-row {
+    transition: none;
+  }
+}

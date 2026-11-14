@@ -1,0 +1,65 @@
+<skriin-tv-stage>
+  <div class="bon-stage" [class.live]="s().live">
+    <header class="bon-top">
+      <div class="brand">
+        @if (screen() !== 'lobby') {
+          <button type="button" class="bon-back-to-watch" (click)="exit.emit()">‹ Back to watch</button>
+        }
+        @if (screen() !== 'lobby') {
+          <span class="wordmark">{{ copy.title }}</span>
+        }
+        @if (roundLabel()) {
+          <span class="bon-pill">{{ roundLabel() }}</span>
+        }
+        @if (s().paused) {
+          <span class="bon-pill paused">{{ copy.paused }}</span>
+        }
+      </div>
+      <div class="right">
+        <bon-hints [items]="hints()" />
+        @if (screen() !== 'lobby') {
+          <span class="code-chip">skriin.com/play/<b>{{ s().code }}</b></span>
+        }
+        @if (s().live) {
+          <span class="live-badge"><i></i>{{ copy.live }}</span>
+        }
+      </div>
+    </header>
+
+    <main class="bon-main">
+      @switch (screen()) {
+        @case ('lobby') {
+          <bon-lobby [state]="s()" (exit)="exit.emit()" (start)="client.start()" (openSettings)="settingsOpen.set(true)" />
+        }
+        @case ('round') {
+          <bon-round [state]="s()" [now]="now()" />
+        }
+        @case ('cards') {
+          <bon-cards [state]="s()" [now]="now()" [step]="resultsStep()" [pickIndex]="pickIndex()" [showNames]="showNames()" />
+        }
+        @case ('final') {
+          <bon-final [state]="s()" [showNames]="showNames()" (playAgain)="client.playAgain()" (lobby)="client.toLobby()" />
+        }
+      }
+    </main>
+
+    @if (screen() !== 'final') {
+      <bon-face-strip
+        [players]="s().players"
+        [showNames]="showNames()"
+        [showChecks]="s().phase === 'prompt' || s().phase === 'answering'"
+        [deltas]="deltas()"
+      />
+    }
+
+    @if (settingsOpen()) {
+      <bon-settings [settings]="s().settings" [live]="s().live" (change)="onSettings($event)" (close)="settingsOpen.set(false)" />
+    }
+    @if (menuOpen()) {
+      <bon-host-menu [state]="s()" (command)="onMenu($event)" />
+    }
+    @if (toast(); as t) {
+      <div class="bon-toast">{{ t }}</div>
+    }
+  </div>
+</skriin-tv-stage>

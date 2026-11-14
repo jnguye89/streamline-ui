@@ -1,0 +1,160 @@
+<div class="ph">
+  <header class="ph-top">
+    <span class="ph-brand">{{ copy.title }}</span>
+    <span class="ph-meta">
+      @if (roundLabel()) {
+        <span>{{ roundLabel() }}</span>
+      }
+      @if (clock() && (view() === 'answer' || view() === 'vote')) {
+        <span class="ph-clock">{{ clock() }}</span>
+      }
+      @if (self()?.isHost && view() !== 'join') {
+        <button type="button" class="ph-host-btn" (click)="hostOpen.set(true)">Host</button>
+      }
+    </span>
+  </header>
+
+  @if (client.tvLive() && view() !== 'removed') {
+    <div class="ph-live"><i></i>This TV is live. Names and answers can show on the stream.</div>
+  }
+
+  <main class="ph-body">
+    @switch (view()) {
+      @case ('join') {
+        <section class="ph-join">
+          <h1 class="ph-h1">Join the game</h1>
+          <label class="ph-field">
+            <span>Room code</span>
+            <input
+              class="code"
+              [value]="codeDraft()"
+              (input)="setCode($event)"
+              inputmode="text"
+              autocapitalize="characters"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="4"
+              aria-label="Room code"
+            />
+          </label>
+          <label class="ph-field">
+            <span>Your name</span>
+            <input
+              [value]="nameDraft()"
+              (input)="setName($event)"
+              (keydown.enter)="join()"
+              [attr.maxlength]="maxName"
+              autocomplete="nickname"
+              enterkeyhint="go"
+              placeholder="Up to 12 letters"
+              aria-label="Your name"
+            />
+          </label>
+          @if (features.phoneCamera) {
+            <button type="button" class="ph-toggle" [class.on]="faceOptIn()" (click)="faceOptIn.set(!faceOptIn())">
+              <span>
+                <b>Show your face on the TV?</b>
+                <small>Uses your phone’s camera. Off unless you turn it on.</small>
+              </span>
+              <i></i>
+            </button>
+          }
+          @if (joinError(); as err) {
+            <p class="ph-err">{{ err }}</p>
+          }
+          <button type="button" class="ph-btn primary" [disabled]="!canJoin()" (click)="join()">Join</button>
+        </section>
+      }
+
+      @case ('removed') {
+        <section class="ph-center">
+          <h1 class="ph-h1">You’re out of this game.</h1>
+          <p class="ph-sub">The host removed you.</p>
+        </section>
+      }
+
+      @case ('waiting') {
+        <section class="ph-center">
+          @if (self(); as me) {
+            <bon-avatar [name]="me.name" [hue]="me.hue" [size]="96" />
+            <h1 class="ph-h1">You’re in, {{ me.name }}.</h1>
+            <p class="ph-sub">{{ me.waiting ? 'You’ll play from the next round.' : 'Waiting for the host to start.' }}</p>
+          }
+          <p class="ph-note">{{ copy.playersIn(humansIn()) }}</p>
+        </section>
+      }
+
+      @case ('answer') {
+        <bon-phone-answer [prompt]="s()?.prompt ?? ''" [me]="me()" [roundKey]="s()?.roundKey ?? 0" (submit)="submit($event)" />
+      }
+
+      @case ('reveal') {
+        <section>
+          <h1 class="ph-h1 sm">Cards are up.</h1>
+          <p class="ph-sub tight">One of these is the bot. Voting next.</p>
+          <bon-phone-cards [cards]="s()?.cards ?? []" [revealed]="s()?.revealed ?? 0" [ownCardId]="me()?.cardId ?? null" />
+        </section>
+      }
+
+      @case ('vote') {
+        <section>
+          <h1 class="ph-h1 sm">{{ copy.voteTitle }}</h1>
+          <p class="ph-sub tight">{{ me()?.vote ? 'Vote in. Tap another to change it.' : 'Tap the card you think the bot wrote.' }}</p>
+          <bon-phone-cards
+            [cards]="s()?.cards ?? []"
+            [voting]="true"
+            [ownCardId]="me()?.cardId ?? null"
+            [vote]="me()?.vote ?? null"
+            (pick)="vote($event)"
+          />
+        </section>
+      }
+
+      @case ('results') {
+        <section class="ph-center">
+          @if (myLine(); as line) {
+            <span class="ph-chip">{{ line.verdict }}</span>
+            <div class="ph-points">+{{ line.points }}</div>
+            <p class="ph-sub">{{ line.text }}</p>
+            @if (s()?.results?.double) {
+              <p class="ph-note">{{ copy.doublePoints }}</p>
+            }
+          }
+          @if (myStanding(); as st) {
+            <p class="ph-rank">{{ st.place }} of {{ st.of }} · {{ st.score }}</p>
+          }
+        </section>
+      }
+
+      @case ('void') {
+        <section class="ph-center">
+          <h1 class="ph-h1">{{ copy.notEnough }}</h1>
+          <p class="ph-sub">{{ s()?.voidRetry ? copy.newPrompt : copy.skipping }}</p>
+        </section>
+      }
+
+      @case ('final') {
+        <section>
+          @if (myStanding(); as st) {
+            <h1 class="ph-h1">You finished {{ st.place }}.</h1>
+          }
+          <ol class="ph-board">
+            @for (r of board(); track r.p.id) {
+              <li [class.me]="r.p.id === me()?.playerId">
+                <span class="pl">{{ r.st.place }}</span>
+                <bon-avatar [name]="r.p.name" [kind]="r.p.kind" [hue]="r.p.hue" [size]="36" />
+                <span class="nm">{{ label(r.p) }}</span>
+                <span class="sc">{{ r.st.score }}</span>
+              </li>
+            }
+          </ol>
+          <p class="ph-note">Waiting for the host. Play again keeps this room.</p>
+        </section>
+      }
+    }
+  </main>
+
+  @if (hostOpen() && s(); as st) {
+    <bon-phone-host [state]="st" [actions]="client" [selfId]="me()?.playerId ?? null" (close)="hostOpen.set(false)" />
+  }
+</div>

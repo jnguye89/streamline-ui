@@ -1,0 +1,285 @@
+:host {
+  display: block;
+  width: 1016px;
+  height: 896px;
+}
+
+.frame {
+  position: relative;
+  width: 1016px;
+  height: 896px;
+  border-radius: 28px;
+  background: var(--frame);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.field .bed {
+  fill: var(--bed);
+}
+.field .bar {
+  fill: var(--bar);
+}
+.field .tray {
+  fill: var(--tray);
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 1;
+}
+.field .pt-a {
+  fill: var(--pt-a);
+}
+.field .pt-b {
+  fill: var(--pt-b);
+}
+.field .column {
+  fill: rgba(255, 255, 255, 0.1);
+}
+
+.num {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font: 500 20px/1 var(--font-mono);
+  color: var(--num);
+  pointer-events: none;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+}
+
+/* Checkers. Position = transform; stacks re-space smoothly; moves fly in (ArriveDirective). */
+.ck {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 62px;
+  height: 62px;
+  transition: transform 200ms var(--ease);
+}
+.ck .disc {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  outline: 2.5px solid transparent;
+  outline-offset: 3px;
+  transition:
+    transform 160ms var(--ease),
+    outline-color 160ms ease,
+    filter 160ms ease;
+}
+.ck.movable .disc {
+  outline-color: var(--movable);
+}
+.ck.focused {
+  z-index: 3;
+}
+.ck.focused .disc {
+  transform: scale(1.08);
+  outline: 4px solid #fff;
+  outline-offset: 4px;
+}
+.ck.sel {
+  z-index: 3;
+}
+.ck.sel .disc {
+  transform: scale(1.08);
+  outline: 4px solid #fff;
+  outline-offset: 4px;
+  filter: drop-shadow(0 12px 10px rgba(0, 0, 0, 0.5));
+}
+.ck.ghost {
+  opacity: 0.42;
+  transition: none;
+  z-index: 2;
+  pointer-events: none;
+}
+.count {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 600 26px/1 var(--font-display);
+  pointer-events: none;
+}
+.count.light {
+  color: #1e1b4b;
+}
+.count.dark {
+  color: #fff;
+}
+
+/* Borne-off checkers, seen from the side. */
+.slab {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 6px;
+}
+.slab.light {
+  background: var(--ck-light-top);
+  box-shadow: inset 0 -4px 0 var(--ck-light-edge);
+}
+.slab.dark {
+  background: var(--ck-dark-top);
+  box-shadow:
+    inset 0 -4px 0 var(--ck-dark-edge),
+    0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.slab.ghost {
+  opacity: 0.42;
+}
+
+.tray-count {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+}
+.tray-count b {
+  font: 600 30px/1 var(--font-display);
+}
+.tray-count span {
+  font: 500 16px/1 var(--font-ui);
+  color: var(--text-3);
+}
+
+/* Destination dots, labeled with the die (or dice) they use. */
+.dot {
+  position: absolute;
+  min-width: 46px;
+  height: 46px;
+  padding: 0 10px;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 999px;
+  background: var(--dot);
+  color: #14123a;
+  font: 700 24px/46px var(--font-ui);
+  text-align: center;
+  cursor: pointer;
+  z-index: 4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 140ms var(--ease),
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.dot.hit {
+  background: #fecaca;
+}
+.dot.focused {
+  background: #fff;
+  transform: translate(-50%, -50%) scale(1.08);
+  box-shadow:
+    0 0 0 4px #000,
+    0 0 0 8px #fff,
+    0 6px 16px rgba(0, 0, 0, 0.5);
+  z-index: 5;
+}
+
+/* Blot that this move would hit. */
+.threat {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  border: 3px solid rgba(239, 68, 68, 0.65);
+  pointer-events: none;
+  z-index: 3;
+}
+.threat.strong {
+  border: 5px solid var(--red);
+}
+
+.arrows {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 6;
+}
+.arrow {
+  fill: none;
+  stroke: var(--hint);
+  stroke-width: 5;
+  stroke-dasharray: 12 9;
+  stroke-linecap: round;
+}
+.head {
+  fill: var(--hint);
+}
+.arrow-end {
+  fill: none;
+  stroke: var(--hint);
+  stroke-width: 3;
+  stroke-dasharray: 6 6;
+}
+
+.dice {
+  position: absolute;
+  display: flex;
+  gap: 14px;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  pointer-events: none;
+}
+.dice.four {
+  gap: 10px;
+  --die: 64px;
+}
+
+.buttons {
+  position: absolute;
+  display: flex;
+  gap: 16px;
+  transform: translate(-50%, -50%);
+  z-index: 7;
+}
+/* Must fit inside one half of the board (408 px), including the A glyph and focus scale. */
+.buttons .bg-btn {
+  height: 70px;
+  padding: 0 26px;
+  font-size: 26px;
+  white-space: nowrap;
+  gap: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+.buttons .bg-glyph.sm {
+  width: 34px;
+  height: 34px;
+  font-size: 16px;
+}
+
+.no-moves {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 16px 30px;
+  border-radius: 999px;
+  background: #1b1b23;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  font: 600 28px/1 var(--font-ui);
+  white-space: nowrap;
+  z-index: 8;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ck,
+  .ck .disc,
+  .dot {
+    transition: none;
+  }
+}

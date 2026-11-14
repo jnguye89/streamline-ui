@@ -1,0 +1,12 @@
+{
+  "name": "@skriin/backgammon-core",
+  "version": "0.1.0",
+  "description": "skriin ai TV backgammon rules, dice and engine contract. Pure TypeScript: no Angular, React or DOM.",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "@noble/hashes": "^2.4.0"
+  }
+}
