@@ -12,6 +12,8 @@ import {
 } from '@angular/core';
 import { CommonModule, Location } from '@angular/common';
 import { HOME_SEO, SeoService } from '../../services/seo.service';
+import { TvModeService } from '../../services/tv-mode.service';
+import { SiteFooterComponent } from '../site-footer/site-footer.component';
 import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatIconModule } from '@angular/material/icon';
@@ -79,7 +81,8 @@ const CHESS_DEMO_ITEM: ChessDemoItem = { type: 'chess-demo', id: 'chess-demo' };
     CompactCountPipe,
     FormsModule,
     ChessGameComponent,
-    ChessDemoComponent
+    ChessDemoComponent,
+    SiteFooterComponent,
   ],
   providers: [VideoService],
   templateUrl: './watch.component.html',
@@ -261,7 +264,8 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     private chessService: ChessService,
     private zone: NgZone,
     private location: Location,
-    private seo: SeoService
+    private seo: SeoService,
+    public tv: TvModeService
   ) {
     // Restore whatever volume the viewer last set (Watch's D-pad up/down -
     // see adjustVolume()) instead of always starting back at the field

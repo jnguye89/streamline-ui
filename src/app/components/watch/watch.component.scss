@@ -9,6 +9,11 @@
   overflow: hidden;
 }
 
+/* Leave room for the web footer strip (app-site-footer); not on the TV box. */
+.watch-container.with-site-footer {
+  bottom: var(--site-footer-h, 32px);
+}
+
 /* VOD video fills the viewport while preserving aspect ratio */
 #watch-player {
   position: absolute;
