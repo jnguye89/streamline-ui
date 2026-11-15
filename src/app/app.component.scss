@@ -11,9 +11,20 @@
   pointer-events: auto;
 }
 
-:host-context(body.watch-overlay-hidden) .buttons {
+:host-context(body.watch-overlay-hidden:not(.get-tv-open)) .buttons {
   opacity: 0;
   pointer-events: none;
+}
+
+/* Equal-width side groups keep the nav centered however wide the right group is. */
+.side {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+}
+
+.side--right {
+  justify-content: flex-end;
 }
 
 .transparent-button {

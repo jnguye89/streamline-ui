@@ -1,7 +1,9 @@
 <div class="buttons header-container" data-gamepad-row="top" fxLayout="row" fxLayoutAlign="space-between center" style="width: 100%">
-  <button gamepadFocusable class="icon-wrapper icon-btn" (click)="handleProfileClick()" aria-label="Profile">
-    <mat-icon class="transparent icon">person</mat-icon>
-  </button>
+  <div class="side side--left">
+    <button gamepadFocusable class="icon-wrapper icon-btn" (click)="handleProfileClick()" aria-label="Profile">
+      <mat-icon class="transparent icon">person</mat-icon>
+    </button>
+  </div>
   <div>
     <a gamepadFocusable mat-button class="transparent button large-button" routerLink="/podcast">
       podcast
@@ -33,9 +35,12 @@
       read
     </button> -->
   </div>
-  <button gamepadFocusable class="icon-wrapper icon-btn" (click)="openSearch()" aria-label="Search">
-    <mat-icon class="transparent icon">search</mat-icon>
-  </button>
+  <div class="side side--right">
+    <app-get-tv></app-get-tv>
+    <button gamepadFocusable class="icon-wrapper icon-btn" (click)="openSearch()" aria-label="Search">
+      <mat-icon class="transparent icon">search</mat-icon>
+    </button>
+  </div>
 </div>
 <div id="rotate-overlay">📱🔄<br />Please rotate your device</div>
 <router-outlet></router-outlet>

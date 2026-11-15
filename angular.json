@@ -22,7 +22,8 @@
               "webrtc-adapter",
               "agora-rtm-sdk",
               "agora-rtc-sdk-ng",
-              "qrcode"
+              "qrcode",
+              "dijkstrajs"
             ],
             "stylePreprocessorOptions": {
               "includePaths": [
