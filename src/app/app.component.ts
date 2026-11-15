@@ -14,6 +14,7 @@ import { RecordingSocketService } from "./services/socket/recording.service";
 import { AgeService } from "./services/age.service";
 import { BirthdayPromptService } from "./services/birthday-prompt.service";
 import { SeoService } from "./services/seo.service";
+import { GetTvComponent } from "./components/get-tv/get-tv.component";
 // Not referenced directly below - injecting it here is what instantiates
 // this singleton (and its chessYourTurn$ subscription) as soon as the app
 // boots, rather than lazily whenever some other component first happens to
@@ -32,6 +33,7 @@ import { ChessTurnNotificationService } from "./services/chess/chess-turn-notifi
     FlexLayoutModule,
     CommonModule,
     GamepadFocusableDirective,
+    GetTvComponent,
   ],
   templateUrl: "./app.component.html",
   styleUrl: "./app.component.scss",
