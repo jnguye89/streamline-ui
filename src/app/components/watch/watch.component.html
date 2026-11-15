@@ -1,9 +1,11 @@
-<div class="watch-container" [class.portrait]="isPortrait" [class.overlay-hidden]="overlayHidden">
+<div class="watch-container" [class.portrait]="isPortrait" [class.overlay-hidden]="overlayHidden"
+  [class.with-site-footer]="!tv.isTv()">
   <!-- <video #player id="watch-player" controls autoplay playsinline loop (loadedmetadata)="onVideoLoaded(player)">
   </video> -->
   <!-- VOD player -->
   <video #player id="watch-player" [class.is-hidden]="currentItem?.type === 'live' || isYouTube(currentItem)"
     (loadedmetadata)="onVideoLoaded(player)" (ended)="next()" (play)="onVideoPlay()" (pause)="onVideoPause()"
+    [attr.poster]="currentItem?.type === 'vod' ? ($any(currentItem).thumbnail || null) : null"
     playsinline controls>
   </video>
 
@@ -146,3 +148,6 @@
 
   </div>
 </div>
+
+<!-- Web only: the page H1 and footer links (hidden on the TV box). -->
+<app-site-footer *ngIf="!tv.isTv()"></app-site-footer>

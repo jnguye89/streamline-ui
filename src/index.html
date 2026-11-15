@@ -74,38 +74,25 @@
 
 <body class="mat-typography">
   <app-root>
-    <!-- Shown until the app boots (and to crawlers and visitors without
-         JavaScript). Angular replaces everything inside <app-root>. -->
+    <!-- Boot screen until Angular replaces <app-root>: black, full viewport
+         (the same box as the watch screen), logo only, no text, so nothing
+         shifts when the app paints. Crawlable text and links live in the app
+         itself (app-site-footer) and in the <noscript> block below. -->
     <style>
-      .shell { max-width: 720px; margin: 0 auto; padding: 12vh 20px 40px; color: #e8e8e8; font-family: Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.55; }
-      .shell h1 { font-size: 2rem; font-weight: 500; margin: 0 0 .5rem; color: #fff; }
-      .shell p { margin: 0 0 1rem; }
-      .shell nav { margin-top: 1.5rem; font-size: .95rem; }
-      .shell nav.small { margin-top: .25rem; font-size: .85rem; }
-      .shell nav a { color: #8fb4ff; margin-right: 1rem; display: inline-block; padding: 4px 0; }
+      .boot { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; }
+      .boot img { width: min(80vw, 720px); height: auto; aspect-ratio: 2 / 1; }
     </style>
-    <div class="shell">
-      <h1>skriin ai tv: the two-way TV</h1>
-      <p>skriin turns the TV you already own into a two-way TV. Watch live shows, streams and video podcasts from real
-        people, go live from your couch with one button, record a video podcast and talk to your TV out loud.</p>
-      <p>Go live to skriin, YouTube, Twitch and Kick at the same time, with no streaming PC and no encoder settings.
-        Watching is free in any browser, and you can start going live from your iPhone with the free app.</p>
-      <nav aria-label="About skriin">
-        <a href="/features">How skriin works</a>
-        <a href="/guides">Guides</a>
-        <a href="/guides/go-live-from-your-tv">Go live from your TV</a>
-        <a href="/guides/simulcast-to-youtube-twitch-and-kick">Simulcast to YouTube, Twitch and Kick</a>
-        <a href="/guides/video-podcast-without-a-computer">Video podcast without a computer</a>
-        <a href="https://skriin.tv/">Get the box</a>
-      </nav>
-      <nav aria-label="Company" class="small">
-        <a href="https://x.com/skriintv">X (Twitter)</a>
-        <a href="mailto:him@skriin.com">Contact</a>
-        <a href="https://skriin.tv/policies/privacy-policy">Privacy</a>
-        <a href="https://skriin.tv/policies/terms-of-service">Terms</a>
-      </nav>
-    </div>
+    <div class="boot" aria-hidden="true"><img src="/assets/MainLogo.png" width="1200" height="600" alt="" fetchpriority="high" /></div>
   </app-root>
+  <noscript>
+    <h1>skriin ai tv: the two-way TV</h1>
+    <p>skriin turns the TV you already own into a two-way TV: watch live shows and video podcasts, go live from your
+      couch and simulcast to YouTube, Twitch and Kick.</p>
+    <p><a href="/features">How skriin works</a> · <a href="/guides">Guides</a> · <a href="https://skriin.tv/">Get the box</a> ·
+      <a href="https://apps.apple.com/us/app/skriin/id6825611485">iPhone app</a> · <a href="mailto:him@skriin.com">Contact</a> ·
+      <a href="https://skriin.tv/policies/privacy-policy">Privacy</a> · <a href="https://skriin.tv/policies/terms-of-service">Terms</a> ·
+      <a href="https://x.com/skriintv">X</a></p>
+  </noscript>
 </body>
 
 </html>
