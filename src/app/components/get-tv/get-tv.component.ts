@@ -5,9 +5,11 @@ import {
   Component,
   ElementRef,
   HostListener,
+  ViewChild,
   OnDestroy,
   OnInit,
 } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, Subscription } from 'rxjs';
@@ -53,7 +55,7 @@ type Panel = 'none' | 'intro' | 'qr';
 
     <div *ngIf="panel === 'intro'" class="card card--intro" role="dialog" aria-label="skriin is a TV box"
       (mouseenter)="pauseIntro()" (mouseleave)="resumeIntro()" (focusin)="pauseIntro()" (focusout)="resumeIntro()">
-      <button type="button" class="card__close" (click)="close()" aria-label="Close">
+      <button gamepadFocusable type="button" class="card__close" (click)="close()" aria-label="Close">
         <mat-icon>close</mat-icon>
       </button>
       <div class="intro">
@@ -61,14 +63,14 @@ type Panel = 'none' | 'intro' | 'qr';
         <div class="intro__body">
           <p class="card__title">skriin is a TV box.</p>
           <p class="card__text">It puts all of this on your TV: watch, go live and podcast from the couch.</p>
-          <button type="button" class="pill" (click)="openQr()">Get a TV</button>
+          <button #introCta gamepadFocusable type="button" class="pill" (click)="openQr()">Get a TV</button>
         </div>
       </div>
       <div class="timer" aria-hidden="true"><div class="timer__bar" [class.timer__bar--paused]="introPaused"></div></div>
     </div>
 
     <div *ngIf="panel === 'qr'" class="card card--qr" role="dialog" aria-label="Get a TV">
-      <button *ngIf="!tv.isTv()" type="button" class="card__close" (click)="close()" aria-label="Close">
+      <button *ngIf="!tv.isTv()" gamepadFocusable type="button" class="card__close" (click)="close()" aria-label="Close">
         <mat-icon>close</mat-icon>
       </button>
       <img class="qr" [src]="qrDataUrl" width="200" height="200" *ngIf="qrDataUrl; else qrPlaceholder"
@@ -79,7 +81,7 @@ type Panel = 'none' | 'intro' | 'qr';
         <p class="card__text">Scan the code with your phone’s camera.</p>
         <p *ngIf="tv.isTv(); else webLink" class="hint"><span class="hint__key">B</span> Close</p>
         <ng-template #webLink>
-          <a class="hint hint--link" [href]="storeLink" target="_blank" rel="noopener">or open skriin.tv</a>
+          <a gamepadFocusable class="hint hint--link" [href]="storeLink" target="_blank" rel="noopener">or open skriin.tv</a>
         </ng-template>
       </div>
     </div>
@@ -117,6 +119,10 @@ type Panel = 'none' | 'intro' | 'qr';
       border: 0; border-radius: 50%; background: none; color: #5b6070; cursor: pointer;
     }
     .card__close:hover { background: #f0f1f5; }
+    /* Controller focus (GamepadNavigationService adds .gamepad-focused) and keyboard focus. */
+    .card__close:focus-visible, .card__close.gamepad-focused { background: #e7e8f0; outline: 2px solid #4F46E5; outline-offset: 1px; }
+    .pill:focus-visible, .pill.gamepad-focused { outline: 3px solid #1b1d2a; outline-offset: 2px; }
+    .hint--link:focus-visible, .hint--link.gamepad-focused { outline: 2px solid #4F46E5; outline-offset: 3px; border-radius: 4px; }
     .card__close mat-icon { font-size: 20px; width: 20px; height: 20px; }
     .card__title { margin: 0 0 6px; font-size: 17px; font-weight: 600; color: #15172a; }
     .card__title--lg { font-size: 21px; margin-bottom: 10px; }
@@ -174,7 +180,11 @@ export class GetTvComponent implements OnInit, OnDestroy {
   panel: Panel = 'none';
   qrDataUrl: string | null = null;
   introPaused = false;
+  /** A controller took over the intro: it stays open until closed. */
+  private introHeldByController = false;
   readonly storeLink = STORE_LINK;
+
+  @ViewChild('introCta') private introCta?: ElementRef<HTMLButtonElement>;
 
   private routeSub?: Subscription;
   private introTimer: ReturnType<typeof setTimeout> | null = null;
@@ -186,7 +196,8 @@ export class GetTvComponent implements OnInit, OnDestroy {
     private router: Router,
     private gamepad: GamepadNavigationService,
     private host: ElementRef<HTMLElement>,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private dialog: MatDialog
   ) {}
 
   ngOnInit(): void {
@@ -199,7 +210,7 @@ export class GetTvComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.routeSub?.unsubscribe();
     this.clearIntroTimer();
-    if (this.panel === 'qr') this.releaseInput();
+    if (this.panel !== 'none') this.releaseInput();
     this.setOpenFlag(false);
   }
 
@@ -209,15 +220,14 @@ export class GetTvComponent implements OnInit, OnDestroy {
   }
 
   openQr(): void {
+    this.clearIntroTimer();
+    this.introHeldByController = false;
     this.panel = 'qr';
     this.setOpenFlag(true);
-    // Take over B/Escape. Clearing gamepad focus first means the first B
-    // press reaches this card rather than just dismissing the top-bar row.
+    // Clearing gamepad focus first means the first B press reaches this card
+    // rather than just dismissing the top-bar row (see claimInput()).
     this.gamepad.clearFocus();
-    this.gamepad.setBackAction(() => {
-      this.close();
-      return true;
-    });
+    this.claimInput();
     if (!this.qrDataUrl) {
       // Loaded on first open, so the QR library stays out of the startup bundle.
       import('qrcode')
@@ -234,7 +244,8 @@ export class GetTvComponent implements OnInit, OnDestroy {
   close(): void {
     if (this.panel === 'none') return;
     this.clearIntroTimer();
-    if (this.panel === 'qr') this.releaseInput();
+    this.releaseInput();
+    this.introHeldByController = false;
     this.panel = 'none';
     this.setOpenFlag(false);
     this.cdr.markForCheck();
@@ -250,10 +261,30 @@ export class GetTvComponent implements OnInit, OnDestroy {
   }
 
   resumeIntro(): void {
-    if (this.panel !== 'intro' || !this.introPaused) return;
+    if (this.panel !== 'intro' || !this.introPaused || this.introHeldByController) return;
     this.introPaused = false;
     this.startIntroTimer();
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Browsers only report a controller after its first button press, so a
+   * controller that wakes up while the intro is open would otherwise have
+   * nothing focused and 5 seconds to find the card. Put focus on its
+   * "Get a TV" button and stop the countdown: the card then stays until the
+   * viewer picks Get a TV, the X, or presses B. (Not left to the focusin
+   * handler: focus events don't fire while the window isn't focused.)
+   */
+  @HostListener('window:gamepadconnected')
+  onGamepadConnected(): void {
+    if (this.panel !== 'intro') return;
+    this.pauseIntro();
+    this.introHeldByController = true;
+    // Next tick: the directive registers the button in ngAfterViewInit.
+    setTimeout(() => {
+      const cta = this.introCta?.nativeElement;
+      if (this.panel === 'intro' && cta?.isConnected) this.gamepad.requestFocus(cta);
+    });
   }
 
   @HostListener('document:click', ['$event'])
@@ -279,6 +310,7 @@ export class GetTvComponent implements OnInit, OnDestroy {
     this.introRemaining = INTRO_MS;
     this.startIntroTimer();
     this.setOpenFlag(true);
+    this.claimInput();
     this.cdr.markForCheck();
   }
 
@@ -295,7 +327,36 @@ export class GetTvComponent implements OnInit, OnDestroy {
     this.introTimer = null;
   }
 
+  /**
+   * While a card is open it owns A/Enter and B/Escape. Without this, A goes to
+   * whatever the page had focused: on the watch feed that's the Next button
+   * (WatchComponent focuses it on load), so A/Enter skipped the video while
+   * the card, with the header button ringed, looked like the thing in focus.
+   *
+   * - A on one of this component's own buttons (header button, intro's Get a
+   *   TV or X, QR card's X/link) clicks it as usual.
+   * - Otherwise: the intro opens the QR card; the QR card swallows the press
+   *   so it can't act on the page behind it.
+   * - B closes the card.
+   */
+  private claimInput(): void {
+    this.gamepad.setActivateAction(() => {
+      if (this.host.nativeElement.querySelector('.gamepad-focused')) return false;
+      if (this.panel === 'intro') this.openQr();
+      return true;
+    });
+    this.gamepad.setBackAction(() => {
+      this.close();
+      return true;
+    });
+  }
+
   private releaseInput(): void {
+    // A dialog opened over the card (e.g. Search, whose click also closes the
+    // card) has installed its own A/B handlers in the same slots: leave them.
+    // The dialog clears them itself when it closes.
+    if (this.dialog.openDialogs.length > 0) return;
+    this.gamepad.setActivateAction(null);
     this.gamepad.setBackAction(null);
   }
 
