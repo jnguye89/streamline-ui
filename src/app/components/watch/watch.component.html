@@ -1,5 +1,8 @@
-<div class="watch-container" [class.portrait]="isPortrait" [class.overlay-hidden]="overlayHidden"
-  [class.with-site-footer]="!tv.isTv()">
+<!-- The page's one heading, for search engines and screen readers only:
+     visually hidden (cdk-visually-hidden), never shown on screen. -->
+<h1 class="cdk-visually-hidden">skriin ai tv: the two-way TV</h1>
+
+<div class="watch-container" [class.portrait]="isPortrait" [class.overlay-hidden]="overlayHidden">
   <!-- <video #player id="watch-player" controls autoplay playsinline loop (loadedmetadata)="onVideoLoaded(player)">
   </video> -->
   <!-- VOD player -->
@@ -148,6 +151,3 @@
 
   </div>
 </div>
-
-<!-- Web only: the page H1 and footer links (hidden on the TV box). -->
-<app-site-footer *ngIf="!tv.isTv()"></app-site-footer>
