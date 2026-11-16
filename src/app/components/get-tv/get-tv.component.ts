@@ -89,16 +89,26 @@ type Panel = 'none' | 'intro' | 'qr';
   styles: [`
     :host { position: relative; display: inline-flex; margin-right: 8px; }
 
+    /* Background opacity of the header button: change --get-tv-alpha to tune it.
+       Icon and label stay fully opaque so they read over video. */
+    :host { --get-tv-alpha: 0.4; }
     .get-tv {
       display: inline-flex; align-items: center; gap: 8px;
       height: 40px; padding: 0 18px; border: 0; border-radius: 999px;
-      background: #4F46E5; color: #fff; cursor: pointer;
+      background: rgb(79 70 229 / var(--get-tv-alpha)); color: #fff; cursor: pointer;
       font: 500 15px/1 Roboto, "Helvetica Neue", Arial, sans-serif; letter-spacing: .02em;
-      box-shadow: 0 4px 16px rgba(79, 70, 229, .35);
       transition: background .15s ease;
     }
-    .get-tv:hover { background: #4338CA; }
-    .get-tv--open, .get-tv:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+    /* Hover keeps the same transparency; a faint white tint shows it's interactive. */
+    .get-tv:hover { background-image: linear-gradient(rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.1)); }
+    /* The app-wide focus style (.gamepad-focused in styles.scss) swaps the
+       background for 8% white with !important, and clicking focuses the
+       button, so it lost its colour. Keep ours; the global ring and zoom
+       still show focus. These rules win on specificity (both !important). */
+    .get-tv.gamepad-focused { background-color: rgb(79 70 229 / var(--get-tv-alpha)) !important; }
+    .pill.gamepad-focused { background-color: #4F46E5 !important; }
+    .card__close.gamepad-focused { background-color: #e7e8f0 !important; }
+    .get-tv--open, .get-tv:focus-visible { outline: 2px solid rgb(255 255 255 / 0.6); outline-offset: 2px; }
     .get-tv mat-icon { font-size: 20px; width: 20px; height: 20px; }
 
     .card {
