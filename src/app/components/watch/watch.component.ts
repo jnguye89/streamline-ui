@@ -755,12 +755,12 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       this.seo.setTags(HOME_SEO);
       return;
     }
-    const item = this.currentItem as { title?: string; user?: string };
+    // No uploader in the title: `user` is a raw auth0 id, not a display name.
+    const item = this.currentItem as { title?: string };
     const name = item.title && item.title !== 'Video' ? item.title : 'Video';
-    const by = item.user ? ` from ${item.user}` : '';
     this.seo.setTags({
-      title: `${name}${by} | skriin ai tv`,
-      description: `Watch ${name === 'Video' ? 'this video' : `"${name}"`}${by} on skriin, free on your TV, your phone or any browser.`,
+      title: `${name} | skriin ai tv`,
+      description: `Watch ${name === 'Video' ? 'this video' : `"${name}"`} on skriin, free on your TV, your phone or any browser.`,
       canonicalPath: `/watch/${id}`,
     });
   }
