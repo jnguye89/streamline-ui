@@ -34,6 +34,27 @@
        non-interactive board with a big "start a game" call to action. -->
   <app-chess-demo *ngIf="currentItem?.type === 'chess-demo'" (join)="startChessGame()"></app-chess-demo>
 
+  <!-- Checkers' feed tile: always the auto-play preview (checkers games are
+       local, so there's no real game to spectate). "Press to play" opens
+       /play/checkers. -->
+  <app-checkers-demo *ngIf="currentItem?.type === 'checkers-demo'" (join)="playCheckers()"></app-checkers-demo>
+
+  <!-- Poker's feed tile: a table of bots playing each other (the real
+       engine and table view, scaled down). "Press to play" opens /play/poker. -->
+  <app-poker-demo *ngIf="currentItem?.type === 'poker-demo'" (join)="playPoker()"></app-poker-demo>
+
+  <!-- Mahjong's feed tile: four bots playing a quick game (the real engine
+       and table, scaled down). "Press to play" opens /play/mahjong. -->
+  <app-mahjong-demo *ngIf="currentItem?.type === 'mahjong-demo'" (join)="playMahjong()"></app-mahjong-demo>
+
+  <!-- Backgammon's feed tile: the computer playing itself (the real engine
+       and board, scaled down). "Press to play" opens /play/backgammon. -->
+  <app-backgammon-demo *ngIf="currentItem?.type === 'backgammon-demo'" (join)="playBackgammon()"></app-backgammon-demo>
+
+  <!-- Bot or Not's feed tile: a room of simulated players playing the real
+       TV game. "Press to play" opens /play/bot-or-not. -->
+  <app-bot-or-not-demo *ngIf="currentItem?.type === 'bot-or-not-demo'" (join)="playBotOrNot()"></app-bot-or-not-demo>
+
   <!-- D-pad/arrow up-down volume feedback (VOD only - see
        WatchComponent.adjustVolume). Kept as a sibling of .overlay, not
        nested inside it, so it can appear/fade on its own timer regardless
@@ -102,47 +123,40 @@
         <span class="count">{{ $any(currentItem).likeCount | compactCount }}</span>
       </button>
 
-      <!-- Only on the chess page itself (a real game or the no-games-yet
-           demo placeholder), not on regular videos/live - and not even
-           there if you're already seated in the game currently on screen
-           (see canPlayChess). -->
+      <!-- Game buttons: only on the feed's game tiles (chess, or a game's
+           auto-play preview), and each game's own button is hidden on its
+           own tile - see showGameButtons and the canPlay* getters. -->
       <button *ngIf="canPlayChess" gamepadFocusable class="action play-chess" (click)="startChessGame()"
         aria-label="Play Chess">
         <mat-icon>sports_esports</mat-icon>
         <span class="count">Play Chess</span>
       </button>
 
-      <!-- Poker sits in the same games slot as chess (it has no feed item
-           of its own yet) and opens full screen at /play/poker. Hidden
-           while you're seated in a live chess game, same as the feed's
-           navigation lock (see canPlayPoker). -->
       <button *ngIf="canPlayPoker" gamepadFocusable class="action play-poker" routerLink="/play/poker"
         aria-label="Play Poker">
         <mat-icon>style</mat-icon>
         <span class="count">Play Poker</span>
       </button>
 
-      <!-- Same games slot and rule as Play Poker (see canPlayPoker). -->
-      <button *ngIf="canPlayPoker" gamepadFocusable class="action play-mahjong" routerLink="/play/mahjong"
+      <button *ngIf="canPlayMahjong" gamepadFocusable class="action play-mahjong" routerLink="/play/mahjong"
         aria-label="Play Mahjong">
         <mat-icon>grid_view</mat-icon>
         <span class="count">Play Mahjong</span>
       </button>
 
-      <!-- Same games slot and rule as Play Poker (see canPlayPoker). -->
-      <button *ngIf="canPlayPoker" gamepadFocusable class="action play-checkers" routerLink="/play/checkers"
+      <button *ngIf="canPlayCheckers" gamepadFocusable class="action play-checkers" routerLink="/play/checkers"
         aria-label="Play Checkers">
         <mat-icon>apps</mat-icon>
         <span class="count">Play Checkers</span>
       </button>
 
-      <!-- Same games slot and rule as Play Poker (see canPlayPoker). -->
-      <button *ngIf="canPlayPoker" gamepadFocusable class="action play-backgammon" routerLink="/play/backgammon"
+      <button *ngIf="canPlayBackgammon" gamepadFocusable class="action play-backgammon" routerLink="/play/backgammon"
         aria-label="Play Backgammon">
         <mat-icon>casino</mat-icon>
         <span class="count">Play Backgammon</span>
       </button>
-      <button *ngIf="canPlayPoker" gamepadFocusable class="action play-bot-or-not" routerLink="/play/bot-or-not"
+
+      <button *ngIf="canPlayBotOrNot" gamepadFocusable class="action play-bot-or-not" routerLink="/play/bot-or-not"
         aria-label="Play Bot or Not">
         <mat-icon>smart_toy</mat-icon>
         <span class="count">Play Bot or Not</span>

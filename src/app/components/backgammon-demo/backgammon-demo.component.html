@@ -1,0 +1,39 @@
+<div class="backgammon-demo">
+  <!-- Same honest corner badge as the other game previews. -->
+  <div class="demo-badge">
+    <span class="dot"></span>
+    Auto-play preview
+  </div>
+
+  <div #stageArea class="stage-area skriin-backgammon" aria-hidden="true">
+    <div class="bg-stage theme-indigo" [style.--bg-scale]="scale()">
+      <section class="bg-col bg-col-left">
+        <bg-player-card [side]="top()" />
+        <div class="bg-status">
+          <h1 class="hero">{{ status().hero }}</h1>
+          <p class="sub">{{ status().sub }}</p>
+        </div>
+        <bg-player-card [side]="store.bottom()" />
+      </section>
+
+      <div class="bg-board-wrap">
+        <bg-board />
+      </div>
+
+      <section class="bg-col bg-col-right">
+        <bg-match-info />
+        <bg-move-list />
+      </section>
+    </div>
+  </div>
+
+  <div class="demo-overlay">
+    <div class="demo-copy">
+      <div class="demo-title">Roll the dice.</div>
+      <div class="demo-subtitle">Play backgammon now! no setup, no download.</div>
+    </div>
+    <button gamepadFocusable class="demo-cta" (click)="onJoinClick()">
+      Press to play
+    </button>
+  </div>
+</div>

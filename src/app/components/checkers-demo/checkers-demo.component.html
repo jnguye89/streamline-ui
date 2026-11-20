@@ -1,0 +1,36 @@
+<div class="checkers-demo">
+  <!-- Same honest corner badge as the chess demo: a looping auto-play
+       preview, not a real match. -->
+  <div class="demo-badge">
+    <span class="dot"></span>
+    Auto-play preview
+  </div>
+
+  <div class="board-area">
+    <div class="board" aria-hidden="true">
+      <!-- Grid and pieces share this box, so pieces always land on squares. -->
+      <div class="surface">
+      <div class="grid">
+        <div *ngFor="let sq of cells" class="sq" [class.light]="sq < 0" [class.dark]="sq >= 0"
+          [class.last]="sq >= 0 && lastSquares.has(sq)"></div>
+      </div>
+      <div class="layer">
+        <div *ngFor="let p of pieces; trackBy: trackPiece" class="piece" [class.gone]="p.gone"
+          [style.transform]="pieceTransform(p.sq)">
+          <div class="disc"><ck-piece [color]="p.color" [king]="p.king"></ck-piece></div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-overlay">
+    <div class="demo-copy">
+      <div class="demo-title">King me.</div>
+      <div class="demo-subtitle">Play checkers now! no setup, no download.</div>
+    </div>
+    <button gamepadFocusable class="demo-cta" (click)="onJoinClick()">
+      Press to play
+    </button>
+  </div>
+</div>

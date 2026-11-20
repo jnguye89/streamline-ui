@@ -1,0 +1,47 @@
+<div class="mahjong-demo">
+  <!-- Same honest corner badge as the other game previews. -->
+  <div class="demo-badge">
+    <span class="dot"></span>
+    Auto-play preview
+  </div>
+
+  <div #stageArea class="stage-area skriin-mahjong" aria-hidden="true">
+    <div class="mj-stage" [style.--mj-scale]="scale()">
+      @if (seats(); as s) {
+        <mj-round-info class="mj-round" />
+
+        <mj-opponent-seat class="mj-seat-top" [seat]="s.top" layout="top" />
+        <mj-opponent-seat class="mj-seat-left" [seat]="s.left" layout="side" />
+        <mj-opponent-seat class="mj-seat-right" [seat]="s.right" layout="side" />
+
+        <mj-pond class="mj-pond mj-pond-top" [seat]="s.top" />
+        <mj-pond class="mj-pond mj-pond-left" [seat]="s.left" />
+        <mj-pond class="mj-pond mj-pond-right" [seat]="s.right" />
+        <mj-pond class="mj-pond mj-pond-bottom" [seat]="s.bottom" />
+        <mj-center-box class="mj-center" />
+
+        @if (store.status(); as st) {
+          <div class="mj-status" [class]="st.tone">
+            <h1 class="hero">{{ st.hero }}</h1>
+            @for (l of st.lines; track $index) {
+              <p class="sub">{{ l }}</p>
+            }
+          </div>
+        }
+        <mj-self-card class="mj-self" />
+        <mj-hand class="mj-hand" />
+        <mj-callouts />
+      }
+    </div>
+  </div>
+
+  <div class="demo-overlay">
+    <div class="demo-copy">
+      <div class="demo-title">Pung, chow, win.</div>
+      <div class="demo-subtitle">Play mahjong now! no setup, no download.</div>
+    </div>
+    <button gamepadFocusable class="demo-cta" (click)="onJoinClick()">
+      Press to play
+    </button>
+  </div>
+</div>
