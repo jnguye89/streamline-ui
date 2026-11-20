@@ -63,6 +63,7 @@ export class MatchInfoComponent {
   protected readonly match = computed(() => matchLabel(this.store.view().match.length));
   protected readonly subtitle = computed(() => {
     const cfg = this.store.view().config;
+    if (this.store.demo()) return 'Computer vs computer';
     return cfg.mode === 'couch' ? 'Couch · 2 players' : `vs Computer · ${LEVEL_LABEL[cfg.level]}`;
   });
   /** Owner shown by side: top = the player at the top, bottom = the player at the bottom. */

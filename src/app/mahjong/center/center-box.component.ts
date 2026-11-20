@@ -182,7 +182,7 @@ export class CenterBoxComponent {
         wind: s.wind,
         dealer: s.dealer,
         turn: (v.phase === 'turn' || v.phase === 'claim') && v.turn === s.seat,
-        label: `${s.seat === v.you ? 'You' : s.name}: ${WIND_NAME[s.wind]}${s.dealer ? ', dealer' : ''}`,
+        label: `${s.seat === v.you && !this.store.demo() ? 'You' : s.name}: ${WIND_NAME[s.wind]}${s.dealer ? ', dealer' : ''}`,
       };
     });
   });

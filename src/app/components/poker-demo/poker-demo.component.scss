@@ -1,0 +1,163 @@
+:host {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: #000;
+  box-sizing: border-box;
+  // Same header/bottom-actions clearance as chess-demo.component.scss.
+  padding: clamp(70px, 10vh, 100px) 8px clamp(90px, 14vh, 140px);
+  color: #fff;
+
+  // Poker's design tokens (poker.component.css). Copied here because those
+  // live on .skriin-poker, and that stylesheet only loads with /play/poker.
+  --indigo: #4f46e5;
+  --indigo-hover: #4338ca;
+  --lav: #8f89f5;
+  --lav-soft: #c7d2fe;
+  --navy: #1e1b4b;
+  --red: #ef4444;
+  --text-2: rgba(255, 255, 255, 0.64);
+  --text-3: rgba(255, 255, 255, 0.42);
+  --surface: #0e0e13;
+  --line: rgba(255, 255, 255, 0.08);
+  --ease: cubic-bezier(0.2, 0.75, 0.25, 1);
+  --font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.poker-demo {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.stage-area {
+  position: absolute;
+  // Starts below the "Auto-play preview" badge so the top seat isn't under it.
+  inset: 30px 0 0;
+  overflow: hidden;
+  pointer-events: none;
+  // Dimmed like the other previews so the CTA, not the table, is the focus.
+  filter: brightness(0.55) saturate(0.85);
+  font-family: var(--font-ui);
+  user-select: none;
+}
+
+.stage {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center;
+}
+
+// The table picture as a spectator sees it: no game title / controls
+// legend (that's the /play/poker chrome) and no "your cards" corner, since
+// nobody watching this tile is seated.
+:host ::ng-deep {
+  .stage *,
+  .stage *::before,
+  .stage *::after {
+    box-sizing: border-box;
+  }
+
+  .pk-table-screen .top,
+  .pk-table-screen .hand {
+    display: none;
+  }
+}
+
+.demo-badge {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(20, 20, 24, 0.55);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #03dac6;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.demo-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  pointer-events: none;
+  text-align: center;
+  padding: 0 24px;
+}
+
+.demo-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+.demo-title {
+  color: #fff;
+  font-size: clamp(16px, 2.4vh, 22px);
+  font-weight: 700;
+}
+
+.demo-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: clamp(12px, 1.6vh, 15px);
+}
+
+.demo-cta {
+  pointer-events: auto;
+  border: none;
+  border-radius: 999px;
+  padding: clamp(12px, 2vh, 18px) clamp(28px, 5vw, 48px);
+  font-size: clamp(15px, 2vh, 19px);
+  font-weight: 700;
+  color: #0c0c10;
+  background: linear-gradient(135deg, #03dac6, #04b8c9);
+  box-shadow:
+    0 12px 30px rgba(3, 218, 198, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 16px 36px rgba(3, 218, 198, 0.45),
+      0 0 0 1px rgba(255, 255, 255, 0.2);
+  }
+
+  &.gamepad-focused {
+    outline: 3px solid #fff;
+    outline-offset: 3px;
+  }
+}

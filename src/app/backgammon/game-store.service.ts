@@ -115,6 +115,8 @@ export class GameStore {
   readonly resultReady = signal(false);
   readonly previewIndex = signal<number | null>(null);
   readonly elapsed = signal(0);
+  /** Watch-feed preview: the computer plays both sides; named as two computers, no sound. */
+  readonly demo = signal(false);
   readonly ledger = signal<DiceLedger | null>(null);
   private readonly rawFocus = signal<string | null>(null);
 
@@ -131,7 +133,12 @@ export class GameStore {
   readonly geo = computed<Geo>(() => ({ view: this.view().localSides[0] ?? 0, mirror: this.settings().homeLeft }));
   readonly bottom = computed<Side>(() => this.geo().view);
   readonly seats = computed<readonly [Seat, Seat]>(() =>
-    this.view().config.mode === 'couch'
+    this.demo()
+      ? [
+          { side: 0, name: 'Computer 1', possessive: 'Computer 1’s', isBot: true },
+          { side: 1, name: 'Computer 2', possessive: 'Computer 2’s', isBot: true },
+        ]
+      : this.view().config.mode === 'couch'
       ? [
           { side: 0, name: 'Player 1', possessive: 'Player 1’s', isBot: false },
           { side: 1, name: 'Player 2', possessive: 'Player 2’s', isBot: false },
@@ -281,6 +288,19 @@ export class GameStore {
     this.screen.set('playing');
     this.overlay.set('none');
     this.engine.newMatch(config);
+  }
+
+  /**
+   * Shows the table for the watch-feed preview. The caller starts the engine's self-play
+   * (PlaceholderEngine.startSelfPlay); nothing here is local, so there's no cursor or prompt.
+   */
+  startDemo(): void {
+    this.demo.set(true);
+    this.sound.enabled = false;
+    this.resetUi();
+    this.previewIndex.set(null);
+    this.screen.set('playing');
+    this.overlay.set('none');
   }
 
   nextGame(): void {

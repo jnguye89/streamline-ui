@@ -18,7 +18,7 @@ import { TileComponent } from '../tile/tile.component';
           <mj-seat-video class="video" [seat]="me" [self]="true" />
           <div class="who">
             <div class="name-row">
-              <span class="name">You</span>
+              <span class="name">{{ store.demo() ? me.name : 'You' }}</span>
               @if (me.dealer) {
                 <span class="dealer">Dealer</span>
               }

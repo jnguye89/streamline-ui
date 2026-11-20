@@ -1,0 +1,23 @@
+<div class="bot-or-not-demo">
+  <!-- Same honest corner badge as the other game previews. -->
+  <div class="demo-badge">
+    <span class="dot"></span>
+    Auto-play preview
+  </div>
+
+  <div class="stage-area" aria-hidden="true">
+    @if (isBrowser) {
+      <skriin-bot-or-not-tv />
+    }
+  </div>
+
+  <div class="demo-overlay">
+    <div class="demo-copy">
+      <div class="demo-title">Spot the bot.</div>
+      <div class="demo-subtitle">Play Bot or Not now! no setup, no download.</div>
+    </div>
+    <button gamepadFocusable class="demo-cta" (click)="onJoinClick()">
+      Press to play
+    </button>
+  </div>
+</div>

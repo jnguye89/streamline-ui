@@ -46,6 +46,9 @@ const BOT_STEP_MS = 430;
 const BOT_COMMIT_MS = 520;
 const NO_MOVES_MS = 1500;
 const BOT_CUBE_MS = 1700;
+/** Self-play: the opening roll, and the pause on a finished game before the next one. */
+const SELF_PLAY_OPENING_MS = 1200;
+const SELF_PLAY_NEXT_MS = 3500;
 
 /**
  * PHASE 1 PLACEHOLDER engine behind BackgammonEngine: makes the TV preview playable
@@ -86,6 +89,8 @@ export class PlaceholderEngine implements BackgammonEngine, PreviewControl, OnDe
   /** Score at the start of each game (for the match export). */
   private readonly gameStartScore = new Map<number, readonly [number, number]>();
   private last: Snapshot;
+  /** Watch-feed preview: the computer plays both sides (see startSelfPlay). */
+  private selfPlay = false;
 
   constructor() {
     this.last = this.build(null);
@@ -119,6 +124,16 @@ export class PlaceholderEngine implements BackgammonEngine, PreviewControl, OnDe
     this.queued = [];
     this.dicer = new FairDice(randomHex(), [randomHex(16)]);
     this.startGame();
+  }
+
+  /**
+   * Watch-feed preview, not part of the game contract: the computer plays both sides, single
+   * games with no cube, and each finished game is followed by the next one.
+   */
+  startSelfPlay(): void {
+    this.selfPlay = true;
+    this.newMatch({ length: 0, cube: false, jacoby: false, mode: 'bot', level: 'medium' });
+    this.drive();
   }
 
   nextGame(): void {
@@ -492,6 +507,11 @@ export class PlaceholderEngine implements BackgammonEngine, PreviewControl, OnDe
       }
     }
     this.emit({ type: 'game-over', result });
+    if (this.selfPlay && this.phase === 'game-over')
+      this.later(SELF_PLAY_NEXT_MS, () => {
+        this.nextGame();
+        this.drive();
+      });
   }
 
   private winResult(winner: Side): GameResult {
@@ -537,7 +557,21 @@ export class PlaceholderEngine implements BackgammonEngine, PreviewControl, OnDe
   // ── Computer (placeholder) ─────────────────────────────────────────────────
   /** Schedules whatever the computer has to do next. */
   private drive(): void {
-    const bot = this.botSide();
+    if (this.selfPlay && this.phase === 'opening') {
+      this.later(SELF_PLAY_OPENING_MS, () => {
+        if (this.phase !== 'opening') return;
+        this.doRoll();
+        // A tied opening roll stays in 'opening' and needs another roll.
+        this.drive();
+      });
+      return;
+    }
+    // Self-play: whoever has to act is the computer.
+    const bot = this.selfPlay
+      ? this.offer
+        ? opponent(this.offer.by)
+        : this.turn
+      : this.botSide();
     if (bot === null) return;
     if (this.phase === 'pre-roll' && this.turn === bot) {
       this.later(BOT_ROLL_MS, () => {
@@ -623,6 +657,7 @@ export class PlaceholderEngine implements BackgammonEngine, PreviewControl, OnDe
 
   // ── Plumbing ───────────────────────────────────────────────────────────────
   private localSides(): Side[] {
+    if (this.selfPlay) return [];
     return this.cfg.mode === 'couch' ? [0, 1] : [0];
   }
 

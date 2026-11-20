@@ -85,6 +85,8 @@ export interface LocalTableOptions {
   /** Pause after a hand before the next one deals. */
   readonly nextHandMs?: number;
   readonly runoutDelayMs?: number;
+  /** Seat 0 is a bot too, so the table plays itself (the watch feed's poker preview). */
+  readonly allBots?: boolean;
 }
 
 export const YOU_SEAT: SeatIndex = 0;
@@ -123,6 +125,7 @@ export class LocalTable {
       this.engine.sit(seat, { id: `bot-${seat}`, name: names[i - 1]!, kind: 'bot', botLevel: opts.botLevel });
       this.bots.set(seat, new PlaceholderBot(opts.botLevel));
     }
+    if (opts.allBots) this.bots.set(YOU_SEAT, new PlaceholderBot(opts.botLevel));
     this.handle = this.engine.handle({ kind: 'seat', seat: YOU_SEAT });
     this.off = this.engine.onEvents((events) => this.pump(events));
   }

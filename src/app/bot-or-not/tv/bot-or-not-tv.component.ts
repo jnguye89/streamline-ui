@@ -5,6 +5,7 @@ import {
   ViewEncapsulation,
   computed,
   effect,
+  InjectionToken,
   inject,
   output,
   signal,
@@ -49,6 +50,16 @@ const IN_ROUND: readonly Phase[] = ['prompt', 'answering', 'reveal', 'voting', '
  * The host runs everything with A, B and the menu button. Talks to the room only through
  * HOST_GAME_CLIENT (mock in Phase 1, Colyseus in Phase 2).
  */
+/**
+ * Provided (as true) by the watch feed's Bot or Not preview: the TV plays a room of simulated
+ * players by itself, so it takes no keyboard or controller input (TvInputService would grab the
+ * watch page's keys and pads) and hides the host-only chrome (back button, hints, join code).
+ */
+export const BOT_OR_NOT_TV_DEMO = new InjectionToken<boolean>('BOT_OR_NOT_TV_DEMO');
+
+/** Input for the demo: listens to nothing. */
+const SILENT_INPUT = { on: () => () => undefined, emit: () => undefined } as unknown as TvInput;
+
 @Component({
   selector: 'skriin-bot-or-not-tv',
   standalone: true,
@@ -63,7 +74,14 @@ const IN_ROUND: readonly Phase[] = ['prompt', 'answering', 'reveal', 'voting', '
     SettingsComponent,
     HostMenuComponent,
   ],
-  providers: [TvInputService, TvInput, FaceAnchors],
+  providers: [
+    TvInputService,
+    {
+      provide: TvInput,
+      useFactory: () => (inject(BOT_OR_NOT_TV_DEMO, { optional: true }) ? SILENT_INPUT : new TvInput()),
+    },
+    FaceAnchors,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   templateUrl: './bot-or-not-tv.component.html',
@@ -75,6 +93,7 @@ export class BotOrNotTvComponent {
   readonly exit = output<void>();
 
   protected readonly client = inject(HOST_GAME_CLIENT);
+  protected readonly demo = inject(BOT_OR_NOT_TV_DEMO, { optional: true }) ?? false;
   private readonly tts = inject(TTS_PROVIDER);
   private readonly input = inject(TvInput);
 

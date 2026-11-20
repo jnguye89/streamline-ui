@@ -2,7 +2,7 @@
   <div class="bon-stage" [class.live]="s().live">
     <header class="bon-top">
       <div class="brand">
-        @if (screen() !== 'lobby') {
+        @if (screen() !== 'lobby' && !demo) {
           <button type="button" class="bon-back-to-watch" (click)="exit.emit()">‹ Back to watch</button>
         }
         @if (screen() !== 'lobby') {
@@ -16,8 +16,10 @@
         }
       </div>
       <div class="right">
-        <bon-hints [items]="hints()" />
-        @if (screen() !== 'lobby') {
+        @if (!demo) {
+          <bon-hints [items]="hints()" />
+        }
+        @if (screen() !== 'lobby' && !demo) {
           <span class="code-chip">skriin.com/play/<b>{{ s().code }}</b></span>
         }
         @if (s().live) {

@@ -82,6 +82,11 @@ export class TableStore {
   readonly callouts = signal<Callout[]>([]);
   readonly toast = signal<string | null>(null);
   readonly now = signal(Date.now());
+  /**
+   * Watch-feed preview: four bots play each other, seen over seat 0's shoulder. Nothing is
+   * offered to "you" (no options, so no turn prompts or claim bar) and it never makes a sound.
+   */
+  readonly demo = signal(false);
   /** Your bonus tile just set aside, and the replacement that came in. */
   readonly bonusNote = signal<{ tile: TileId; replacement: TileId | null } | null>(null);
   private readonly rawFocus = signal<TileId | null>(null);
@@ -89,7 +94,7 @@ export class TableStore {
   // ── Derived ─────────────────────────────────────────────────────────────
   readonly view = computed(() => this.preview()?.scene.view ?? this.live());
   readonly you = computed<Seat>(() => this.view()?.you ?? 0);
-  readonly options = computed(() => this.view()?.options ?? []);
+  readonly options = computed(() => (this.demo() ? [] : (this.view()?.options ?? [])));
   readonly discardable = computed(
     () =>
       new Set(this.options().flatMap((o) => (o.action.type === 'discard' ? [o.action.tile] : []))),
@@ -173,7 +178,11 @@ export class TableStore {
     const dealer = v.seats.find((s) => s.dealer);
     return {
       title: `${WIND_NAME[v.round.prevailing]} round, hand ${v.round.dealerNo}`,
-      dealer: !dealer ? '' : dealer.seat === v.you ? 'Dealer: you' : `Dealer: ${dealer.name}`,
+      dealer: !dealer
+        ? ''
+        : dealer.seat === v.you && !this.demo()
+          ? 'Dealer: you'
+          : `Dealer: ${dealer.name}`,
       repeat: v.round.repeat,
     };
   });
@@ -278,6 +287,33 @@ export class TableStore {
         { name: BOT_NAMES[0], kind: 'bot' },
         { name: BOT_NAMES[1], kind: 'bot' },
         { name: BOT_NAMES[2], kind: 'bot' },
+      ],
+    });
+    this.screen.set('table');
+  }
+
+  /** Starts a bots-only game for the watch-feed preview (see `demo`). Settings are not touched. */
+  startDemo(names: readonly [string, string, string, string]): void {
+    this.demo.set(true);
+    this.sound.enabled = false;
+    this.preview.set(null);
+    this.paused.set(false);
+    this.rulesOpen.set(false);
+    this.decisionKey = '';
+    this.engine.start({
+      variant: 'hong-kong',
+      length: 'quick',
+      botLevel: 'medium',
+      minFaan: 3,
+      faanCap: 10,
+      claimWindowMs: 5000,
+      discardTimerMs: null,
+      pace: 'normal',
+      seats: [
+        { name: names[0], kind: 'bot' },
+        { name: names[1], kind: 'bot' },
+        { name: names[2], kind: 'bot' },
+        { name: names[3], kind: 'bot' },
       ],
     });
     this.screen.set('table');

@@ -53,6 +53,18 @@ import { ChessDemoItem, ChessGame, ChessGameItem } from '../../models/chess/ches
 import { ChessService } from '../../services/chess/chess.service';
 import { ChessGameComponent } from '../chess-game/chess-game.component';
 import { ChessDemoComponent } from '../chess-demo/chess-demo.component';
+import { CheckersDemoComponent } from '../checkers-demo/checkers-demo.component';
+import {
+  BackgammonDemoItem,
+  BotOrNotDemoItem,
+  CheckersDemoItem,
+  MahjongDemoItem,
+  PokerDemoItem,
+} from '../../models/games/game-demo.model';
+import { BotOrNotDemoComponent } from '../bot-or-not-demo/bot-or-not-demo.component';
+import { BackgammonDemoComponent } from '../backgammon-demo/backgammon-demo.component';
+import { MahjongDemoComponent } from '../mahjong-demo/mahjong-demo.component';
+import { PokerDemoComponent } from '../poker-demo/poker-demo.component';
 
 const YOUTUBE_SOURCE = 'YOUTUBE';
 
@@ -61,6 +73,60 @@ const YOUTUBE_SOURCE = 'YOUTUBE';
 // *something* chess-shaped to discover rather than the feature silently
 // disappearing the moment the last game ends. See ChessDemoComponent.
 const CHESS_DEMO_ITEM: ChessDemoItem = { type: 'chess-demo', id: 'chess-demo' };
+
+// Checkers has no real feed item (games are local, against the computer), so
+// its slot is always this auto-play preview. See CheckersDemoComponent.
+const CHECKERS_DEMO_ITEM: CheckersDemoItem = { type: 'checkers-demo', id: 'checkers-demo' };
+
+// Same for poker: its slot is always a table of bots playing each other.
+// See PokerDemoComponent.
+const POKER_DEMO_ITEM: PokerDemoItem = { type: 'poker-demo', id: 'poker-demo' };
+
+// And mahjong: four bots playing a quick game. See MahjongDemoComponent.
+const MAHJONG_DEMO_ITEM: MahjongDemoItem = { type: 'mahjong-demo', id: 'mahjong-demo' };
+
+// And backgammon: the computer playing itself. See BackgammonDemoComponent.
+const BACKGAMMON_DEMO_ITEM: BackgammonDemoItem = { type: 'backgammon-demo', id: 'backgammon-demo' };
+
+// And Bot or Not: a room of simulated players. See BotOrNotDemoComponent.
+const BOT_OR_NOT_DEMO_ITEM: BotOrNotDemoItem = { type: 'bot-or-not-demo', id: 'bot-or-not-demo' };
+
+// The feed's game tiles (as opposed to videos/live): no <video> surface, no
+// owning profile, and the only items that show the bottom-bar game buttons.
+// The game tiles placed into the feed (see gameSlotIndex).
+type GameSlot = 'chess' | 'checkers' | 'poker' | 'mahjong' | 'backgammon' | 'botOrNot';
+
+type GameItem = ChessGameItem | ChessDemoItem | CheckersDemoItem | PokerDemoItem | MahjongDemoItem | BackgammonDemoItem | BotOrNotDemoItem;
+const GAME_ITEM_TYPES = new Set<string>(['chess', 'chess-demo', 'checkers-demo', 'poker-demo', 'mahjong-demo', 'backgammon-demo', 'bot-or-not-demo']);
+// Game tiles go before video index 1..GAME_SLOT_SPAN, i.e. all inside the
+// first VOD page (20), so with six games the last one is at most the 25th
+// item. Consecutive games are at least GAME_SLOT_GAP videos apart, so two
+// game tiles always have 3+ videos between them. See WatchComponent.gameSlotIndex.
+const GAME_SLOT_SPAN = 19;
+const GAME_SLOT_GAP = 3;
+
+// Splices each game slot into the videos list at its index (counted in
+// videos, not including other slots). A feed shorter than GAME_SLOT_SPAN
+// (a small catalog, or a VOD fetch that came back short) gets the indexes
+// scaled down to fit, so the games stay spread out instead of piling up
+// back to back at the end.
+function placeGameSlots<V, G>(videos: V[], slots: { at: number; items: G[] }[]): (V | G)[] {
+  const sorted = [...slots].sort((a, b) => a.at - b.at);
+  const out: (V | G)[] = [];
+  const fit = Math.min(1, videos.length / GAME_SLOT_SPAN);
+  let v = 0;
+  for (const slot of sorted) {
+    const at = Math.min(Math.max(1, Math.round(slot.at * fit)), videos.length);
+    while (v < at) out.push(videos[v++]);
+    out.push(...slot.items);
+  }
+  while (v < videos.length) out.push(videos[v++]);
+  return out;
+}
+
+function isGameItem<T extends { type: string }>(item: T | null | undefined): item is Extract<T, GameItem> {
+  return !!item && GAME_ITEM_TYPES.has(item.type);
+}
 
 @Component({
   selector: 'app-watch',
@@ -80,6 +146,11 @@ const CHESS_DEMO_ITEM: ChessDemoItem = { type: 'chess-demo', id: 'chess-demo' };
     FormsModule,
     ChessGameComponent,
     ChessDemoComponent,
+    CheckersDemoComponent,
+    PokerDemoComponent,
+    MahjongDemoComponent,
+    BackgammonDemoComponent,
+    BotOrNotDemoComponent,
   ],
   providers: [VideoService],
   templateUrl: './watch.component.html',
@@ -157,15 +228,37 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly RESUME_NEAR_END_S = 15;
   private readonly VOD_PAGE_SIZE = 20;
   private readonly VOD_PREFETCH_THRESHOLD = 5;
-  // Where the chess slot lands in the feed - randomized once per page
-  // load (not re-rolled on every chess$/live$ poll, or its position would
-  // jump around while someone's mid-scroll) so it doesn't dominate what a
-  // visitor sees first every single time, while still surfacing early.
-  // 1..9 => the 2nd through 10th item, 0-indexed - see the playlist$ merge.
-  private readonly chessInsertIndex = 1 + Math.floor(Math.random() * 9);
-  playlist: (PlayItem | LiveStream | ChessGameItem | ChessDemoItem)[] = [];
+  // Where each game tile lands in the feed, as an index into the videos
+  // list. Fixed once per page load (not re-rolled on every chess$/live$
+  // poll, or tiles would jump around while someone's mid-scroll). The games
+  // come in a random order at random positions within video indexes
+  // 1..GAME_SLOT_SPAN (never the landing item; all within the first 25
+  // items), each at least GAME_SLOT_GAP videos after the one before. See
+  // placeGameSlots() and the playlist$ merge.
+  private readonly gameSlotIndex: Record<GameSlot, number> = (() => {
+    const order: GameSlot[] = ['chess', 'checkers', 'poker', 'mahjong', 'backgammon', 'botOrNot'];
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    // Pick distinct sorted positions from a range shrunk by the gaps, then
+    // add the gaps back: uniformly random, always GAME_SLOT_GAP apart, and
+    // the last one never past GAME_SLOT_SPAN.
+    const extra = GAME_SLOT_GAP - 1;
+    const room = GAME_SLOT_SPAN - extra * (order.length - 1);
+    const picks = Array.from({ length: room }, (_, i) => i + 1);
+    for (let i = picks.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [picks[i], picks[j]] = [picks[j], picks[i]];
+    }
+    const positions = picks.slice(0, order.length).sort((a, b) => a - b).map((p, i) => p + i * extra);
+    const out = {} as Record<GameSlot, number>;
+    order.forEach((game, i) => (out[game] = positions[i]));
+    return out;
+  })();
+  playlist: (PlayItem | LiveStream | ChessGameItem | ChessDemoItem | CheckersDemoItem | PokerDemoItem | MahjongDemoItem | BackgammonDemoItem | BotOrNotDemoItem)[] = [];
   currentIndex = 0;
-  currentItem: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | null = null;
+  currentItem: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | CheckersDemoItem | PokerDemoItem | MahjongDemoItem | BackgammonDemoItem | BotOrNotDemoItem | null = null;
   get hasMany() { return this.playlist.length > 1; }
   // Distinct from hasMany: there may be other items to show, but the
   // viewer hasn't actually gone anywhere yet to go "back" to (right
@@ -196,7 +289,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // or the continue-watching item has been seeded. vodItems$ is a
   // BehaviorSubject that starts as [], so without this gate the playlist
   // would emit its first value before any videos exist; the chess slot's
-  // clamp (Math.min(chessInsertIndex, videos.length)) would then collapse
+  // clamp (Math.min(slot.at, videos.length) in placeGameSlots) would then collapse
   // to 0 and chess would become the first item - and stick as currentItem.
   private vodLoaded$ = new BehaviorSubject<boolean>(false);
   private isLoadingMoreVods = false;
@@ -380,10 +473,6 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       // map(([lives, vods]) => [...vods]),
       map(([lives, chessGames, vods]) => {
         const videos = [...lives, ...vods];
-        // Clamped to the currently-known video count so this never throws
-        // for a short list (e.g. before more VOD pages have loaded) - chess
-        // just settles into its final spot once enough videos are in.
-        const insertAt = Math.min(this.chessInsertIndex, videos.length);
 
         // chess$ only ever lists 'waiting'/'active' games, so a game that
         // just ended (checkmate, resignation, timeout...) drops out of it on
@@ -398,7 +487,14 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
             ? [current]
             : chessGames;
 
-        return [...videos.slice(0, insertAt), ...chessSlot, ...videos.slice(insertAt)];
+        return placeGameSlots<(typeof videos)[number], GameItem>(videos, [
+          { at: this.gameSlotIndex.chess, items: chessSlot },
+          { at: this.gameSlotIndex.checkers, items: [CHECKERS_DEMO_ITEM] },
+          { at: this.gameSlotIndex.poker, items: [POKER_DEMO_ITEM] },
+          { at: this.gameSlotIndex.mahjong, items: [MAHJONG_DEMO_ITEM] },
+          { at: this.gameSlotIndex.backgammon, items: [BACKGAMMON_DEMO_ITEM] },
+          { at: this.gameSlotIndex.botOrNot, items: [BOT_OR_NOT_DEMO_ITEM] },
+        ]);
       }),
       // distinctUntilChanged((a, b) => idsKey(a) === idsKey(b))
     );
@@ -443,7 +539,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
         // partway through the feed, never be the landing item.
         if (!this.currentItem) {
           const firstLiveIndex = this.playlist.findIndex(i => i.type === 'live');
-          const firstNonChessIndex = this.playlist.findIndex(i => i.type !== 'chess' && i.type !== 'chess-demo');
+          const firstNonChessIndex = this.playlist.findIndex(i => !isGameItem(i));
           this.currentIndex = firstLiveIndex >= 0 ? firstLiveIndex : (firstNonChessIndex >= 0 ? firstNonChessIndex : 0);
           this.currentItem = this.playlist[this.currentIndex] ?? null;
           if (this.currentItem) this.pushHistory(this.currentItem);
@@ -581,7 +677,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // A no-op if `item` is already the current entry, so re-resolving the
   // same item against a freshly-polled playlist (see the playlist$
   // subscription below) never records a duplicate step.
-  private pushHistory(item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem): void {
+  private pushHistory(item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | CheckersDemoItem | PokerDemoItem | MahjongDemoItem | BackgammonDemoItem | BotOrNotDemoItem): void {
     const top = this.historyIndex >= 0 ? this.historyKeys[this.historyIndex] : undefined;
     if (top && top.id === item.id && top.type === item.type) return;
 
@@ -598,7 +694,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // vanished entry rather than getting stuck showing dead content.
   private resolveHistoryEntry(
     key: { id: string | number; type: string }
-  ): { item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem; index: number } | null {
+  ): { item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | CheckersDemoItem | PokerDemoItem | MahjongDemoItem | BackgammonDemoItem | BotOrNotDemoItem; index: number } | null {
     const index = this.playlist.findIndex(x => x.id === key.id && x.type === key.type);
     return index >= 0 ? { item: this.playlist[index], index } : null;
   }
@@ -676,7 +772,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // right after previous()), skipping any entry that's since dropped out
     // of the playlist. Only once there's nothing left to redo do we
     // discover something genuinely new.
-    let resolved: { item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem; index: number } | null = null;
+    let resolved: { item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | CheckersDemoItem | PokerDemoItem | MahjongDemoItem | BackgammonDemoItem | BotOrNotDemoItem; index: number } | null = null;
     while (this.historyIndex < this.historyKeys.length - 1 && !resolved) {
       this.historyIndex++;
       resolved = this.resolveHistoryEntry(this.historyKeys[this.historyIndex]);
@@ -720,7 +816,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // Walk backward through history (skipping any entry that's since
     // vanished from the playlist) rather than touching playlist position
     // directly - see the class-level comment above historyKeys.
-    let resolved: { item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem; index: number } | null = null;
+    let resolved: { item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | CheckersDemoItem | PokerDemoItem | MahjongDemoItem | BackgammonDemoItem | BotOrNotDemoItem; index: number } | null = null;
     let idx = this.historyIndex;
     while (idx > 0 && !resolved) {
       idx--;
@@ -856,7 +952,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    if (item.type === 'chess' || item.type === 'chess-demo') {
+    if (isGameItem(item)) {
       // No <video>/Agora surface for chess (real or the demo placeholder) -
       // just release whatever was playing. Board rendering + (for a real
       // game) its own socket room membership are owned by
@@ -1042,7 +1138,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
   // YouTube exposes no raw playable file - only its <iframe> embed player -
   // so those items skip the <video> element entirely and render through the
   // iframe/safeUrl binding in the template instead.
-  isYouTube(item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | null): boolean {
+  isYouTube(item: PlayItem | LiveStream | ChessGameItem | ChessDemoItem | CheckersDemoItem | PokerDemoItem | MahjongDemoItem | BackgammonDemoItem | BotOrNotDemoItem | null): boolean {
     return item?.type === 'vod' && item.source === YOUTUBE_SOURCE;
   }
 
@@ -1278,30 +1374,58 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     this.videoService.updateProgress(id, timestamp).subscribe({ error: () => { } });
   }
 
-  // Gates the bottom-bar "Play Chess" button (see startChessGame below):
-  // shown on the demo placeholder (nobody to interrupt) and while
-  // spectating a real game, but hidden once you're actually seated in the
-  // one currently on screen - clicking it there would abandon your own
-  // game to start a second one, which is never what a seated player wants.
-  // Shown on the games slot of the feed (a chess game or the chess demo),
-  // never on videos/live. A player seated in a live chess game can't leave
-  // it from here, matching the navigation lock in isSeatedInLiveChess().
-  get canPlayPoker(): boolean {
-    const type = this.currentItem?.type;
-    if (type !== 'chess' && type !== 'chess-demo') return false;
-    return !this.isSeatedInLiveChess();
+  // The bottom-bar game buttons only appear on the feed's game tiles (a
+  // chess game or any game's auto-play preview), never on videos/live. A
+  // player seated in a live chess game can't leave it from here, matching
+  // the navigation lock in isSeatedInLiveChess(). Each game's own button is
+  // hidden on its own tile - that tile already has its own "Press to play".
+  get showGameButtons(): boolean {
+    return isGameItem(this.currentItem) && !this.isSeatedInLiveChess();
   }
 
   get canPlayChess(): boolean {
-    if (this.currentItem?.type === 'chess-demo') return true;
-    if (this.currentItem?.type !== 'chess') return false;
+    const type = this.currentItem?.type;
+    return this.showGameButtons && type !== 'chess' && type !== 'chess-demo';
+  }
 
-    const uid = this.deviceAuth.getCurrentUserId();
-    if (!uid) return true; // not logged in - can't possibly be seated yet
+  get canPlayCheckers(): boolean {
+    return this.showGameButtons && this.currentItem?.type !== 'checkers-demo';
+  }
 
-    const game = this.currentItem;
-    const isSeated = game.whiteUser?.auth0UserId === uid || game.blackUser?.auth0UserId === uid;
-    return !isSeated;
+  get canPlayPoker(): boolean {
+    return this.showGameButtons && this.currentItem?.type !== 'poker-demo';
+  }
+
+  playPoker(): void {
+    this.router.navigate(['/play/poker']);
+  }
+
+  get canPlayMahjong(): boolean {
+    return this.showGameButtons && this.currentItem?.type !== 'mahjong-demo';
+  }
+
+  playMahjong(): void {
+    this.router.navigate(['/play/mahjong']);
+  }
+
+  get canPlayBackgammon(): boolean {
+    return this.showGameButtons && this.currentItem?.type !== 'backgammon-demo';
+  }
+
+  playBackgammon(): void {
+    this.router.navigate(['/play/backgammon']);
+  }
+
+  get canPlayBotOrNot(): boolean {
+    return this.showGameButtons && this.currentItem?.type !== 'bot-or-not-demo';
+  }
+
+  playBotOrNot(): void {
+    this.router.navigate(['/play/bot-or-not']);
+  }
+
+  playCheckers(): void {
+    this.router.navigate(['/play/checkers']);
   }
 
   // Starts a brand-new game regardless of what's currently on screen, and
@@ -1333,7 +1457,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
     // watching" state (which the same reasoning in applyContinueWatching()
     // above already argues against).
     const item = this.playlist[this.currentIndex];
-    if (!item || item.type === 'chess' || item.type === 'chess-demo') return;
+    if (!item || isGameItem(item)) return;
 
     const user = (item as any)?.user ?? '';
     this.store.set(item);
@@ -1488,7 +1612,7 @@ export class WatchComponent implements OnInit, AfterViewInit, OnDestroy {
           if (!this.vodLoaded$.value) this.vodLoaded$.next(true);
 
           const alreadyCurrent = this.currentItem?.type === 'vod' && this.currentItem.id === item.id;
-          if (!alreadyCurrent && this.currentItem?.type !== 'live' && this.currentItem?.type !== 'chess' && this.currentItem?.type !== 'chess-demo') {
+          if (!alreadyCurrent && this.currentItem?.type !== 'live' && !isGameItem(this.currentItem)) {
             const idx = this.playlist.findIndex(p => p.type === 'vod' && p.id === item.id);
             if (idx >= 0) {
               this.currentIndex = idx;
