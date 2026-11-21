@@ -60,6 +60,23 @@ const TYPES = {
   '.webm': 'video/webm',
   '.wasm': 'application/wasm',
 };
+// Universal Links: tells iOS that skriin.com/watch links open the skriin app when it's
+// installed (the app's team ID and bundle ID). iOS fetches it at install and update, so it
+// has to be JSON at exactly this path, with no redirect. Keep in sync with docker/nginx.conf.
+const APPLE_APP_SITE_ASSOCIATION = JSON.stringify({
+  applinks: {
+    details: [
+      {
+        appIDs: ['NLR94A34CQ.com.siliconvalley.skriin'],
+        components: [
+          { '/': '/watch/*', comment: 'One video' },
+          { '/': '/watch', comment: 'The watch feed (live streams link here)' },
+        ],
+      },
+    ],
+  },
+});
+
 const COMPRESSIBLE = /^(text\/|application\/(json|xml|manifest\+json|javascript)|image\/svg)/;
 const HASHED = /-[A-Z0-9]{8}\.(js|css)$/;
 
@@ -113,6 +130,13 @@ const server = createServer((req, res) => {
     path = '/__bad__';
   }
   const query = url.search;
+
+  if (path === '/.well-known/apple-app-site-association') {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.end(req.method === 'HEAD' ? undefined : APPLE_APP_SITE_ASSOCIATION);
+  }
 
   // One URL per page.
   if (path.length > 1 && path.endsWith('/')) return redirect(res, path.replace(/\/+$/, '') + query);
