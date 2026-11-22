@@ -14,6 +14,8 @@ import { RtcStreamService } from '../../services/agora/rtc-stream.service';
 import { SeoService } from '../../services/seo.service';
 import { StreamService } from '../../services/stream.service';
 import { UserService } from '../../services/user.service';
+import { AgeService } from '../../services/age.service';
+import { BirthdayPromptService } from '../../services/birthday-prompt.service';
 import {
   StreamKeyPayload,
   StreamPlatform,
@@ -108,6 +110,7 @@ describe('StreamComponent', () => {
         state$: state$.asObservable(),
         preview$: preview$.asObservable(),
         audioMix$: audioMix$.asObservable(),
+        audioMeter$: of({ game: 0, microphone: 0, output: 0 }),
         snapshot: readyState,
         previewSnapshot: idlePreview,
         audioMixSnapshot: audioMix$.value,
@@ -157,7 +160,9 @@ describe('StreamComponent', () => {
     streamService.start.and.resolveTo({ ok: true, multistream: [] });
     userService = jasmine.createSpyObj<UserService>('UserService', [
       'getStreamKeys',
+      'setStreamKeyEnabled',
     ]);
+    userService.setStreamKeyEnabled.and.returnValue(of({} as StreamKeyPayload));
     userService.getStreamKeys.and.returnValue(
       of([{ platform: StreamPlatform.TWITCH, streamKey: 'live_123' }]),
     );
@@ -172,6 +177,7 @@ describe('StreamComponent', () => {
       [
         'setAuxButtonActions',
         'clearAuxButtonActions',
+        'setBackAction',
         'register',
         'unregister',
       ],
@@ -193,6 +199,12 @@ describe('StreamComponent', () => {
         { provide: MatDialog, useValue: { open: jasmine.createSpy('open') } },
         { provide: GamepadNavigationService, useValue: gamepadNavigation },
         { provide: UserService, useValue: userService },
+        // Going live checks age first; these tests are about an adult user.
+        {
+          provide: AgeService,
+          useValue: { getMe: () => Promise.resolve({ birthDate: '1990-01-01' }), ageOf: () => 36 },
+        },
+        { provide: BirthdayPromptService, useValue: { ensureBirthDate: (d: string) => Promise.resolve(d) } },
       ],
     }).compileComponents();
 
@@ -286,8 +298,10 @@ describe('StreamComponent', () => {
     screenCamButton.click();
     await fixture.whenStable();
 
-    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-1');
-    expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith('video-2');
+    // Screen + cam is webcam-forward: the webcam (video-2) is the main
+    // picture and the screen (video-1) is the overlay.
+    expect(mediaInput.selectVideo).toHaveBeenCalledWith('video-2');
+    expect(mediaInput.selectOverlayVideo).toHaveBeenCalledWith('video-1');
     expect(fixture.componentInstance.displayMode).toBe('screen-cam');
   });
 
@@ -312,7 +326,7 @@ describe('StreamComponent', () => {
     ).toBeNull();
   });
 
-  it('binds X/Y/LB/RB controller shortcuts on init and releases them on destroy', () => {
+  it('binds X/Y/LB/RB controller shortcuts on init and releases them on destroy', async () => {
     expect(gamepadNavigation.setAuxButtonActions).toHaveBeenCalledWith({
       x: jasmine.any(Function),
       y: jasmine.any(Function),
@@ -324,6 +338,8 @@ describe('StreamComponent', () => {
       .args[0] as { x: () => void; y: () => void; lb: () => void; rb: () => void };
 
     bound.x();
+    // Swaps run through the input-change queue, so let it drain first.
+    await new Promise((resolve) => setTimeout(resolve));
     expect(mediaInput.swapSources).toHaveBeenCalled();
 
     bound.lb();
@@ -385,6 +401,9 @@ describe('StreamComponent', () => {
   });
 
   it('serializes complete input changes so their capture steps cannot interleave', async () => {
+    // Setup already picked the overlay once (webcam-forward default); only
+    // count the calls this test makes.
+    mediaInput.selectOverlayVideo.calls.reset();
     let resolveVideo!: (stream: MediaStream | null) => void;
     mediaInput.refreshPrimaryVideo.and.returnValue(
       new Promise<MediaStream | null>((resolve) => {
@@ -673,6 +692,36 @@ describe('StreamComponent', () => {
       ]);
     });
 
+    it('starts with a platform off when its saved key is switched off', async () => {
+      await reloadKeys([{ ...twitchKey, enabled: false }, kickKey]);
+
+      expect(state(StreamPlatform.TWITCH)).toBe('off');
+      expect(state(StreamPlatform.KICK)).toBe('on');
+      expect(fixture.componentInstance.selectedRestreams).toEqual([
+        StreamPlatform.KICK,
+      ]);
+    });
+
+    it('saves a switch to the account, and puts it back if that fails', async () => {
+      await reloadKeys([twitchKey]);
+
+      fixture.componentInstance.toggleRestream(target(StreamPlatform.TWITCH));
+      expect(userService.setStreamKeyEnabled).toHaveBeenCalledWith(
+        StreamPlatform.TWITCH,
+        false,
+      );
+      expect(state(StreamPlatform.TWITCH)).toBe('off');
+
+      userService.setStreamKeyEnabled.and.returnValue(
+        throwError(() => new Error('offline')),
+      );
+      fixture.componentInstance.toggleRestream(target(StreamPlatform.TWITCH));
+      expect(state(StreamPlatform.TWITCH)).toBe('off');
+      expect(fixture.componentInstance.multistreamError).toContain(
+        "Couldn't switch Twitch on",
+      );
+    });
+
     it('restreams to every highlighted platform when going live', async () => {
       await reloadKeys([twitchKey, kickKey]);
       streamService.start.and.resolveTo({
@@ -828,6 +877,7 @@ describe('StreamComponent screen/webcam role detection', () => {
         state$: state$.asObservable(),
         preview$: preview$.asObservable(),
         audioMix$: audioMix$.asObservable(),
+        audioMeter$: of({ game: 0, microphone: 0, output: 0 }),
         snapshot: initialState,
         previewSnapshot: idlePreview,
         audioMixSnapshot: audioMix$.value,
@@ -880,6 +930,7 @@ describe('StreamComponent screen/webcam role detection', () => {
       [
         'setAuxButtonActions',
         'clearAuxButtonActions',
+        'setBackAction',
         'register',
         'unregister',
       ],
@@ -905,6 +956,11 @@ describe('StreamComponent screen/webcam role detection', () => {
           provide: UserService,
           useValue: { getStreamKeys: () => of([]) },
         },
+        {
+          provide: AgeService,
+          useValue: { getMe: () => Promise.resolve({ birthDate: '1990-01-01' }), ageOf: () => 36 },
+        },
+        { provide: BirthdayPromptService, useValue: { ensureBirthDate: (d: string) => Promise.resolve(d) } },
       ],
     }).compileComponents();
 

@@ -20,6 +20,7 @@ import { StreamService } from "../../services/stream.service";
 import { DeviceAuthService, DeviceUser } from "../../services/device-auth.service";
 import { GamepadFocusableDirective } from "../../directives/gamepad-focusable.directive";
 import { TextKeyboardDialogComponent, TextKeyboardSuggestion } from "../search/text-keyboard-dialog.component";
+import { GamepadNavigationService } from "../../services/gamepad-navigation.service";
 
 @Component({
   selector: "app-podcast",
@@ -32,6 +33,9 @@ import { TextKeyboardDialogComponent, TextKeyboardSuggestion } from "../search/t
 })
 export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
   private dialog = inject(MatDialog);
+  private gamepadNavigation = inject(GamepadNavigationService);
+  // Mic on/off for the local preview stream (LB, or the LB button in the bar).
+  micMuted = false;
   private destroy$ = new Subject<void>();
   private userId: number | undefined;
   sidebarCollapsed = false;
@@ -213,7 +217,28 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
     await this.orchestrator.hangup();
   }
 
+  icon(name: string): string {
+    return `url(/assets/icons/tv/${name}.svg)`;
+  }
+
+  goTo(path: string): void {
+    void this.router.navigate([path]);
+  }
+
+  toggleMic(): void {
+    this.micMuted = !this.micMuted;
+    this.localStream?.getAudioTracks().forEach(track => track.enabled = !this.micMuted);
+  }
+
   async ngOnInit() {
+    this.gamepadNavigation.setAuxButtonActions({ lb: () => this.toggleMic() });
+    // B: close the people picker first, otherwise back to your profile.
+    this.gamepadNavigation.setBackAction(() => {
+      if (this.showUserPicker) { this.closeUserPicker(); return true; }
+      void this.router.navigate(['/profile']);
+      return true;
+    });
+
     this.isAuthenticated$.pipe(
       takeUntil(this.destroy$)).subscribe(isAuthenticated => {
         isAuthenticated ? this.init() : this.login();
@@ -343,6 +368,8 @@ export class PodcastComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.gamepadNavigation.clearAuxButtonActions();
+    this.gamepadNavigation.setBackAction(null);
     this.localStream?.getTracks().forEach(t => t.stop());
     (async () => {
       try {

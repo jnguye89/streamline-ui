@@ -1,45 +1,76 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormControl, FormsModule } from '@angular/forms';
+import { FormControl } from '@angular/forms';
 import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
+import { Subscription, firstValueFrom, interval, startWith, switchMap } from 'rxjs';
 import { GamepadFocusableDirective } from '../../directives/gamepad-focusable.directive';
 import { UserService } from '../../services/user.service';
 import { StreamPlatform } from '../../models/stream-key.model';
 import { GamepadNavigationService } from '../../services/gamepad-navigation.service';
 import { TextKeyboardDialogComponent } from '../search/text-keyboard-dialog.component';
+import { QrComponent } from '../../bot-or-not/tv/ui/qr.component';
+
+/** Where the phone goes. The app opens this as /link?code=… (Universal Links). */
+export const LINK_PAGE = 'https://skriin.com/link';
+/** How often the TV asks whether the phone has sent the key. */
+const POLL_MS = 2500;
 
 type StreamField = 'streamKey' | 'streamUrl';
 
-interface PlatformFormState {
+interface PlatformEntry {
   platform: StreamPlatform;
   label: string;
-  showUrl: boolean;
+  /** Kick needs its own ingest URL as well as the key. */
   requiresUrl: boolean;
   streamKey: string;
   streamUrl: string;
-  initialStreamKey: string;
-  initialStreamUrl: string;
-  saving: boolean;
-  saved: boolean;
-  error: boolean;
+  on: boolean;
 }
 
+/**
+ * Simulcast (handoff mockups 27_simulcast and 28_stream_key).
+ *
+ * List: one row per platform. A switches it on/off for the next live, or
+ * opens "Add key" when there is no key yet. X changes a saved key. B closes.
+ *
+ * Add key: a QR and a short code. The phone (signed in to the same account)
+ * opens skriin.com/link?code=…, pastes the key, and the TV notices within a
+ * few seconds and goes back to the list with that platform on. Or "Type it on
+ * the TV instead", which uses the TV keyboard. B goes back to the list.
+ */
 @Component({
   standalone: true,
   selector: 'app-stream-keys-dialog',
   templateUrl: './stream-keys.dialog.html',
   styleUrl: './stream-keys.dialog.scss',
-  imports: [CommonModule, FormsModule, MatDialogModule, MatButtonModule, MatIconModule, GamepadFocusableDirective],
+  imports: [CommonModule, MatDialogModule, GamepadFocusableDirective, QrComponent],
 })
 export class StreamKeysDialog implements OnInit, OnDestroy {
-  platforms: PlatformFormState[] = [
-    this.makeEntry(StreamPlatform.TWITCH, 'Twitch', false, false),
-    this.makeEntry(StreamPlatform.YOUTUBE, 'YouTube', false, false),
-    this.makeEntry(StreamPlatform.KICK, 'Kick', true, true),
+  platforms: PlatformEntry[] = [
+    this.makeEntry(StreamPlatform.YOUTUBE, 'YouTube', false),
+    this.makeEntry(StreamPlatform.TWITCH, 'Twitch', false),
+    this.makeEntry(StreamPlatform.KICK, 'Kick', true),
   ];
   loading = true;
+  /** A switch that couldn't be saved, shown under the list. */
+  listError: string | null = null;
+
+  /** The row with focus, for X (change the key). */
+  focused: PlatformEntry | null = null;
+
+  /** Set while the "Add key" view is showing. */
+  adding: PlatformEntry | null = null;
+  /** The code from the API for the Add key view; empty while it's being fetched. */
+  phoneCode = '';
+  /** Set when a code couldn't be fetched; "Type it on the TV" still works. */
+  codeError: string | null = null;
+  saving = false;
+  saveError: string | null = null;
+  private polling: Subscription | null = null;
+
+  get linkUrl(): string {
+    return `${LINK_PAGE}?code=${this.phoneCode}`;
+  }
 
   constructor(
     private userService: UserService,
@@ -49,11 +80,10 @@ export class StreamKeysDialog implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
-    // Drop focus left on the profile page behind us (e.g. the "streaming"
-    // button) so B isn't spent dismissing that first, then claim B to close
-    // this dialog. The first stick press picks a start inside the dialog.
+    // Drop focus left on the page behind us so B isn't spent dismissing that
+    // first. The first stick press picks a start inside the dialog.
     this.gamepadNav.clearFocus();
-    this.claimBackButton();
+    this.claimButtons();
 
     this.userService.getStreamKeys().subscribe({
       next: (existing) => {
@@ -62,8 +92,7 @@ export class StreamKeysDialog implements OnInit, OnDestroy {
           if (!entry) continue;
           entry.streamKey = saved.streamKey ?? '';
           entry.streamUrl = saved.streamUrl ?? '';
-          entry.initialStreamKey = entry.streamKey;
-          entry.initialStreamUrl = entry.streamUrl;
+          entry.on = saved.enabled !== false;
         }
         this.loading = false;
       },
@@ -71,76 +100,180 @@ export class StreamKeysDialog implements OnInit, OnDestroy {
     });
   }
 
-  isDirty(entry: PlatformFormState): boolean {
-    return entry.streamKey.trim() !== entry.initialStreamKey.trim()
-      || entry.streamUrl.trim() !== entry.initialStreamUrl.trim();
+  hasKey(entry: PlatformEntry): boolean {
+    return !!entry.streamKey.trim() && (!entry.requiresUrl || !!entry.streamUrl.trim());
   }
 
-  isUrlDirty(entry: PlatformFormState): boolean {
-    return entry.streamUrl.trim() !== entry.initialStreamUrl.trim();
+  status(entry: PlatformEntry): string {
+    if (!this.hasKey(entry)) return 'No key yet';
+    return entry.on ? 'Stream key saved · on for your next live' : 'Stream key saved · off';
   }
 
-  urlError(entry: PlatformFormState): string | null {
-    if (!entry.showUrl) return null;
-
-    const url = entry.streamUrl.trim();
-    if (!url) return entry.requiresUrl ? 'Stream URL is required' : null;
-
-    try {
-      new URL(url);
-      return null;
-    } catch {
-      return 'Enter a valid URL';
+  /** A on a row: switch it, or add a key if there is none. */
+  activate(entry: PlatformEntry): void {
+    if (!this.hasKey(entry)) {
+      this.openAdd(entry);
+      return;
     }
-  }
-
-  canSave(entry: PlatformFormState): boolean {
-    return !entry.saving
-      && this.isDirty(entry)
-      && !!entry.streamKey.trim()
-      && !this.urlError(entry);
-  }
-
-  save(entry: PlatformFormState): void {
-    if (!this.canSave(entry)) return;
-
-    entry.saving = true;
-    entry.saved = false;
-    entry.error = false;
-
-    this.userService.saveStreamKey({
-      platform: entry.platform,
-      streamKey: entry.streamKey.trim(),
-      streamUrl: entry.streamUrl.trim() || undefined,
-    }).subscribe({
-      next: () => {
-        entry.saving = false;
-        entry.saved = true;
-        entry.initialStreamKey = entry.streamKey.trim();
-        entry.initialStreamUrl = entry.streamUrl.trim();
+    // Shown at once; put back if the account couldn't be updated.
+    const on = !entry.on;
+    entry.on = on;
+    this.listError = null;
+    this.userService.setStreamKeyEnabled(entry.platform, on).subscribe({
+      error: () => {
+        entry.on = !on;
+        this.listError = `Couldn’t switch ${entry.label} ${on ? 'on' : 'off'}. Try again.`;
       },
-      error: () => { entry.saving = false; entry.error = true; },
     });
   }
 
-  // Opens the on-screen glider keyboard (same one as the search icon / the
-  // podcast page's people search) for a stream url/key field when it's
-  // activated with the controller's A button. The gamepad service activates
-  // via el.click(), which reports event.detail === 0; real mouse/touch
-  // clicks report detail >= 1 and are left alone so desktop users can still
-  // type or paste into the input directly.
-  onFieldClick(event: MouseEvent, entry: PlatformFormState, field: StreamField): void {
-    if (event.detail !== 0) return;
-    this.openKeyboard(event.currentTarget as HTMLElement, entry, field);
+  /** X: change the key of the focused row. */
+  changeFocusedKey(): void {
+    if (this.adding || !this.focused || !this.hasKey(this.focused)) return;
+    this.openAdd(this.focused);
   }
 
-  openKeyboard(input: HTMLElement, entry: PlatformFormState, field: StreamField): void {
-    // TextKeyboardDialogComponent works on a FormControl; mirror it into the
-    // ngModel-bound entry live so dirty/URL validation update as you type.
-    const control = new FormControl<string | null>(entry[field]);
-    const sub = control.valueChanges.subscribe(v => { entry[field] = v ?? ''; });
+  openAdd(entry: PlatformEntry): void {
+    this.adding = entry;
+    this.saveError = null;
+    this.gamepadNav.clearFocus();
+    this.newCode(entry);
+  }
 
-    this.dialog.open(TextKeyboardDialogComponent, {
+  /** Asks the API for a code for this platform, then waits for the phone. */
+  private newCode(entry: PlatformEntry): void {
+    this.stopPolling();
+    this.phoneCode = '';
+    this.codeError = null;
+    this.userService.createStreamKeyLink(entry.platform).subscribe({
+      next: ({ code }) => {
+        if (this.adding !== entry) return; // left the screen meanwhile
+        this.phoneCode = code;
+        this.waitForPhone(entry, code);
+      },
+      error: () => {
+        if (this.adding !== entry) return;
+        this.codeError = 'Couldn’t get a code. You can still type the key on the TV.';
+      },
+    });
+  }
+
+  private waitForPhone(entry: PlatformEntry, code: string): void {
+    this.polling = interval(POLL_MS).pipe(
+      startWith(0),
+      switchMap(() => this.userService.getStreamKeyLinkStatus(code)),
+    ).subscribe({
+      next: ({ status }) => {
+        if (this.adding !== entry || this.phoneCode !== code) return;
+        if (status === 'done') this.phoneSentKey(entry);
+        // Codes last 10 minutes; a TV left on this screen just gets a fresh one.
+        else if (status === 'expired') this.newCode(entry);
+      },
+      // A dropped request isn't worth an error on screen; try again next tick.
+      error: () => {
+        if (this.adding === entry && this.phoneCode === code) {
+          this.stopPolling();
+          this.waitForPhone(entry, code);
+        }
+      },
+    });
+  }
+
+  /** The phone saved the key on the account: show it, switched on. */
+  private phoneSentKey(entry: PlatformEntry): void {
+    this.stopPolling();
+    this.userService.getStreamKeys().subscribe({
+      next: (keys) => {
+        const saved = keys.find((k) => k.platform === entry.platform);
+        entry.streamKey = saved?.streamKey ?? entry.streamKey;
+        entry.streamUrl = saved?.streamUrl ?? entry.streamUrl;
+        this.markOn(entry);
+      },
+      error: () => this.markOn(entry),
+    });
+  }
+
+  private markOn(entry: PlatformEntry): void {
+    // Even if the keys couldn't be reloaded, the API said it's saved. Only
+    // hasKey() reads these here; the real values never come back to the TV list.
+    if (!entry.streamKey) entry.streamKey = 'saved';
+    if (entry.requiresUrl && !entry.streamUrl) entry.streamUrl = 'saved';
+    // Saving a key switches it on in the API.
+    entry.on = true;
+    if (this.adding === entry) this.backToList();
+  }
+
+  private stopPolling(): void {
+    this.polling?.unsubscribe();
+    this.polling = null;
+  }
+
+  backToList(): void {
+    this.stopPolling();
+    const entry = this.adding;
+    this.adding = null;
+    this.saveError = null;
+    this.gamepadNav.clearFocus();
+    // Put focus back on the row we came from once it is drawn again.
+    setTimeout(() => {
+      const row = document.querySelector<HTMLElement>(`[data-platform="${entry?.platform}"]`);
+      if (row) this.gamepadNav.requestFocus(row);
+    });
+  }
+
+  /** "Type it on the TV instead": URL first when needed, then the key, then save. */
+  async typeOnTv(): Promise<void> {
+    const entry = this.adding;
+    if (!entry || this.saving) return;
+    const fields: StreamField[] = entry.requiresUrl ? ['streamUrl', 'streamKey'] : ['streamKey'];
+
+    const typed: Record<StreamField, string> = { streamUrl: entry.streamUrl, streamKey: '' };
+    for (const field of fields) {
+      typed[field] = (await this.openKeyboard(entry, field, typed[field])).trim();
+      if (!typed[field]) return; // closed without typing: stay on Add key
+    }
+
+    if (entry.requiresUrl && !isUrl(typed.streamUrl)) {
+      this.saveError = 'That stream URL does not look right. It should start with rtmp:// or rtmps://';
+      return;
+    }
+
+    this.saving = true;
+    this.saveError = null;
+    this.userService.saveStreamKey({
+      platform: entry.platform,
+      streamKey: typed.streamKey,
+      streamUrl: typed.streamUrl || undefined,
+    }).subscribe({
+      next: () => {
+        this.saving = false;
+        entry.streamKey = typed.streamKey;
+        entry.streamUrl = typed.streamUrl;
+        // A new key is on for the next live.
+        // Saving a key switches it on in the API.
+        entry.on = true;
+        this.backToList();
+      },
+      error: () => {
+        this.saving = false;
+        this.saveError = 'The key could not be saved. Try again.';
+      },
+    });
+  }
+
+  close(): void {
+    this.ref.close();
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
+    this.gamepadNav.setBackAction(null);
+    this.gamepadNav.clearAuxButtonActions();
+  }
+
+  private openKeyboard(entry: PlatformEntry, field: StreamField, start: string): Promise<string> {
+    const control = new FormControl<string | null>(start);
+    const closed = this.dialog.open(TextKeyboardDialogComponent, {
       width: '560px',
       maxWidth: '95vw',
       maxHeight: '90vh',
@@ -152,43 +285,38 @@ export class StreamKeysDialog implements OnInit, OnDestroy {
         control,
         placeholder: field === 'streamKey'
           ? `${entry.label} stream key`
-          : `${entry.label} stream url (rtmp://...)`,
+          : `${entry.label} stream URL (rtmp://...)`,
         icon: field === 'streamKey' ? 'key' : 'link',
         symbols: true,
         doneLabel: 'Done',
       },
-    }).afterClosed().subscribe(() => {
-      sub.unsubscribe();
-      // The keyboard dialog clears the back action on destroy - take B back
-      // so it closes this dialog again now that the keyboard is gone.
-      this.claimBackButton();
-      // The keyboard dialog clears gamepad focus on open; put it back on the
-      // field we came from so the next stick move continues from here.
-      this.gamepadNav.requestFocus(input);
+    }).afterClosed();
+
+    return firstValueFrom(closed).then(() => {
+      // The keyboard clears B and the aux buttons when it closes - take them back.
+      this.claimButtons();
+      return control.value ?? '';
     });
   }
 
-  close(): void {
-    this.ref.close();
-  }
-
-  ngOnDestroy(): void {
-    this.gamepadNav.setBackAction(null);
-  }
-
-  private claimBackButton(): void {
+  private claimButtons(): void {
     this.gamepadNav.setBackAction(() => {
-      this.close();
+      if (this.adding) this.backToList(); else this.close();
       return true;
     });
+    this.gamepadNav.setAuxButtonActions({ x: () => this.changeFocusedKey() });
   }
 
-  private makeEntry(platform: StreamPlatform, label: string, showUrl: boolean, requiresUrl: boolean): PlatformFormState {
-    return {
-      platform, label, showUrl, requiresUrl,
-      streamKey: '', streamUrl: '',
-      initialStreamKey: '', initialStreamUrl: '',
-      saving: false, saved: false, error: false,
-    };
+  private makeEntry(platform: StreamPlatform, label: string, requiresUrl: boolean): PlatformEntry {
+    return { platform, label, requiresUrl, streamKey: '', streamUrl: '', on: true };
+  }
+}
+
+function isUrl(value: string): boolean {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
   }
 }

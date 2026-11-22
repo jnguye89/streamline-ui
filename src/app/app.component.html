@@ -1,7 +1,14 @@
 <div class="buttons header-container" data-gamepad-row="top" fxLayout="row" fxLayoutAlign="space-between center" style="width: 100%">
   <div class="side side--left">
-    <button gamepadFocusable class="icon-wrapper icon-btn" (click)="handleProfileClick()" aria-label="Profile">
-      <mat-icon class="transparent icon">person</mat-icon>
+    <button gamepadFocusable class="icon-wrapper icon-btn profile-btn" (click)="handleProfileClick()"
+      [attr.aria-label]="(me$ | async) ? 'Your profile' : 'Sign in'">
+      <ng-container *ngIf="me$ | async as me; else signedOut">
+        <app-user-avatar [userId]="me.id" [name]="me.name" [picture]="me.picture"></app-user-avatar>
+      </ng-container>
+      <ng-template #signedOut><mat-icon class="transparent icon">person</mat-icon></ng-template>
+    </button>
+    <button gamepadFocusable *ngIf="showLogout && (me$ | async)" type="button" class="logout-btn" (click)="logout()">
+      <span class="logout-btn__icon" aria-hidden="true"></span>Log out
     </button>
   </div>
   <div>

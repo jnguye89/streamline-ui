@@ -1,4 +1,7 @@
+@use "tv-camera";
 @import 'tokens';
+
+@include tv-camera.chrome;
 
 /* ── Root ── */
 .podcast-view {
@@ -81,7 +84,7 @@
 .user-picker {
   position: fixed;
   left: 50%;
-  bottom: 80px; // just above the toolbar
+  bottom: tv-camera.cam-px(400); // above the live bar
   transform: translateX(-50%);
   z-index: 20;
   width: min(340px, 92vw);
@@ -212,173 +215,6 @@
   }
 }
 
-/* ── Bottom toolbar ── */
-.toolbar {
-  position: fixed;
-  left: 50%;
-  bottom: max(16px, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  z-index: 10;
-
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-
-  padding: 0 16px;
-  height: 52px;
-  border-radius: 999px;
-  background: rgba(20, 20, 20, 0.72);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
-
-  white-space: nowrap;
-}
-
-.toolbar__sep {
-  width: 1px;
-  height: 20px;
-  background: rgba(255, 255, 255, 0.12);
-  margin: 0 6px;
-  flex-shrink: 0;
-}
-
-/* Status */
-.toolbar__status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.4);
-  user-select: none;
-
-  &.toolbar__status--live { color: #ff4444; }
-}
-
-/* Dot */
-.toolbar__dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-  display: inline-block;
-  flex-shrink: 0;
-
-  &.toolbar__dot--red { color: #ff4444; }
-}
-
-.toolbar__status--live .toolbar__dot {
-  animation: pulse 1.2s infinite ease-in-out;
-}
-
-/* Base button */
-.toolbar__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  color: rgba(255, 255, 255, 0.65);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  transition: background 120ms, color 120ms;
-
-  mat-icon {
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-    line-height: 18px;
-  }
-
-  &:hover:not(:disabled) {
-    background: rgba(255, 255, 255, 0.08);
-    color: #fff;
-  }
-
-  &:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
-
-  &.toolbar__btn--active {
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-  }
-}
-
-/* Person+ button: blue icon */
-.toolbar__btn--people {
-  mat-icon { color: #6b9fff; }
-}
-
-/* LIVE button */
-.toolbar__btn--live {
-  color: rgba(255, 255, 255, 0.3);
-  transition: background 150ms, color 150ms, box-shadow 150ms;
-
-  .toolbar__live-icon {
-    font-size: 14px;
-    width: 14px;
-    height: 14px;
-    line-height: 14px;
-    color: rgba(255, 255, 255, 0.25);
-  }
-
-  &:disabled {
-    opacity: 0.25;
-    cursor: default;
-  }
-
-  &.toolbar__btn--live-on {
-    background: #e0202080;
-    color: #fff;
-    border-radius: 999px;
-    box-shadow: 0 0 0 1px #ff4444, 0 0 12px rgba(255, 68, 68, 0.5);
-
-    .toolbar__live-icon {
-      color: #ff6b6b;
-      animation: pulse 1.2s infinite ease-in-out;
-    }
-  }
-}
-
-/* REC button */
-.toolbar__btn--rec {
-  color: #e07070;
-
-  &.toolbar__btn--rec-on {
-    color: #ff4444;
-
-    .toolbar__dot--red {
-      animation: pulse 1.2s infinite ease-in-out;
-    }
-  }
-}
-
-/* AI Magic */
-.toolbar__btn--ai {
-  background: linear-gradient(135deg, rgba(110, 70, 220, 0.18), rgba(60, 100, 220, 0.18));
-  color: #a887e8;
-  border: 1px solid rgba(120, 80, 220, 0.22);
-
-  &:hover:not(:disabled) {
-    background: linear-gradient(135deg, rgba(110, 70, 220, 0.32), rgba(60, 100, 220, 0.32));
-    color: #c4a8f5;
-  }
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50%       { transform: scale(1.6); opacity: 0.4; }
-}
-
-/* ── Snackbar override ── */
 .snack-error {
   background: white !important;
   color: #d32f2f !important;

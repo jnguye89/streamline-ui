@@ -21,11 +21,27 @@ import { StreamKeysDialog } from "../dialogs/stream-keys.dialog";
 import { YoutubeChannelsDialog } from "../dialogs/youtube-channels.dialog";
 import { SafeUrlPipe } from "../../pipes/safe-url.pipe";
 import { CompactCountPipe } from "../../pipes/compact-count.pipe";
+import { RouterLink } from "@angular/router";
+import { UserService } from "../../services/user.service";
+import { AccountDialog } from "./account.dialog";
+import { VideoOptionsDialog } from "./video-options.dialog";
+import { UserAvatarComponent } from "../user-avatar/user-avatar.component";
+
+// Who can watch a video. The API does not send this yet; when it does,
+// each card gets its top-left chip from VISIBILITY_BADGES.
+type Visibility = 'private' | 'free' | 'free_ads' | 'subscribers' | 'rent_buy';
+const VISIBILITY_BADGES: Record<Visibility, { icon: string; label: string; light?: boolean }> = {
+  private: { icon: 'lock', label: 'Private', light: true },
+  free: { icon: 'globe', label: 'Free' },
+  free_ads: { icon: 'ads', label: 'Free · ads' },
+  subscribers: { icon: 'star', label: 'Subscribers' },
+  rent_buy: { icon: 'tag', label: 'Rent or buy' },
+};
 
 @Component({
   selector: "app-profile",
   standalone: true,
-  imports: [MatIconModule, MatTooltipModule, MatButtonModule, FlexLayoutModule, CommonModule, GamepadFocusableDirective, SafeUrlPipe, CompactCountPipe],
+  imports: [MatIconModule, MatTooltipModule, MatButtonModule, FlexLayoutModule, CommonModule, RouterLink, UserAvatarComponent, GamepadFocusableDirective, SafeUrlPipe, CompactCountPipe],
   providers: [VideoService],
   templateUrl: "./profile.component.html",
   styleUrl: "./profile.component.scss",
@@ -44,6 +60,28 @@ export class ProfileComponent implements OnInit, OnDestroy {
   // Only true on an actual Skriin kiosk device - see WifiStatusService for
   // why a plain browser visitor never gets a truthy result here.
   wifiAvailable = false;
+  // Number of simulcast destinations with a stream key saved.
+  simulcastCount = 0;
+  // Video id -> "m:ss" / "h:mm:ss", filled in as each card's metadata loads.
+  durations: Record<number, string> = {};
+
+  // Viewer view: the profile owner's name, from the API.
+  ownerName = '';
+  // Viewer view: the owner's photo (Auth0, mirrored by the API).
+  ownerPicture: string | null = null;
+
+  // Viewers never see private videos.
+  get shownVideos(): any[] {
+    return this.isOwnProfile ? this.videos : this.videos.filter(v => v.visibility !== 'private');
+  }
+
+  get subscriberVideoCount(): number {
+    return this.videos.filter(v => v.visibility === 'subscribers').length;
+  }
+
+  get freeVideoCount(): number {
+    return this.videos.filter(v => v.visibility === 'free' || v.visibility === 'free_ads').length;
+  }
 
   get isOwnProfile() {
     return !this.userId || this.userId === this.currentUserSub;
@@ -56,6 +94,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
     private router: Router,
     private store: PlayerStateService,
     private dialog: MatDialog,
+    private userService: UserService,
     private readonly gamepadNavigation: GamepadNavigationService
   ) { }
 
@@ -63,14 +102,30 @@ export class ProfileComponent implements OnInit, OnDestroy {
     this.userId = this.route.snapshot.paramMap.get("id");
     this.showPreviousButton = !!this.store.snapshot;
 
-    // Delete has no separate focus stop of its own - see deleteFocusedVideo()
-    // and the plan notes on why a second per-tile focusable target for the
-    // small, corner-overlapping delete icon would be spatially unreliable.
-    this.gamepadNavigation.setAuxButtonActions({ y: () => this.deleteFocusedVideo() });
-
+    // Y plays the focused video (the key line says "Y Play"). Hold-Y to
+    // delete needs hold support in GamepadNavigationService; until then
+    // delete is the trash button on the card.
     this.deviceAuth.user$.pipe(first()).subscribe(user => {
       this.currentUserSub = user?.sub ?? null;
+      if (user && this.isOwnProfile) this.loadSimulcastCount();
     });
+
+    if (this.isOwnProfile) {
+      this.bindOwnerButtons();
+    } else {
+      // Viewer key line: X Like, B Back to the video.
+      this.gamepadNavigation.setAuxButtonActions({ x: () => this.likeFocusedVideo() });
+      if (this.showPreviousButton) {
+        this.gamepadNavigation.setBackAction(() => { this.goToWatch(); return true; });
+      }
+      this.userService.getAuth0User(this.userId!).pipe(first()).subscribe({
+        next: u => {
+          this.ownerName = u?.username ?? '';
+          this.ownerPicture = u?.picture ?? null;
+        },
+        error: () => this.ownerName = '',
+      });
+    }
 
     if (!!this.userId) {
       this.videoService
@@ -101,6 +156,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.gamepadNavigation.clearAuxButtonActions();
+    if (!this.isOwnProfile && this.showPreviousButton) this.gamepadNavigation.setBackAction(null);
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -112,11 +168,95 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 
   openStreamKeys(): void {
-    this.dialog.open(StreamKeysDialog, { panelClass: 'spotlight-panel', autoFocus: false });
+    this.dialog.open(StreamKeysDialog, { panelClass: 'spotlight-panel', autoFocus: false })
+      .afterClosed().pipe(first()).subscribe(() => {
+        // The dialog took the controller buttons; take them back, and show
+        // any keys or on/off changes on the Simulcast tile.
+        this.bindOwnerButtons();
+        this.loadSimulcastCount();
+      });
+  }
+
+  private bindOwnerButtons(): void {
+    this.gamepadNavigation.setAuxButtonActions({ y: () => this.playFocusedVideo() });
   }
 
   openYoutubeChannels(): void {
     this.dialog.open(YoutubeChannelsDialog, { panelClass: 'spotlight-panel', autoFocus: false });
+  }
+
+  // Account (YouTube Channels, help, Log Out) - behind "+ Menu".
+  openAccount(): void {
+    this.deviceAuth.user$.pipe(first()).subscribe(user => {
+      this.dialog.open(AccountDialog, {
+        panelClass: 'spotlight-panel',
+        autoFocus: false,
+        data: { name: user?.['nickname'] ?? user?.name ?? user?.email ?? 'Your account' },
+      }).afterClosed().pipe(first()).subscribe(choice => {
+        if (choice === 'youtube') this.openYoutubeChannels();
+        if (choice === 'logout') this.logout();
+      });
+    });
+  }
+
+  icon(name: string): string {
+    return `url(/assets/icons/tv/${name}.svg)`;
+  }
+
+  badgeFor(video: any) {
+    const badge = VISIBILITY_BADGES[video?.visibility as Visibility] ?? null;
+    // A viewer sees Subscribers videos as locked (handoff mockup 30).
+    if (badge && video.visibility === 'subscribers' && !this.isOwnProfile) return { ...badge, icon: 'lock' };
+    return badge;
+  }
+
+  // What A does on the focused card, for the viewer key line.
+  viewerAction(video: any): string {
+    if (video?.visibility === 'subscribers') return 'Subscribe to watch';
+    if (video?.visibility === 'rent_buy') return 'Rent or buy';
+    return 'Play';
+  }
+
+  likeFocusedVideo(): void {
+    const video = this.focusedVideo;
+    if (!video || video.liked || !this.deviceAuth.getAccessToken()) return;
+    this.videoService.addLike(video.id).pipe(first()).subscribe(() => {
+      video.liked = true;
+      video.likeCount = (video.likeCount ?? 0) + 1;
+    });
+  }
+
+  openOptions(video: any): void {
+    this.focusedVideo = video;
+    this.dialog.open(VideoOptionsDialog, {
+      panelClass: 'spotlight-panel',
+      autoFocus: false,
+      data: { videoId: video.id, ownerName: this.ownerName || 'this creator', duration: this.durations[video.id] ?? null },
+    });
+  }
+
+  onMetadata(video: any, event: Event): void {
+    const secs = Math.round((event.target as HTMLVideoElement).duration);
+    if (!isFinite(secs) || secs <= 0) return;
+    const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    this.durations[video.id] = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+  }
+
+  private loadSimulcastCount(): void {
+    this.userService.getStreamKeys().pipe(first()).subscribe({
+      // Destinations with a key that are switched on for the next live.
+      next: keys => this.simulcastCount = (keys ?? [])
+        .filter(k => !!k.streamKey && k.enabled !== false).length,
+      error: () => this.simulcastCount = 0,
+    });
+  }
+
+  private playFocusedVideo(): void {
+    const el = document.activeElement as HTMLElement | null;
+    const video = el?.classList.contains('card') ? el.querySelector<HTMLVideoElement>('video.video-player') : null;
+    if (!video) return;
+    if (video.paused) { void video.play(); } else { video.pause(); }
   }
 
   logout(): void {
@@ -172,16 +312,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
         this.videos = this.videos.filter((v) => v.id !== video.id);
       });
     });
-  }
-
-  // Y aux-button target: deletes whichever tile currently has
-  // gamepad/keyboard focus, same guard the delete button's own *ngIf
-  // applies in the template (own profile, logged in), then reuses the
-  // existing confirm-dialog delete flow unchanged.
-  private deleteFocusedVideo(): void {
-    if (!this.isOwnProfile || !this.deviceAuth.getAccessToken()) return;
-    if (!this.focusedVideo) return;
-    this.deleteVideo(this.focusedVideo);
   }
 
   // A/Enter activation target (GamepadNavigationService.activateCurrent()

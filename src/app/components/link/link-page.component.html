@@ -1,0 +1,93 @@
+<main class="link" [class.link--done]="step.kind === 'done'">
+  <!-- Signed out: sign in with the same account as the TV -->
+  <ng-container *ngIf="step.kind === 'signIn'">
+    <section class="link-col">
+      <h1>Sign in to link your TV</h1>
+      <p class="link-body">
+        Use the same account as your TV. The key is saved to that account and goes straight to the TV.
+      </p>
+    </section>
+    <section class="link-col link-col--act">
+      <ng-container *ngIf="signIn as s; else startingSignIn">
+        <a class="link-btn" [href]="s.verificationUriComplete" target="_blank" rel="noopener">Sign in</a>
+        <p class="link-small">
+          Opens a new tab with code <b>{{ s.userCode }}</b>. Come back here when you’ve signed in; this page
+          carries on by itself.
+        </p>
+      </ng-container>
+      <ng-template #startingSignIn>
+        <p class="link-small" *ngIf="!signInError">Getting ready…</p>
+      </ng-template>
+      <p class="link-error" *ngIf="signInError" role="alert">{{ signInError }}</p>
+      <button type="button" class="link-btn link-btn--quiet" *ngIf="signInError" (click)="retrySignIn()">Try again</button>
+    </section>
+  </ng-container>
+
+  <!-- Type the code the TV shows -->
+  <ng-container *ngIf="step.kind === 'enterCode' || step.kind === 'checking'">
+    <section class="link-col">
+      <h1>Link to your TV</h1>
+      <p class="link-body">Type the code your TV shows next to skriin.com/link.</p>
+      <p class="link-small" *ngIf="signedInAs">Signed in as {{ signedInAs }}</p>
+    </section>
+    <section class="link-col link-col--act">
+      <label class="link-code">
+        <span class="sr-only">TV code</span>
+        <input #codeInput type="text" inputmode="text" autocapitalize="characters" autocomplete="one-time-code"
+          spellcheck="false" maxlength="8" [ngModel]="typedCode" (ngModelChange)="onCodeInput($event)"
+          [disabled]="step.kind === 'checking'" (keydown.enter)="check()" />
+        <span class="link-code__boxes" aria-hidden="true">
+          <span *ngFor="let c of codeBoxes; let i = index" class="link-code__box"
+            [class.link-code__box--next]="i === typedCode.length">{{ c }}</span>
+        </span>
+      </label>
+      <p class="link-error" *ngIf="error" role="alert">{{ error }}</p>
+      <button type="button" class="link-btn" [disabled]="step.kind === 'checking' || typedCode.length !== 4"
+        (click)="check()">{{ step.kind === 'checking' ? 'Checking…' : 'Continue' }}</button>
+    </section>
+  </ng-container>
+
+  <!-- Paste the key -->
+  <ng-container *ngIf="step.kind === 'key' || step.kind === 'sending'">
+    <section class="link-col">
+      <span class="link-chip">For your TV · {{ step.link.code }}</span>
+      <h1>Add your {{ name }} key</h1>
+      <p class="link-body">
+        Copy your stream {{ step.link.requiresUrl ? 'URL and key' : 'key' }} from {{ keyPage?.where }}.
+      </p>
+      <a class="link-ext" [href]="keyPage?.url" target="_blank" rel="noopener">Open {{ name }} ↗</a>
+    </section>
+    <section class="link-col link-col--act">
+      <div class="link-field" *ngIf="step.link.requiresUrl">
+        <input type="url" placeholder="Stream URL (rtmps://…)" aria-label="Stream URL" autocomplete="off"
+          autocapitalize="off" spellcheck="false" [(ngModel)]="streamUrl" [disabled]="step.kind === 'sending'" />
+        <button type="button" (click)="paste('streamUrl')">Paste</button>
+      </div>
+      <div class="link-field">
+        <input type="text" placeholder="Stream key" aria-label="Stream key" autocomplete="off"
+          autocapitalize="off" spellcheck="false" [(ngModel)]="streamKey" [disabled]="step.kind === 'sending'"
+          (keydown.enter)="send()" />
+        <button type="button" (click)="paste('streamKey')">Paste</button>
+      </div>
+      <p class="link-error" *ngIf="error" role="alert">{{ error }}</p>
+      <button type="button" class="link-btn" [disabled]="step.kind === 'sending'" (click)="send()">
+        {{ step.kind === 'sending' ? 'Sending…' : 'Send to TV' }}
+      </button>
+    </section>
+  </ng-container>
+
+  <!-- Done -->
+  <ng-container *ngIf="step.kind === 'done'">
+    <section class="link-col link-col--center">
+      <span class="link-tick" aria-hidden="true">✓</span>
+    </section>
+    <section class="link-col link-col--act">
+      <h1>Sent to your TV</h1>
+      <p class="link-body">{{ name }} is on for your next live. Switch it off any time on the TV under Simulcast.</p>
+    </section>
+  </ng-container>
+
+  <p class="link-app">
+    Have an iPhone? <a [href]="appStoreUrl" target="_blank" rel="noopener">Get the skriin app</a>
+  </p>
+</main>

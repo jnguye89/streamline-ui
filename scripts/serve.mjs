@@ -71,6 +71,7 @@ const APPLE_APP_SITE_ASSOCIATION = JSON.stringify({
         components: [
           { '/': '/watch/*', comment: 'One video' },
           { '/': '/watch', comment: 'The watch feed (live streams link here)' },
+          { '/': '/link', comment: 'Send a simulcast stream key to the TV (the TV shows a QR for this)' },
         ],
       },
     ],

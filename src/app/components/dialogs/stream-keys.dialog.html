@@ -1,38 +1,62 @@
-<div class="stream-keys-dialog">
-  <div class="dialog-header">
-    <button gamepadFocusable mat-icon-button (click)="close()" aria-label="Close">
-      <mat-icon>arrow_back</mat-icon>
+<!-- List (handoff 27_simulcast) -->
+<div class="sim" *ngIf="!adding">
+  <h2 class="sim-title">Simulcast</h2>
+  <p class="sim-sub">Your live goes out on skriin and on these at the same moment.</p>
+
+  <p class="sim-loading" *ngIf="loading">Loading your keys…</p>
+
+  <ng-container *ngIf="!loading">
+    <button *ngFor="let entry of platforms" gamepadFocusable type="button" class="sim-row"
+      [attr.data-platform]="entry.platform"
+      [attr.aria-pressed]="hasKey(entry) ? entry.on : null"
+      (focus)="focused = entry" (click)="activate(entry)">
+      <span class="sim-row__text">
+        <span class="sim-row__name">{{ entry.label }}</span>
+        <span class="sim-row__status">{{ status(entry) }}</span>
+      </span>
+
+      <span *ngIf="hasKey(entry)" class="sim-switch" [class.sim-switch--on]="entry.on" aria-hidden="true">
+        <span class="sim-switch__knob"></span>
+      </span>
+      <span *ngIf="!hasKey(entry)" class="sim-add" aria-hidden="true">
+        <span class="sim-ic" style="--ic: url(/assets/icons/tv/plus.svg)"></span>Add key
+      </span>
     </button>
-    <h2>streaming</h2>
+  </ng-container>
+
+  <p class="sim-error" *ngIf="listError" role="alert">{{ listError }}</p>
+
+  <div class="sim-keys">
+    <span class="sim-key"><span class="sim-cap">A</span>On or off, or add a key</span>
+    <span class="sim-key"><span class="sim-cap">X</span>Change the key</span>
+    <button type="button" class="sim-key sim-key--btn" (click)="close()"><span class="sim-cap">B</span>Close</button>
+  </div>
+</div>
+
+<!-- Add key (handoff 28_stream_key) -->
+<div class="sim sim--add" *ngIf="adding as entry">
+  <div class="sim-qr">
+    <bon-qr *ngIf="phoneCode; else qrWaiting" [text]="linkUrl" [size]="340"></bon-qr>
+    <ng-template #qrWaiting><span class="sim-qr__wait" aria-hidden="true"></span></ng-template>
   </div>
 
-  <div class="loading-state" *ngIf="loading">Loading your streaming settings...</div>
+  <div class="sim-add-body">
+    <h2 class="sim-title">{{ hasKey(entry) ? 'Change' : 'Add' }} your {{ entry.label }} key</h2>
+    <p class="sim-sub">
+      Scan this with your phone and paste your {{ entry.label }} stream
+      {{ entry.requiresUrl ? 'URL and key' : 'key' }} there. The TV picks it up by itself.
+    </p>
 
-  <div class="platform-grid" *ngIf="!loading">
-    <div class="platform-card" *ngFor="let entry of platforms">
-      <div class="platform-header">
-        <span class="platform-name">{{ entry.label }}</span>
-        <span class="platform-status saved" *ngIf="entry.saved">saved</span>
-        <span class="platform-status error" *ngIf="entry.error">save failed</span>
-      </div>
+    <p class="sim-code"><span>skriin.com/link</span><b>{{ phoneCode || '····' }}</b></p>
+    <p class="sim-wait">{{ saving ? 'Saving…' : phoneCode ? 'Waiting for your phone…' : codeError ? '' : 'Getting a code…' }}</p>
+    <p class="sim-error" *ngIf="codeError" role="alert">{{ codeError }}</p>
+    <p class="sim-error" *ngIf="saveError" role="alert">{{ saveError }}</p>
 
-      <ng-container *ngIf="entry.showUrl">
-        <label class="field-label">stream url{{ entry.requiresUrl ? '' : ' (optional)' }}</label>
-        <input gamepadFocusable class="field-input" [class.invalid]="isUrlDirty(entry) && urlError(entry)" type="text"
-          [(ngModel)]="entry.streamUrl" placeholder="rtmp://..." autocomplete="off"
-          (click)="onFieldClick($event, entry, 'streamUrl')" />
-        <span class="field-error" *ngIf="isUrlDirty(entry) && urlError(entry) as err">{{ err }}</span>
-      </ng-container>
-
-      <label class="field-label">stream key</label>
-      <input gamepadFocusable class="field-input" type="password" [(ngModel)]="entry.streamKey"
-        placeholder="paste your stream key" autocomplete="off"
-        (click)="onFieldClick($event, entry, 'streamKey')" />
-
-      <button gamepadFocusable mat-flat-button color="primary" class="save-btn"
-        [disabled]="!canSave(entry)" (click)="save(entry)">
-        {{ entry.saving ? 'saving...' : 'save' }}
-      </button>
-    </div>
+    <button gamepadFocusable type="button" class="sim-row sim-row--action" [disabled]="saving" (click)="typeOnTv()">
+      <span class="sim-row__text">
+        <span class="sim-row__name">Type it on the TV instead</span>
+        <span class="sim-row__status">Opens the TV keyboard</span>
+      </span>
+    </button>
   </div>
 </div>
