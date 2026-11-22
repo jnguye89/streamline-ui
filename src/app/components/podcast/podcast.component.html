@@ -51,48 +51,90 @@
     </div>
   </div>
 
-  <!-- ── Bottom toolbar ── -->
-  <div class="toolbar">
+  <!-- ── TV camera chrome (handoff 21_podcast_setup) ── -->
+  <div class="cam-scrim"></div>
 
-    <span class="toolbar__status" [class.toolbar__status--live]="isRecording || isLive">
-      <i class="toolbar__dot"></i>
-      LIVE
-    </span>
+  <span class="cam-chip cam-chip--left">
+    <span class="cam-ic" [style.--ic]="icon('mic')"></span>Podcast
+  </span>
+  <span class="cam-chip cam-chip--right">
+    <span class="cam-ic" [style.--ic]="icon('lock')"></span>Private by default
+  </span>
 
-    <div class="toolbar__sep"></div>
+  <div class="cam-dock">
+    <div class="cam-box" *ngIf="!isRecording && !showUserPicker">
+      <div class="cam-note cam-note--plain">
+        <span class="cam-ic" [style.--ic]="icon('lock')"></span>
+        <span><b>Private by default.</b> Records you. You can invite people once you are recording.
+          Saved to your profile as Private; you choose who can watch after.</span>
+      </div>
+    </div>
 
-    <button gamepadFocusable class="toolbar__btn toolbar__btn--people" [class.toolbar__btn--active]="showUserPicker"
-            (click)="toggleUserPicker()" title="People">
-      <mat-icon>person_add</mat-icon>
-    </button>
+    <div class="cam-bar">
+      <!-- The podcast camera is the webcam only; Screen needs the Live page's inputs. -->
+      <div class="cam-group">
+        <span class="cam-seg cam-seg--on">Webcam</span>
+      </div>
 
-    <div class="toolbar__sep"></div>
+      <span class="cam-sep"></span>
 
-    <button gamepadFocusable class="toolbar__btn toolbar__btn--rec"
-            [class.toolbar__btn--rec-on]="isRecording"
-            (click)="isRecording ? stopRecording() : startRecording()"
-            title="Record">
-      <i class="toolbar__dot toolbar__dot--red"></i>
-      REC
-    </button>
+      <div class="cam-group cam-audio" [class.cam-audio--muted]="micMuted">
+        <span class="cam-ic" [style.--ic]="icon('mic')"></span>Mic
+        <button gamepadFocusable class="cam-kbd" type="button"
+          [attr.aria-pressed]="!micMuted"
+          [attr.aria-label]="(micMuted ? 'Unmute microphone' : 'Mute microphone') + ' (or press LB)'"
+          (click)="toggleMic()">LB</button>
+      </div>
 
-    <div class="toolbar__sep"></div>
+      <span class="cam-sep"></span>
 
-    <button gamepadFocusable class="toolbar__btn toolbar__btn--live"
-            [class.toolbar__btn--live-on]="isLive"
-            [disabled]="!isRecording"
-            (click)="toggleLive()"
-            title="Go live">
-      <mat-icon class="toolbar__live-icon">fiber_manual_record</mat-icon>
-      GO LIVE
-    </button>
+      <span class="cam-private cam-private--on">
+        <span class="cam-ic" [style.--ic]="icon('lock')"></span>Private<span class="cam-onoff">On</span>
+      </span>
 
-    <div class="toolbar__sep"></div>
+      <!-- Simulcast is for lives, so the circles are greyed out here. -->
+      <span class="cam-circle cam-circle--dim" aria-hidden="true">s</span>
+      <span class="cam-circle cam-circle--dim" aria-hidden="true">T</span>
+      <span class="cam-circle cam-circle--dim" aria-hidden="true">K</span>
+      <span class="cam-circle cam-circle--dim" aria-hidden="true">Y</span>
+    </div>
 
-    <button gamepadFocusable class="toolbar__btn toolbar__btn--ai" title="AI Magic" [disabled]="true">
-      ✦ AI Magic
-    </button>
+    <div class="cam-actions">
+      <!-- Not recording: Go live takes you to the Live page.
+           Recording: it also streams the recording live (as before). -->
+      <button gamepadFocusable type="button" class="cam-action cam-action--live"
+        (click)="isRecording ? toggleLive() : goTo('/stream')">
+        <span class="cam-ic" [style.--ic]="icon('go_live')"></span>
+        <span class="cam-action__text">
+          <span class="cam-action__title">{{ isLive ? 'End live' : 'Go live' }}</span>
+          <span class="cam-action__sub">{{ isLive ? 'Recording stays on' : 'Public by default' }}</span>
+        </span>
+      </button>
 
+      <button gamepadFocusable type="button" class="cam-action cam-action--here"
+        (click)="isRecording ? stopRecording() : startRecording()">
+        <span class="cam-ic" [style.--ic]="icon('mic')"></span>
+        <span class="cam-action__text">
+          <span class="cam-action__title">{{ isRecording ? 'Stop recording' : 'Podcast' }}</span>
+          <span class="cam-action__sub">{{ isRecording ? 'Recording…' : 'Record · private by default' }}</span>
+        </span>
+      </button>
+
+      <button gamepadFocusable type="button" class="cam-action" (click)="toggleUserPicker()">
+        <span class="cam-ic" [style.--ic]="icon('call')"></span>
+        <span class="cam-action__text">
+          <span class="cam-action__title">Call</span>
+          <span class="cam-action__sub">Private · not saved</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <div class="cam-keyline">
+    <span class="cam-key"><span class="cam-cap">◀</span><span class="cam-cap">▲</span><span class="cam-cap">▼</span><span class="cam-cap">▶</span>Move</span>
+    <span class="cam-key"><span class="cam-cap">A</span>Choose</span>
+    <span class="cam-key"><span class="cam-cap cam-cap--sq">LB</span>Mic</span>
+    <span class="cam-key"><span class="cam-cap">B</span>Back to your profile</span>
   </div>
 
 </div>

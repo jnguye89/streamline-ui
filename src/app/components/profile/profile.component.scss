@@ -1,178 +1,334 @@
 @import "tokens";
 
-.main-container {
-  padding-top: var(--app-bar-height);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  color: var(--c-on-surface);
+// Sizes come from the handoff (measures/R1_profile.png), drawn at 1920 x 1080.
+// px(n) turns a 1920-wide px value into vw so the page keeps its proportions
+// on any screen width.
+@function px($n) {
+  @return calc(#{$n} / 1920 * 100vw);
 }
 
-.video-item {
-  position: relative;
-  cursor: pointer; // clicking tile background (or A/Enter) toggles playback - see onTileClick
+:host {
+  display: block;
+  background: #000;
+  min-height: 100vh;
+}
 
-  .delete-btn {
-    position: absolute;
-    top: 28px;
-    right: 28px;
+.tv-profile {
+  --gutter: #{px(60)};
+  --gap: #{px(24)};
+  --keyline-h: max(48px, #{px(60)});
+  padding: calc(var(--app-bar-height) + #{px(12)}) var(--gutter) calc(var(--keyline-h) + var(--gap));
+  color: #fff;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+// Icons from the handoff: 24px grid, colour = currentColor (drawn as a mask).
+.ic {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  -webkit-mask: var(--ic) center / contain no-repeat;
+  mask: var(--ic) center / contain no-repeat;
+}
+
+.back-row {
+  margin-bottom: var(--gap);
+}
+
+// ---- The five tiles: 305 · 305 · 305 · 410 · 380, 120 tall ----
+.tiles {
+  display: grid;
+  grid-template-columns: 305fr 305fr 305fr 410fr 380fr;
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+
+// Viewer: four tiles lined up with the four card columns.
+.tiles--viewer {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+// The owner's photo or initial (app-user-avatar draws it, like the mobile app).
+.avatar {
+  flex: none;
+  --avatar-size: max(40px, #{px(52)});
+}
+
+.tile {
+  display: flex;
+  align-items: center;
+  gap: px(16);
+  height: max(88px, #{px(120)});
+  padding: 0 px(18);
+  box-sizing: border-box;
+  min-width: 0;
+  background: #19191c;
+  border: 0;
+  border-radius: max(12px, #{px(18)});
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: #222226;
+  }
+
+  // !important: the app-wide .gamepad-focused rule (styles.scss) forces a
+  // faint 2px ring with !important; the handoff wants a solid white one.
+  &:focus-visible,
+  &.gamepad-focused {
+    box-shadow: 0 0 0 4px #fff !important;
+  }
+
+  &--static {
+    cursor: default;
+  }
+}
+
+.tile-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: max(36px, #{px(48)});
+  height: max(36px, #{px(48)});
+  border-radius: 50%;
+  background: #2a2a2e;
+  font-size: max(18px, #{px(26)});
+}
+
+.tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: px(4);
+  min-width: 0;
+}
+
+.tile-title {
+  display: flex;
+  align-items: center;
+  gap: px(10);
+  font-size: max(17px, #{px(27)});
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tile-sub {
+  font-size: max(12px, #{px(19)});
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.68);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill {
+  padding: px(3) px(10);
+  border-radius: 999px;
+  background: #2f2f33;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: max(11px, #{px(16)});
+  font-weight: 600;
+
+  &--on {
+    background: #4f3ff0;
     color: #fff;
-    background: rgba(0, 0, 0, 0.55);
-    opacity: 0;
-    transition: opacity 0.2s ease;
-    // Slightly smaller than Material's default icon-button (~40px/24px icon).
-    // mat-icon-button centers its icon using Material's own fixed internal
-    // padding (8px), sized for the default 40px box - overriding
-    // width/height directly (or resizing .mat-icon itself) throws that
-    // centering off (confirmed - the icon rendered squashed into a corner,
-    // and before that, hidden entirely). A uniform transform: scale()
-    // sidesteps this: it shrinks the whole already-correctly-centered
-    // button in place around its own center, so the icon and the Y badge
-    // both stay perfectly centered/positioned, just smaller.
-    transform: scale(0.8);
+  }
+}
 
-    // The Y badge lives inside .delete-btn so it inherits the same
-    // opacity/hover/focus reveal below for free - no separate rule needed.
-    // Sized down slightly along with the button above to keep proportions.
-    .key-badge {
-      position: absolute;
-      // Kept fully inside the button's own box (not a negative offset
-      // hanging off the corner) since mat-icon-button can clip overflow
-      // for its ripple/touch-target - a badge poking outside the bounds
-      // risks getting silently clipped depending on the Material version.
-      bottom: 0;
-      right: 0;
-      min-width: 14px;
-      height: 14px;
-      padding: 0 2px;
-      border-radius: 9999px;
-      background: #fff;
-      color: #000;
-      font-size: 9px;
-      font-weight: 800;
-      line-height: 14px;
-      text-align: center;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-      z-index: 1;
-    }
+// ---- The videos: 4 across, 432 x 243 cards ----
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--gap);
+}
+
+.card {
+  position: relative;
+  aspect-ratio: 432 / 243;
+  overflow: hidden;
+  border-radius: max(10px, #{px(16)});
+  background: #19191c;
+  cursor: pointer; // clicking the card (or A/Enter) toggles playback - see onTileClick
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus-visible,
+  &.gamepad-focused {
+    outline: none;
+    transform: scale(1.04);
+    box-shadow: 0 0 0 4px #fff !important; // beats the app-wide .gamepad-focused ring
+    z-index: 1;
   }
 
-  &:hover .delete-btn {
-    opacity: 1;
-  }
-
-  // Keyboard/gamepad equivalent of :hover above - :hover never fires for
-  // D-pad/arrow-key navigation, so the delete icon (Y badge included, since
-  // it's a child of .delete-btn) needs its own reveal tied to the tile
-  // actually having gamepad focus.
+  &:hover .delete-btn,
+  &:focus-visible .delete-btn,
   &.gamepad-focused .delete-btn {
     opacity: 1;
   }
 }
 
-.video-stat {
+.card-media {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: #fff;
-  pointer-events: none;
-
-  .mat-icon {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-    line-height: 20px;
-  }
-
-  .count {
-    font-size: 13px;
-    font-weight: 600;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, .6);
-  }
-
-  &.views {
-    left: 36px;
-  }
-
-  &.likes {
-    right: 36px;
-  }
-}
-
-.processed-badge {
-  position: absolute;
-  // Top-left corner - the opposite corner from .delete-btn (top-right) -
-  // so the two never overlap regardless of the delete button's size/scale.
-  top: 28px;
-  left: 28px;
-  font-size: 18px;
-  width: 18px;
-  height: 18px;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.55);
-  border-radius: 50%;
-  padding: 4px;
-  pointer-events: none;
-}
-
-.video-player {
-  padding-top: var(--app-bar-height);
-  max-width: 30vw;
-  max-height: 70vh;
-  padding: 20px;
-}
-
-/* <video> sizes itself from its intrinsic dimensions; <iframe> has none, so
-   the YouTube embed needs an explicit box to fill within the same padding. */
-.youtube-frame {
-  box-sizing: content-box;
-  width: min(30vw, 480px);
-  aspect-ratio: 16 / 9;
-  border: 0;
-}
-
-.upload-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.75); // semi-transparent black
+  object-fit: cover;
+  border: 0;
+  pointer-events: none;
+}
+
+.chip {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: px(7);
+  padding: px(6) px(10);
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.78);
+  color: #fff;
+  font-size: max(12px, #{px(21)});
+  font-weight: 600;
+  line-height: 1;
+  pointer-events: none;
+
+  .ic {
+    font-size: 0.85em;
+  }
+
+  &--top {
+    top: px(10);
+    left: px(10);
+    padding: px(9) px(14) px(9) px(12);
+  }
+
+  &--light {
+    background: #fff;
+    color: #111;
+  }
+
+  &--views {
+    bottom: px(10);
+    left: px(10);
+  }
+
+  &--time {
+    bottom: px(10);
+    right: px(10);
+  }
+}
+
+.more-btn {
+  position: absolute;
+  top: px(10);
+  right: px(10);
+  display: grid;
+  place-items: center;
+  width: max(30px, #{px(46)});
+  height: max(30px, #{px(38)});
+  padding: 0 0 px(6);
+  border: 0;
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.78);
+  color: #fff;
+  font-size: max(16px, #{px(24)});
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.delete-btn {
+  position: absolute;
+  top: px(10);
+  right: px(10);
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease;
+}
+
+// ---- Key line: 1920 x 60, pinned to the bottom ----
+.keyline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: px(26);
+  height: var(--keyline-h);
+  padding: 0 var(--gutter);
+  background: #121214;
+  font-size: max(13px, #{px(21)});
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: px(10);
+  color: rgba(255, 255, 255, 0.9);
+
+  &--btn {
+    padding: 0;
+    background: none;
+    border: 0;
+    font: inherit;
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      color: #fff;
+      text-decoration: underline;
+    }
+  }
+}
+
+.cap {
+  display: inline-grid;
+  place-items: center;
+  min-width: max(22px, #{px(32)});
+  height: max(22px, #{px(32)});
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  font-size: 0.68em;
+  font-weight: 700;
+
+  &--sq {
+    padding: 0 px(4);
+    border-radius: px(7);
+  }
+}
+
+.dots {
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.keyline-sep {
+  width: 1px;
+  height: 45%;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+// ---- Kept from before ----
+.upload-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
   color: #fff;
-}
-
-.watch-container {
-  background: rgba(0, 0, 0, 0);
-}
-
-.watch-icon {
-  color: white;
-  width: clamp(44px, 6.5vh, 64px);
-  height: clamp(44px, 6.5vh, 64px);
-  border-radius: 9999px;
-
-  &:hover {
-    cursor: pointer;
-  background: rgba(255, 255, 255, 0.5)
-  }
-
-  /* Clean, minimal look */
-  background: rgba(0, 0, 0, 0);
-  border: none;
-
-  /* Only hide the default Material focus ring; keep the gamepad focus highlight */
-  &:not(.gamepad-focused) {
-    outline: none !important;
-    box-shadow: none !important;
-  }
 }
 
 .upload-overlay-content {
@@ -182,6 +338,8 @@
 
 .upload-icon {
   font-size: 64px;
+  width: 64px;
+  height: 64px;
   color: #fff;
   animation: pulse 1.2s infinite;
 }
@@ -192,29 +350,31 @@
   font-weight: bold;
 }
 
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 0.7;
+.watch-icon {
+  color: white;
+  width: clamp(44px, 6.5vh, 64px);
+  height: clamp(44px, 6.5vh, 64px);
+  border-radius: 9999px;
+  background: transparent;
+  border: none;
+
+  &:hover {
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.5);
   }
 
-  50% {
-    transform: scale(1.1);
-    opacity: 1;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 0.7;
+  &:not(.gamepad-focused) {
+    outline: none !important;
+    box-shadow: none !important;
   }
 }
 
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+}
 
-  to {
-    opacity: 1;
-  }
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }

@@ -1,108 +1,237 @@
-@import "tokens";
+// Simulcast dialog (handoff mockups 27_simulcast, 28_stream_key), drawn at
+// 1920 x 1080: the list is 1040 wide, the Add key view 1180.
 
-.stream-keys-dialog {
-  background: var(--c-bg);
-  color: var(--c-on-surface);
-  padding: 1rem 1.5rem 1.5rem;
-  min-width: min(90vw, 760px);
-  max-width: 90vw;
+.sim {
+  box-sizing: border-box;
+  width: min(1040px, 92vw);
+  padding: 32px 36px 26px;
+  border: 2px solid #2e2e33;
+  border-radius: 28px;
+  background: #19191c;
+  color: #fff;
+  font-family: Inter, system-ui, sans-serif;
 }
 
-.dialog-header {
+.sim-title {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.sim-sub {
+  margin: 8px 0 22px;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 21px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.sim-loading {
+  margin: 0 0 16px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.sim-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 1.5rem;
-
-  h2 {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 700;
-  }
-
-  button {
-    color: var(--c-on-surface);
-  }
-}
-
-.loading-state {
-  opacity: 0.6;
-  padding: 1rem 0;
-}
-
-.platform-grid {
-  display: flex;
   gap: 16px;
-  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 12px;
+  padding: 14px 22px;
+  border: 0;
+  border-radius: 14px;
+  background: #26262a;
+  color: #fff;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:first-of-type { margin-top: 0; }
+
+  // !important: beats the app-wide faint .gamepad-focused ring.
+  &:focus-visible,
+  &.gamepad-focused {
+    outline: none;
+    transform: none;
+    box-shadow: 0 0 0 4px #fff !important;
+  }
+
+  &:disabled { cursor: default; opacity: 0.6; }
 }
 
-.platform-card {
-  flex: 1 1 200px;
-  background: var(--c-surface);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius);
-  padding: 1.25rem;
+.sim-row__text {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  min-width: 0;
 }
 
-.platform-header {
+.sim-row__name {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.sim-row__status {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.sim-switch {
+  position: relative;
+  flex: none;
+  width: 62px;
+  height: 36px;
+  border-radius: 999px;
+  background: #3a3a40;
+  transition: background 0.15s ease;
+
+  &--on { background: #4f46e5; }
+}
+
+.sim-switch__knob {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+
+  .sim-switch--on & { transform: translateX(26px); }
+}
+
+.sim-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: #4f46e5;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.sim-ic {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  -webkit-mask: var(--ic) center / contain no-repeat;
+  mask: var(--ic) center / contain no-repeat;
+}
+
+.sim-keys {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+  margin-top: 22px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.sim-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  &--btn {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+}
+
+.sim-cap {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+// ---- Add key ----
+.sim--add {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+  width: min(1180px, 94vw);
+  padding: 32px 22px 32px 36px;
+}
+
+.sim-qr {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 340px;
+  height: 340px;
+  border-radius: 20px;
+  background: #fff;
+}
+
+// While the code is on its way: a soft pulse where the QR will be.
+.sim-qr__wait {
+  width: 70%;
+  height: 70%;
+  border-radius: 12px;
+  background: #e6e6ea;
+  animation: sim-pulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes sim-pulse {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
+}
+
+.sim-add-body {
+  flex: 1;
+  min-width: 0;
+
+  .sim-sub { margin-bottom: 18px; }
+  .sim-row { margin-top: 18px; }
+}
+
+.sim-code {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 4px;
+  gap: 24px;
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
 
-  .platform-name {
-    font-size: 1.1rem;
+  b {
+    font-size: 46px;
     font-weight: 700;
-  }
-
-  .platform-status {
-    font-size: 0.8rem;
-
-    &.saved {
-      color: #3ddc84;
-    }
-
-    &.error {
-      color: #ff5252;
-    }
+    letter-spacing: 0.12em;
   }
 }
 
-.field-label {
-  font-size: 0.75rem;
-  opacity: 0.6;
-  margin-top: 6px;
+.sim-wait {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 20px;
 }
 
-.field-input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  color: var(--c-on-surface);
-  padding: 8px 10px;
-  font-size: 0.9rem;
-  font-family: inherit;
-
-  &:focus {
-    outline: none;
-    border-color: var(--c-primary);
-  }
-
-  &.invalid {
-    border-color: #ff5252;
-  }
+.sim-error {
+  margin: 10px 0 0;
+  color: #ff8a9e;
+  font-size: 18px;
 }
 
-.field-error {
-  font-size: 0.75rem;
-  color: #ff5252;
-  margin-top: -2px;
-}
-
-.save-btn {
-  margin-top: 12px;
-  align-self: flex-start;
+@media (max-width: 900px) {
+  .sim--add { flex-direction: column; align-items: stretch; }
+  .sim-qr { align-self: center; }
 }

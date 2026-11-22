@@ -23,6 +23,44 @@
   align-items: center;
 }
 
+// The small "Log out" button that appears beside the profile icon.
+.logout-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+  padding: 7px 14px 7px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(30, 30, 34, 0.9);
+  color: #ff5c7a;
+  font: 600 14px/1 Inter, system-ui, sans-serif;
+  cursor: pointer;
+  animation: logout-in 0.15s ease-out;
+
+  &:hover { background: rgba(48, 48, 54, 0.95); }
+
+  // !important: beats the app-wide faint .gamepad-focused ring.
+  &:focus-visible,
+  &.gamepad-focused {
+    outline: none;
+    box-shadow: 0 0 0 3px #fff !important;
+  }
+}
+
+.logout-btn__icon {
+  width: 16px;
+  height: 16px;
+  background: currentColor;
+  -webkit-mask: url(/assets/icons/tv/log_out.svg) center / contain no-repeat;
+  mask: url(/assets/icons/tv/log_out.svg) center / contain no-repeat;
+}
+
+@keyframes logout-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
 .side--right {
   justify-content: flex-end;
 }
@@ -59,6 +97,11 @@
     outline: 2px solid var(--c-primary);
     outline-offset: 2px;
   }
+}
+
+.profile-btn {
+  padding: 6px;
+  --avatar-size: 36px;
 }
 
 .icon-wrapper mat-icon {

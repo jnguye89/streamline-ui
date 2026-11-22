@@ -117,164 +117,172 @@
   </form>
 </ng-container>
 
-<div class="stream-toolbar">
+<!-- TV camera chrome (handoff R2_camera_setup / 13_camera_setup) -->
+<div class="cam-scrim"></div>
+
+<span class="cam-chip cam-chip--left">
+  <span class="cam-ic" [style.--ic]="icon('go_live')"></span>Go live
+</span>
+<span class="cam-chip cam-chip--right" *ngIf="alsoLiveOn as names">
+  <span class="cam-ic" [style.--ic]="icon('simulcast')"></span>Also live on {{ names }}
+</span>
+
+<div class="cam-dock">
   <ng-container *ngIf="isAuthenticated; else loginControl">
-    <button
-      gamepadFocusable
-      class="stream-toolbar__button stream-toolbar__button--live"
-      [class.stream-toolbar__button--live-on]="isLive"
-      type="button"
-      [attr.aria-label]="isLive ? 'Stop streaming' : 'Go live'"
-      (click)="isLive ? stopWebcam() : resumeWebcam()"
-      [disabled]="
-        isStarting ||
-        (!isLive &&
-          (!isReady ||
-            previewState.status === 'error' ||
-            !mediaInput.snapshot.selection.videoDeviceId))
-      "
-    >
-      {{ isLive ? 'End stream' : 'Go live' }}
-    </button>
-
-    <ng-container
-      *ngFor="let target of restreamTargets; trackBy: trackRestreamTarget"
-    >
-      <button
-        gamepadFocusable
-        *ngIf="restreamState(target) as state"
-        class="restream-toggle"
-        type="button"
-        [ngClass]="'restream-toggle--' + target.platform"
-        [class.restream-toggle--on]="state === 'on' || state === 'live'"
-        [class.restream-toggle--error]="state === 'error'"
-        [class.restream-toggle--unavailable]="state === 'unavailable'"
-        [attr.aria-pressed]="state === 'on' || state === 'live'"
-        [attr.aria-label]="restreamLabel(target)"
-        [title]="restreamLabel(target)"
-        [disabled]="state === 'unavailable' || isLive || isStarting"
-        (click)="toggleRestream(target)"
-      >
-        {{ target.letter }}
-      </button>
-    </ng-container>
-
-    <div class="stream-toolbar__separator"></div>
-
-    <div class="mode-group" role="group" aria-label="Video source (or press Y to cycle)">
-      <button
-        gamepadFocusable
-        class="mode-btn"
-        type="button"
-        [class.mode-btn--active]="displayMode === 'webcam'"
-        [disabled]="!webcamDeviceId || isApplyingInputs || isStarting"
-        aria-label="Show webcam only"
-        (click)="selectWebcamMode()"
-      >
-        <mat-icon>videocam</mat-icon>
-        <span class="mode-btn__label">Webcam</span>
-      </button>
-      <button
-        gamepadFocusable
-        class="mode-btn"
-        type="button"
-        [class.mode-btn--active]="displayMode === 'screen'"
-        [disabled]="!screenDeviceId || isApplyingInputs || isStarting"
-        aria-label="Show screen only"
-        (click)="selectScreenMode()"
-      >
-        <mat-icon>desktop_windows</mat-icon>
-        <span class="mode-btn__label">Screen</span>
-      </button>
-      <button
-        gamepadFocusable
-        class="mode-btn mode-btn--primary"
-        type="button"
-        [class.mode-btn--active]="displayMode === 'screen-cam'"
-        [disabled]="!webcamDeviceId || !screenDeviceId || isApplyingInputs || isStarting"
-        aria-label="Show screen and webcam"
-        (click)="selectScreenCamMode()"
-      >
-        <mat-icon>picture_in_picture</mat-icon>
-        <span class="mode-btn__label">Screen + cam</span>
-      </button>
+    <!-- Before the start: when, and who can watch. Only Now and Free exist
+         in the API today, so the other choices are shown but cannot be picked. -->
+    <div class="cam-box" *ngIf="!isLive">
+      <div class="cam-note cam-note--warn">
+        <span class="cam-ic" [style.--ic]="icon('warning')"></span>
+        <span><b>Public by default.</b> Everyone can watch this live.</span>
+      </div>
+      <div class="cam-row">
+        <span class="cam-row__label">When</span>
+        <div class="cam-row__opts">
+          <button gamepadFocusable type="button" class="cam-opt cam-opt--on" aria-pressed="true">Now</button>
+          <button type="button" class="cam-opt" disabled title="Planned lives are coming soon">Today</button>
+          <button type="button" class="cam-opt" disabled title="Planned lives are coming soon">Tomorrow</button>
+          <button type="button" class="cam-opt" disabled title="Planned lives are coming soon">{{ dayLabel(2) }}</button>
+          <button type="button" class="cam-opt" disabled title="Planned lives are coming soon">{{ dayLabel(3) }}</button>
+        </div>
+      </div>
+      <div class="cam-row">
+        <span class="cam-row__label">Who can watch</span>
+        <div class="cam-row__opts">
+          <button gamepadFocusable type="button" class="cam-opt cam-opt--on" aria-pressed="true">Free</button>
+          <button type="button" class="cam-opt" disabled title="Coming soon">Free with ads</button>
+          <button type="button" class="cam-opt" disabled title="Coming soon">Subscribers</button>
+          <button type="button" class="cam-opt" disabled title="Coming soon">Ticket</button>
+        </div>
+      </div>
     </div>
 
-    <div class="mode-swap" *ngIf="displayMode === 'screen-cam'">
-      <span
-        class="mode-avatar mode-avatar--webcam"
-        [class.mode-avatar--active]="isWebcamPrimary"
-        aria-hidden="true"
-      >W</span>
-      <button
-        gamepadFocusable
-        class="mode-swap-btn"
-        type="button"
-        aria-label="Swap main display and facecam (or press X)"
-        [disabled]="isApplyingInputs || isStarting"
-        (click)="swapSources()"
-      >
-        <mat-icon>swap_horiz</mat-icon>
-        <span class="mode-swap-btn__hint">X</span>
+    <!-- The live bar -->
+    <div class="cam-bar">
+      <div class="cam-group mode-group" role="group" aria-label="Video source (or press Y to cycle)">
+        <button gamepadFocusable class="cam-seg mode-btn" type="button"
+          [class.cam-seg--on]="displayMode === 'webcam'" [class.mode-btn--active]="displayMode === 'webcam'"
+          [disabled]="!webcamDeviceId || isApplyingInputs || isStarting"
+          aria-label="Show webcam only" (click)="selectWebcamMode()">Webcam</button>
+        <button gamepadFocusable class="cam-seg mode-btn" type="button"
+          [class.cam-seg--on]="displayMode === 'screen'" [class.mode-btn--active]="displayMode === 'screen'"
+          [disabled]="!screenDeviceId || isApplyingInputs || isStarting"
+          aria-label="Show screen only" (click)="selectScreenMode()">Screen</button>
+        <button gamepadFocusable class="cam-seg mode-btn" type="button"
+          [class.cam-seg--on]="displayMode === 'screen-cam'" [class.mode-btn--active]="displayMode === 'screen-cam'"
+          [disabled]="!webcamDeviceId || !screenDeviceId || isApplyingInputs || isStarting"
+          aria-label="Show screen and webcam" (click)="selectScreenCamMode()">Screen + cam</button>
+      </div>
+
+      <div class="cam-group cam-swap" *ngIf="displayMode === 'screen-cam'">
+        <span [class.cam-dim]="!isWebcamPrimary" aria-hidden="true">W</span>
+        <button gamepadFocusable class="cam-icon-btn" type="button"
+          aria-label="Swap main display and facecam (or press X)"
+          [disabled]="isApplyingInputs || isStarting" (click)="swapSources()">
+          <span class="cam-ic" [style.--ic]="icon('swap')"></span>
+        </button>
+        <span [class.cam-dim]="isWebcamPrimary" aria-hidden="true">S</span>
+      </div>
+
+      <span class="cam-sep"></span>
+
+      <ng-container *ngIf="audioMix$ | async as mix">
+        <ng-container *ngIf="audioMeter$ | async as meter">
+          <div class="cam-group cam-audio" [class.cam-audio--muted]="mix.microphoneMuted">
+            <span class="cam-ic" [style.--ic]="icon('mic')"></span>Mic
+            <span class="cam-meter" aria-hidden="true">
+              <span class="cam-meter__fill" [style.width.%]="meterPercent(meter.microphone, mix.microphoneMuted)"></span>
+              <span class="cam-meter__mark" [style.left.%]="markPercent(mix.microphoneLevel)"></span>
+            </span>
+            <button gamepadFocusable class="cam-kbd audio-toggle" type="button"
+              [class.audio-toggle--muted]="mix.microphoneMuted"
+              [attr.aria-pressed]="!mix.microphoneMuted"
+              [attr.aria-label]="(mix.microphoneMuted ? 'Unmute microphone' : 'Mute microphone') + ' (or press LB)'"
+              (click)="toggleMicrophoneMute()">LB</button>
+          </div>
+
+          <div class="cam-group cam-audio" [class.cam-audio--muted]="mix.gameMuted">
+            <span class="cam-ic" [style.--ic]="icon('speaker')"></span>Screen audio
+            <span class="cam-meter" aria-hidden="true">
+              <span class="cam-meter__fill" [style.width.%]="meterPercent(meter.game, mix.gameMuted)"></span>
+              <span class="cam-meter__mark" [style.left.%]="markPercent(mix.gameLevel)"></span>
+            </span>
+            <button gamepadFocusable class="cam-kbd audio-toggle" type="button"
+              [class.audio-toggle--muted]="mix.gameMuted"
+              [attr.aria-pressed]="!mix.gameMuted"
+              [attr.aria-label]="(mix.gameMuted ? 'Unmute screen audio' : 'Mute screen audio') + ' (or press RB)'"
+              (click)="toggleGameMute()">RB</button>
+          </div>
+        </ng-container>
+      </ng-container>
+
+      <span class="cam-sep"></span>
+
+      <!-- A private live needs the API's who-can-watch support first. -->
+      <button type="button" class="cam-private" disabled title="Private lives are coming soon">
+        <span class="cam-ic" [style.--ic]="icon('lock')"></span>Private<span class="cam-onoff">Off</span>
       </button>
-      <span
-        class="mode-avatar mode-avatar--screen"
-        [class.mode-avatar--active]="!isWebcamPrimary"
-        aria-hidden="true"
-      >S</span>
+
+      <!-- s = skriin, always on; then the simulcast destinations -->
+      <span class="cam-circle cam-circle--on" title="Live on skriin">s</span>
+      <ng-container *ngFor="let target of restreamTargets; trackBy: trackRestreamTarget">
+        <button gamepadFocusable *ngIf="restreamState(target) as state"
+          class="cam-circle restream-toggle" type="button"
+          [ngClass]="'restream-toggle--' + target.platform"
+          [class.cam-circle--on]="state === 'on' || state === 'live'"
+          [class.restream-toggle--on]="state === 'on' || state === 'live'"
+          [class.cam-circle--error]="state === 'error'"
+          [class.restream-toggle--error]="state === 'error'"
+          [class.restream-toggle--unavailable]="state === 'unavailable'"
+          [attr.aria-pressed]="state === 'on' || state === 'live'"
+          [attr.aria-label]="restreamLabel(target)" [title]="restreamLabel(target)"
+          [disabled]="state === 'unavailable' || isLive || isStarting"
+          (click)="toggleRestream(target)">{{ target.letter }}</button>
+      </ng-container>
     </div>
 
-    <div class="stream-toolbar__separator"></div>
-
-    <ng-container *ngIf="audioMix$ | async as mix">
-      <div class="audio-group">
-        <span class="audio-group__label">Mic</span>
-        <button
-          gamepadFocusable
-          class="audio-toggle"
-          type="button"
-          [class.audio-toggle--muted]="mix.microphoneMuted"
-          [attr.aria-pressed]="!mix.microphoneMuted"
-          [attr.aria-label]="
-            (mix.microphoneMuted ? 'Unmute microphone' : 'Mute microphone') +
-            ' (or press LB)'
-          "
-          (click)="toggleMicrophoneMute()"
-        >
-          <mat-icon>{{ mix.microphoneMuted ? 'mic_off' : 'mic' }}</mat-icon>
-          LB
-        </button>
-      </div>
-
-      <div class="audio-group">
-        <span class="audio-group__label">Screen Audio</span>
-        <button
-          gamepadFocusable
-          class="audio-toggle"
-          type="button"
-          [class.audio-toggle--muted]="mix.gameMuted"
-          [attr.aria-pressed]="!mix.gameMuted"
-          [attr.aria-label]="
-            (mix.gameMuted ? 'Unmute screen audio' : 'Mute screen audio') +
-            ' (or press RB)'
-          "
-          (click)="toggleGameMute()"
-        >
-          <mat-icon>{{ mix.gameMuted ? 'volume_off' : 'volume_up' }}</mat-icon>
-          RB
-        </button>
-      </div>
-    </ng-container>
+    <!-- Go live, Podcast, Call -->
+    <div class="cam-actions">
+      <button gamepadFocusable type="button" class="cam-action cam-action--live cam-action--here"
+        [attr.aria-label]="isLive ? 'Stop streaming' : 'Go live'"
+        (click)="isLive ? stopWebcam() : resumeWebcam()"
+        [disabled]="isStarting || (!isLive && (!isReady || previewState.status === 'error' || !mediaInput.snapshot.selection.videoDeviceId))">
+        <span class="cam-ic" [style.--ic]="icon('go_live')"></span>
+        <span class="cam-action__text">
+          <span class="cam-action__title">{{ isLive ? 'End stream' : isStarting ? 'Starting…' : 'Go live' }}</span>
+          <span class="cam-action__sub">{{ isLive ? 'You are live' : 'Public by default' }}</span>
+        </span>
+      </button>
+      <button gamepadFocusable type="button" class="cam-action" [disabled]="isLive || isStarting" (click)="goTo('/podcast')">
+        <span class="cam-ic" [style.--ic]="icon('mic')"></span>
+        <span class="cam-action__text">
+          <span class="cam-action__title">Podcast</span>
+          <span class="cam-action__sub">Record · private by default</span>
+        </span>
+      </button>
+      <button gamepadFocusable type="button" class="cam-action" [disabled]="isLive || isStarting" (click)="goTo('/call')">
+        <span class="cam-ic" [style.--ic]="icon('call')"></span>
+        <span class="cam-action__text">
+          <span class="cam-action__title">Call</span>
+          <span class="cam-action__sub">Private · not saved</span>
+        </span>
+      </button>
+    </div>
   </ng-container>
 
   <ng-template #loginControl>
-    <button
-      gamepadFocusable
-      class="stream-toolbar__button"
-      type="button"
-      (click)="login()"
-    >
-      Login to start streaming
+    <button gamepadFocusable class="cam-action cam-action--live" type="button" (click)="login()">
+      <span class="cam-action__text"><span class="cam-action__title">Login to start streaming</span></span>
     </button>
   </ng-template>
+</div>
+
+<div class="cam-keyline">
+  <span class="cam-key"><span class="cam-cap">◀</span><span class="cam-cap">▲</span><span class="cam-cap">▼</span><span class="cam-cap">▶</span>Move</span>
+  <span class="cam-key"><span class="cam-cap">A</span>Choose</span>
+  <span class="cam-key" *ngIf="displayMode === 'screen-cam'"><span class="cam-cap">X</span>Swap</span>
+  <span class="cam-key"><span class="cam-cap">Y</span>Next layout</span>
+  <span class="cam-key"><span class="cam-cap cam-cap--sq">LB</span>Mic</span>
+  <span class="cam-key"><span class="cam-cap cam-cap--sq">RB</span>Audio</span>
+  <span class="cam-key" *ngIf="!isLive"><span class="cam-cap">B</span>Back to your profile</span>
 </div>

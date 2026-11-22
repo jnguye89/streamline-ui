@@ -1,0 +1,471 @@
+// TV camera chrome shared by the Live (/stream) and Podcast (/podcast) pages.
+// Sizes come from the handoff (measures/R2_camera_setup.png), drawn at
+// 1920 x 1080; cam-px(n) turns a 1920-wide px value into vw.
+//
+// Usage: @use "tv-camera"; then @include tv-camera.chrome; in the page's
+// stylesheet. Everything is prefixed cam- so it can't collide.
+
+@function cam-px($n) {
+  @return calc(#{$n} / 1920 * 100vw);
+}
+
+@mixin chrome {
+  .cam-ic {
+    display: inline-block;
+    flex: none;
+    width: 1em;
+    height: 1em;
+    background: currentColor;
+    -webkit-mask: var(--ic) center / contain no-repeat;
+    mask: var(--ic) center / contain no-repeat;
+  }
+
+  // Darkens the bottom of the picture so the bar and buttons stay readable.
+  .cam-scrim {
+    position: fixed;
+    inset: auto 0 0 0;
+    height: 34vh;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(to top, rgba(10, 10, 12, 0.92), rgba(10, 10, 12, 0));
+  }
+
+  // R2 #1 and #2: the two chips at the top corners.
+  .cam-chip {
+    position: fixed;
+    top: calc(var(--app-bar-height, 56px) + #{cam-px(8)});
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: cam-px(12);
+    height: max(40px, #{cam-px(58)});
+    padding: 0 cam-px(22);
+    border-radius: 999px;
+    background: rgba(18, 18, 20, 0.86);
+    color: #fff;
+    font-family: Inter, system-ui, sans-serif;
+    font-size: max(16px, #{cam-px(26)});
+    font-weight: 600;
+    white-space: nowrap;
+
+    &--left { left: cam-px(60); }
+
+    &--right {
+      right: cam-px(60);
+      font-size: max(14px, #{cam-px(22)});
+      font-weight: 500;
+    }
+  }
+
+  // Everything pinned to the bottom: box, live bar, buttons, key line.
+  .cam-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: cam-px(24);
+    padding-bottom: calc(max(48px, #{cam-px(60)}) + #{cam-px(44)});
+    font-family: Inter, system-ui, sans-serif;
+    color: #fff;
+    pointer-events: none;
+
+    > * { pointer-events: auto; }
+  }
+
+  // R2 #3: the box above the bar (1180 wide).
+  .cam-box {
+    width: min(#{cam-px(1180)}, calc(100vw - 32px));
+    box-sizing: border-box;
+    padding: cam-px(20) cam-px(30);
+    border-radius: max(14px, #{cam-px(22)});
+    background: rgba(18, 18, 20, 0.92);
+  }
+
+  .cam-note {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: cam-px(14);
+    padding-bottom: cam-px(16);
+    font-size: max(14px, #{cam-px(22)});
+    font-weight: 500;
+
+    b { font-weight: 600; }
+
+    &--warn {
+      color: #fff;
+      b, .cam-ic { color: #f5c04a; }
+    }
+
+    &--plain {
+      justify-content: flex-start;
+      padding: cam-px(14) cam-px(14);
+      font-size: max(15px, #{cam-px(25)});
+      line-height: 1.3;
+
+      .cam-ic { font-size: 1.1em; margin-right: cam-px(8); }
+    }
+  }
+
+  // R2 #4: a labelled row of choices.
+  .cam-row {
+    display: flex;
+    align-items: center;
+    gap: cam-px(16);
+    min-height: max(56px, #{cam-px(86)});
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .cam-row__label {
+    flex: 0 0 cam-px(220);
+    font-size: max(15px, #{cam-px(25)});
+    font-weight: 500;
+  }
+
+  .cam-row__opts {
+    flex: 1;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: cam-px(16);
+  }
+
+  .cam-opt {
+    height: max(40px, #{cam-px(60)});
+    border: 0;
+    border-radius: 999px;
+    background: #2a2a2e;
+    color: #fff;
+    font: inherit;
+    font-size: max(14px, #{cam-px(23)});
+    font-weight: 500;
+    cursor: pointer;
+
+    &--on { background: #4f46e5; }
+
+    &:disabled {
+      cursor: default;
+      color: rgba(255, 255, 255, 0.4);
+    }
+  }
+
+  // R2 #5: the live bar (1647 wide).
+  .cam-bar {
+    display: flex;
+    align-items: center;
+    gap: cam-px(14);
+    width: min(#{cam-px(1647)}, calc(100vw - 32px));
+    box-sizing: border-box;
+    height: max(52px, #{cam-px(72)});
+    padding: 0 cam-px(14);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 999px;
+    background: rgba(18, 18, 20, 0.9);
+    font-size: max(13px, #{cam-px(21)});
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .cam-sep {
+    flex: none;
+    width: 1px;
+    height: 50%;
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  .cam-group {
+    display: flex;
+    align-items: center;
+    gap: cam-px(4);
+    height: max(38px, #{cam-px(56)});
+    padding: 0 cam-px(4);
+    border-radius: 999px;
+    background: #222226;
+  }
+
+  .cam-seg {
+    height: max(32px, #{cam-px(46)});
+    padding: 0 cam-px(18);
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+
+    &--on { background: #4f46e5; }
+
+    // A label rather than a button (e.g. the only source on Podcast).
+    @at-root span#{&} {
+      display: inline-grid;
+      place-items: center;
+      cursor: default;
+    }
+
+    &:disabled:not(.cam-seg--on) {
+      cursor: default;
+      color: rgba(255, 255, 255, 0.4);
+    }
+  }
+
+  .cam-swap {
+    display: flex;
+    align-items: center;
+    gap: cam-px(10);
+    padding: 0 cam-px(16);
+    font-weight: 700;
+
+    .cam-dim { color: rgba(255, 255, 255, 0.4); }
+  }
+
+  .cam-icon-btn {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #fff;
+    font-size: 1.1em;
+    cursor: pointer;
+  }
+
+  // Mic / Screen audio: icon, name, level meter, LB/RB toggle.
+  .cam-audio {
+    display: flex;
+    align-items: center;
+    gap: cam-px(10);
+    padding: 0 cam-px(8) 0 cam-px(16);
+
+    &--muted {
+      color: rgba(255, 255, 255, 0.5);
+      .cam-meter__fill { background: rgba(255, 255, 255, 0.25); }
+    }
+  }
+
+  .cam-meter {
+    position: relative;
+    width: cam-px(84);
+    height: max(5px, #{cam-px(7)});
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  .cam-meter__fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: inherit;
+    background: #2dd4a4;
+    transition: width 80ms linear;
+  }
+
+  // The gain mark on the meter.
+  .cam-meter__mark {
+    position: absolute;
+    top: -150%;
+    bottom: -150%;
+    width: 2px;
+    background: #fff;
+    border-radius: 1px;
+  }
+
+  .cam-kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: max(26px, #{cam-px(42)});
+    height: max(22px, #{cam-px(32)});
+    padding: 0 cam-px(6);
+    box-sizing: border-box;
+    border: 0;
+    border-radius: cam-px(8);
+    background: #3a3a40;
+    color: #fff;
+    font: inherit;
+    font-size: 0.72em;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  // R2 #6: Private and its On/Off pill.
+  .cam-private {
+    display: flex;
+    align-items: center;
+    gap: cam-px(10);
+    height: max(38px, #{cam-px(56)});
+    padding: 0 cam-px(10) 0 cam-px(20);
+    border: 0;
+    border-radius: 999px;
+    background: #222226;
+    color: #fff;
+    font: inherit;
+
+    &--on { background: #4f46e5; }
+    &:disabled { cursor: default; }
+  }
+
+  .cam-onoff {
+    padding: cam-px(4) cam-px(12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    font-size: 0.8em;
+    font-weight: 600;
+
+    .cam-private--on & { background: #fff; color: #111; }
+  }
+
+  // Simulcast circles: s (skriin), T, K, Y, ...
+  .cam-circle {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: max(30px, #{cam-px(42)});
+    height: max(30px, #{cam-px(42)});
+    padding: 0;
+    box-sizing: border-box;
+    border: 2px solid rgba(255, 255, 255, 0.75);
+    border-radius: 50%;
+    background: transparent;
+    color: #fff;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+
+    &--on {
+      border-color: #4f46e5;
+      background: #4f46e5;
+    }
+
+    &--dim,
+    &:disabled:not(.cam-circle--on) {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    &--error { border-color: #ff5c7a; color: #ff5c7a; }
+  }
+
+  // R2 #7-9: Go live, Podcast, Call.
+  .cam-actions {
+    display: flex;
+    gap: cam-px(17);
+  }
+
+  .cam-action {
+    display: flex;
+    align-items: center;
+    gap: cam-px(18);
+    height: max(64px, #{cam-px(94)});
+    padding: 0 cam-px(26);
+    box-sizing: border-box;
+    border: 2px solid rgba(255, 255, 255, 0.22);
+    border-radius: max(16px, #{cam-px(24)});
+    background: rgba(18, 18, 20, 0.9);
+    color: #fff;
+    font: inherit;
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+
+    .cam-ic { font-size: max(20px, #{cam-px(30)}); }
+
+    &--live {
+      border-color: transparent;
+      background: #ec1c5a;
+    }
+
+    // The page you are on (Go live on Live, Podcast on Podcast).
+    &--here { min-width: cam-px(244); }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.55;
+    }
+
+    // !important: beats the app-wide faint .gamepad-focused ring.
+    &:focus-visible,
+    &.gamepad-focused {
+      outline: none;
+      box-shadow: 0 0 0 4px #fff !important;
+    }
+  }
+
+  .cam-action__text {
+    display: flex;
+    flex-direction: column;
+    gap: cam-px(2);
+  }
+
+  .cam-action__title {
+    font-size: max(18px, #{cam-px(30)});
+    font-weight: 600;
+  }
+
+  .cam-action__sub {
+    font-size: max(12px, #{cam-px(19)});
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.82);
+  }
+
+  // Focus ring for the smaller controls in the bar and box.
+  .cam-opt,
+  .cam-seg,
+  .cam-kbd,
+  .cam-circle,
+  .cam-private,
+  .cam-icon-btn {
+    &:focus-visible,
+    &.gamepad-focused {
+      outline: none;
+      box-shadow: 0 0 0 3px #fff !important;
+      transform: none;
+    }
+  }
+
+  // The key line at the very bottom (1920 x 60).
+  .cam-keyline {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: cam-px(26);
+    height: max(48px, #{cam-px(60)});
+    padding: 0 cam-px(60);
+    background: #121214;
+    color: rgba(255, 255, 255, 0.9);
+    font-family: Inter, system-ui, sans-serif;
+    font-size: max(13px, #{cam-px(21)});
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .cam-key {
+    display: inline-flex;
+    align-items: center;
+    gap: cam-px(8);
+  }
+
+  .cam-cap {
+    display: inline-grid;
+    place-items: center;
+    min-width: max(22px, #{cam-px(32)});
+    height: max(22px, #{cam-px(32)});
+    box-sizing: border-box;
+    border: 2px solid rgba(255, 255, 255, 0.75);
+    border-radius: 50%;
+    font-size: 0.66em;
+    font-weight: 700;
+
+    &--sq {
+      padding: 0 cam-px(4);
+      border-radius: cam-px(7);
+    }
+  }
+}

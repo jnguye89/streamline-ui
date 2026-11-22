@@ -1,62 +1,148 @@
-<div class="main-container">
+<div class="tv-profile">
   <div *ngIf="isUploading" class="upload-overlay">
     <div class="upload-overlay-content">
       <mat-icon class="upload-icon">cloud_upload</mat-icon>
       <p class="upload-message">Uploading video, please wait...</p>
     </div>
   </div>
-  <h4>Need help?
-    <a href="mailto:him&#64;skriin.com">support&#64;skriin.com</a>
-  </h4>
-  <div *ngIf="!!userId && showPreviousButton">
-    <button gamepadFocusable class="watch-icon" mat-icon-button (click)="goToWatch()">
-      <mat-icon>arrow_upward</mat-icon>
+
+  <!-- The five tiles (R1 #2-5). Only on your own profile. -->
+  <div *ngIf="isOwnProfile && (isAuthenticated$ | async)" class="tiles">
+    <button gamepadFocusable class="tile" routerLink="/stream">
+      <span class="tile-icon"><span class="ic" [style.--ic]="icon('go_live')"></span></span>
+      <span class="tile-text">
+        <span class="tile-title">Go live</span>
+        <span class="tile-sub">Public by default</span>
+      </span>
     </button>
-  </div>
-  <div *ngIf="(isAuthenticated$ | async) && !userId">
-    <button gamepadFocusable mat-raised-button color="primary" (click)="fileInput.click()">
-      <mat-icon>upload</mat-icon> Upload Video
+
+    <button gamepadFocusable class="tile" routerLink="/podcast">
+      <span class="tile-icon"><span class="ic" [style.--ic]="icon('record')"></span></span>
+      <span class="tile-text">
+        <span class="tile-title">Record</span>
+        <span class="tile-sub">Private by default</span>
+      </span>
     </button>
-    <input type="file" accept="video/*" #fileInput style="display: none" [disabled]="isUploading"
+
+    <button gamepadFocusable class="tile" (click)="fileInput.click()" [disabled]="isUploading">
+      <span class="tile-icon"><span class="ic" [style.--ic]="icon('upload')"></span></span>
+      <span class="tile-text">
+        <span class="tile-title">Upload</span>
+        <span class="tile-sub">From your phone</span>
+      </span>
+    </button>
+    <input type="file" accept="video/*" #fileInput hidden [disabled]="isUploading"
       (change)="onFileSelected($event)" />
-    <button gamepadFocusable mat-stroked-button (click)="openStreamKeys()">
-      <mat-icon>settings_input_antenna</mat-icon> Streaming
+
+    <button gamepadFocusable class="tile" (click)="openStreamKeys()">
+      <span class="tile-icon"><span class="ic" [style.--ic]="icon('simulcast')"></span></span>
+      <span class="tile-text">
+        <span class="tile-title">Simulcast
+          <span class="pill" [class.pill--on]="simulcastCount > 0">
+            {{ simulcastCount > 0 ? 'On · ' + simulcastCount : 'Off' }}
+          </span>
+        </span>
+        <span class="tile-sub">Also live on YT, Twitch &amp; more</span>
+      </span>
     </button>
-    <button gamepadFocusable mat-stroked-button (click)="openYoutubeChannels()">
-      <mat-icon>smart_display</mat-icon> YouTube Channels
-    </button>
-    <button gamepadFocusable mat-stroked-button (click)="logout()">
-      <mat-icon>logout</mat-icon> Log Out
+
+    <!-- Channel (loop) has no backend yet: shown, not focusable -->
+    <div class="tile tile--static" aria-disabled="true">
+      <span class="tile-icon"><span class="ic" [style.--ic]="icon('loop')"></span></span>
+      <span class="tile-text">
+        <span class="tile-title">Channel <span class="pill">Off</span></span>
+        <span class="tile-sub">Off · {{ freeVideoCount }} free videos ready</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- Viewer: four tiles, one per card column (handoff mockup 30) -->
+  <div *ngIf="!isOwnProfile" class="tiles tiles--viewer">
+    <div class="tile tile--static">
+      <app-user-avatar class="avatar" [userId]="userId" [name]="ownerName" [picture]="ownerPicture"></app-user-avatar>
+      <span class="tile-text">
+        <span class="tile-title">{{ ownerName }} <span class="pill">Follow</span></span>
+        <span class="tile-sub">{{ shownVideos.length }} {{ shownVideos.length === 1 ? 'video' : 'videos' }}</span>
+      </span>
+    </div>
+    <div class="tile tile--static">
+      <span class="tile-icon"><span class="ic" [style.--ic]="icon('loop')"></span></span>
+      <span class="tile-text">
+        <span class="tile-title">Channel <span class="pill">Off</span></span>
+        <span class="tile-sub">Nothing playing</span>
+      </span>
+    </div>
+    <div class="tile tile--static">
+      <span class="tile-icon"><span class="ic" [style.--ic]="icon('star')"></span></span>
+      <span class="tile-text">
+        <span class="tile-title">Subscribe</span>
+        <span class="tile-sub">{{ subscriberVideoCount }} {{ subscriberVideoCount === 1 ? 'video' : 'videos' }} for subscribers</span>
+      </span>
+    </div>
+    <div class="tile tile--static">
+      <span class="tile-icon"><span class="ic" [style.--ic]="icon('go_live')"></span></span>
+      <span class="tile-text">
+        <span class="tile-title">Live</span>
+        <span class="tile-sub">Nothing planned</span>
+      </span>
+    </div>
+  </div>
+
+  <!-- The videos (R1 #6): 4 across, 16:9 -->
+  <div class="grid">
+    <div *ngFor="let video of shownVideos" class="card" gamepadFocusable tabindex="0"
+         (focus)="focusedVideo = video" (click)="onTileClick($event)">
+      <img *ngIf="video.thumbnailUrl" class="card-media" [src]="video.thumbnailUrl" alt="" />
+      <video *ngIf="!video.thumbnailUrl && video.source !== 'YOUTUBE'" class="card-media video-player"
+        [src]="(video.processedPath ?? video.videoPath) + '#t=0.1'" preload="metadata" loop playsinline
+        (loadedmetadata)="onMetadata(video, $event)"></video>
+      <!-- YouTube exposes no raw playable file, only its iframe embed player -->
+      <iframe *ngIf="!video.thumbnailUrl && video.source === 'YOUTUBE'" class="card-media youtube-frame"
+        [src]="video.videoPath | safeUrl" tabindex="-1"
+        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+      <button *ngIf="!isOwnProfile" class="more-btn" tabindex="-1" aria-label="Options"
+        (click)="openOptions(video); $event.stopPropagation()">···</button>
+
+      <span *ngIf="badgeFor(video) as badge" class="chip chip--top" [class.chip--light]="badge.light">
+        <span class="ic" [style.--ic]="icon(badge.icon)"></span>{{ badge.label }}
+      </span>
+
+      <span *ngIf="video.source !== 'YOUTUBE'" class="chip chip--views">
+        <span class="ic" [style.--ic]="icon('eye')"></span>{{ (video.viewCount ?? 0) | compactCount }}
+      </span>
+      <span *ngIf="durations[video.id]" class="chip chip--time">{{ durations[video.id] }}</span>
+
+      <button *ngIf="isOwnProfile && (isAuthenticated$ | async)" mat-icon-button class="delete-btn"
+        (click)="deleteVideo(video)" matTooltip="Delete video" aria-label="Delete video">
+        <mat-icon>delete</mat-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- Key line (R1 #7). Owner and viewer each get their own. -->
+  <div *ngIf="isOwnProfile" class="keyline">
+    <span class="key"><span class="cap cap--sq">LB</span>Free</span>
+    <span class="key"><span class="cap cap--sq">RB</span>Free with ads</span>
+    <span class="key"><span class="cap cap--sq">LT</span>Subscribers</span>
+    <span class="key"><span class="cap cap--sq">RT</span>Rent or buy</span>
+    <span class="keyline-sep"></span>
+    <span class="key"><span class="cap">A</span>More</span>
+    <span class="key"><span class="cap">X</span>On my channel</span>
+    <span class="key"><span class="cap">Y</span>Play</span>
+    <button *ngIf="isAuthenticated$ | async" class="key key--btn" (click)="openAccount()">
+      <span class="cap">+</span>Menu
     </button>
   </div>
-  <br />
-  <h1>Videos</h1>
-  <div fxLayout="row wrap" fxLayoutGap="16px" fxLayoutAlign="center">
-    <div *ngFor="let video of videos">
-      <div class="video-item" gamepadFocusable tabindex="0" (focus)="focusedVideo = video"
-           (click)="onTileClick($event)">
-        <video *ngIf="video.source !== 'YOUTUBE'" [src]="video.processedPath ?? video.videoPath" controls loop
-          class="video-player"></video>
-        <!-- YouTube exposes no raw playable file, only its iframe embed player -->
-        <iframe *ngIf="video.source === 'YOUTUBE'" [src]="video.videoPath | safeUrl" class="video-player youtube-frame"
-          allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        <mat-icon *ngIf="video.processedPath" class="processed-badge" matTooltip="Processed by Streamline">auto_awesome</mat-icon>
-        <div *ngIf="video.source !== 'YOUTUBE'" class="video-stat views">
-          <span class="count">{{ video.viewCount | compactCount }}</span>
-          <mat-icon>visibility</mat-icon>
-        </div>
-        <div *ngIf="video.source !== 'YOUTUBE'" class="video-stat likes">
-          <mat-icon>favorite</mat-icon>
-          <span class="count">{{ video.likeCount | compactCount }}</span>
-        </div>
-        <button *ngIf="isOwnProfile && (isAuthenticated$ | async)"
-                mat-icon-button class="delete-btn"
-                (click)="deleteVideo(video)"
-                matTooltip="Delete video">
-          <mat-icon>delete</mat-icon>
-          <span class="key-badge" aria-hidden="true">Y</span>
-        </button>
-      </div>
-    </div>
+
+  <div *ngIf="!isOwnProfile" class="keyline">
+    <span class="key"><span class="cap">A</span>{{ viewerAction(focusedVideo) }}</span>
+    <button class="key key--btn" (click)="likeFocusedVideo()"><span class="cap">X</span>Like</button>
+    <button class="key key--btn" (click)="focusedVideo && openOptions(focusedVideo)">
+      <span class="cap">+</span><span class="dots">···</span>Report or block
+    </button>
+    <button *ngIf="showPreviousButton" class="key key--btn" (click)="goToWatch()">
+      <span class="cap">B</span>Back to the video
+    </button>
   </div>
 </div>

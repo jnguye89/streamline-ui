@@ -14,6 +14,13 @@ const roomCodeMatcher: UrlMatcher = (segments: UrlSegment[]) =>
 
 export const routes: Routes = [
   {
+    // The TV's Simulcast "Add key" QR points here (skriin.com/link?code=…).
+    // iPhones with the app open the app instead (Universal Link).
+    path: "link",
+    data: { seo: { title: 'Link to your TV | skriin ai tv', description: 'Send a stream key from your phone to skriin ai tv on your TV.', noindex: true } },
+    loadComponent: () => import("./components/link/link-page.component").then((m) => m.LinkPageComponent),
+  },
+  {
     path: "login",
     data: { seo: { title: 'Sign in on your TV | skriin ai tv', description: 'Sign in to skriin ai tv on your TV by scanning a code with your phone.', noindex: true } },
     loadComponent: () => import("./components/device-login/device-login.component").then((m) => m.DeviceLoginComponent),

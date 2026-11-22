@@ -1,4 +1,7 @@
+@use "tv-camera";
 @import "tokens";
+
+@include tv-camera.chrome;
 
 :host {
   --panel-text: #fff;
@@ -45,10 +48,11 @@
   background: #000;
 }
 
+// Under the top-right chip, out of the way of the bottom dock.
 .fullscreen-action {
   position: absolute;
-  bottom: max(16px, env(safe-area-inset-bottom));
-  right: max(16px, env(safe-area-inset-right));
+  top: calc(var(--app-bar-height, 56px) + #{tv-camera.cam-px(84)});
+  right: tv-camera.cam-px(60);
   z-index: 3;
   display: grid;
   width: 48px;
@@ -63,7 +67,7 @@
 .status-banner {
   position: fixed;
   left: 50%;
-  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 64px);
+  top: calc(var(--app-bar-height, 56px) + #{tv-camera.cam-px(84)});
   z-index: 20;
   transform: translateX(-50%);
   display: grid;
@@ -90,26 +94,6 @@
   color: var(--panel-error);
 }
 
-.stream-toolbar {
-  position: fixed;
-  left: 50%;
-  bottom: max(16px, env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  z-index: 21;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  height: 52px;
-  padding: 0 16px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 999px;
-  color: #fff;
-  background: rgba(20, 20, 20, 0.72);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(16px);
-  white-space: nowrap;
-}
-
 @keyframes chat-msg-in {
   from {
     opacity: 0;
@@ -125,7 +109,8 @@
 .chat-overlay {
   position: fixed;
   left: max(12px, env(safe-area-inset-left, 0px));
-  bottom: clamp(90px, 16vh, 140px);
+  // Above the live bar; the box is hidden while live, so this space is free.
+  bottom: calc(#{tv-camera.cam-px(400)} + 56px);
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -158,7 +143,7 @@
 .chat-input-row {
   position: fixed;
   left: max(12px, env(safe-area-inset-left, 0px));
-  bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  bottom: tv-camera.cam-px(400);
   z-index: 6;
   display: flex;
   align-items: center;
@@ -209,324 +194,6 @@
   }
 }
 
-.stream-toolbar__separator {
-  width: 1px;
-  height: 20px;
-  margin: 0 6px;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.stream-toolbar__button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 36px;
-  padding: 6px 14px;
-  border: 0;
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.65);
-  background: none;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 120ms, color 120ms, box-shadow 150ms;
-
-  &:hover:not(:disabled) {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  &:focus-visible,
-  &.gamepad-focused {
-    outline: 3px solid #90caf9;
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
-}
-
-.stream-toolbar__button--live {
-  color: #fff;
-  background: rgba(224, 32, 32, 0.55);
-  box-shadow: 0 0 0 1px rgba(255, 68, 68, 0.6);
-
-  &.stream-toolbar__button--live-on {
-    background: rgba(120, 24, 24, 0.7);
-    box-shadow: 0 0 0 1px #ff4444, 0 0 12px rgba(255, 68, 68, 0.5);
-  }
-}
-
-.mode-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  height: 36px;
-  padding: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.mode-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 100%;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 999px;
-  color: rgba(255, 255, 255, 0.65);
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 120ms, color 120ms;
-
-  mat-icon {
-    width: 18px;
-    height: 18px;
-    font-size: 18px;
-    line-height: 18px;
-  }
-
-  &:hover:not(:disabled) {
-    color: #fff;
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-  &:focus-visible,
-  &.gamepad-focused {
-    outline: 3px solid #90caf9;
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    opacity: 0.35;
-    cursor: default;
-  }
-}
-
-.mode-btn--active {
-  color: #fff;
-  background: #6c63ff;
-
-  &:hover:not(:disabled) {
-    color: #fff;
-    background: #6c63ff;
-  }
-}
-
-.mode-swap {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: 4px;
-}
-
-.mode-avatar {
-  display: grid;
-  width: 26px;
-  height: 26px;
-  place-items: center;
-  border-radius: 50%;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  opacity: 0.5;
-  transition: opacity 120ms, box-shadow 120ms;
-}
-
-.mode-avatar--webcam {
-  background: #f2994a;
-}
-
-.mode-avatar--screen {
-  background: #2f6690;
-}
-
-.mode-avatar--active {
-  opacity: 1;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7);
-}
-
-.mode-swap-btn {
-  position: relative;
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 50%;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-
-  mat-icon {
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
-    line-height: 16px;
-  }
-
-  &:focus-visible,
-  &.gamepad-focused {
-    outline: 3px solid #90caf9;
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    opacity: 0.35;
-  }
-}
-
-.mode-swap-btn__hint {
-  position: absolute;
-  right: -4px;
-  bottom: -4px;
-  display: grid;
-  width: 15px;
-  height: 15px;
-  place-items: center;
-  border-radius: 50%;
-  background: #2e7d32;
-  color: #fff;
-  font-size: 9px;
-  font-weight: 800;
-  line-height: 15px;
-  box-shadow: 0 0 0 2px rgba(20, 20, 20, 0.9);
-}
-
-.audio-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.audio-group__label {
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
-
-.audio-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 32px;
-  padding: 5px 10px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.06);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-
-  mat-icon {
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
-    line-height: 16px;
-    color: #9ccc65;
-  }
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.12);
-  }
-
-  &:focus-visible,
-  &.gamepad-focused {
-    outline: 3px solid #90caf9;
-    outline-offset: 2px;
-  }
-}
-
-.audio-toggle--muted {
-  border-color: rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.5);
-
-  mat-icon {
-    color: rgba(255, 255, 255, 0.4);
-  }
-}
-
-// Lettered restream circles (T = Twitch, Y = YouTube, K = Kick), same idea
-// as the W/S source avatars: dimmed when off, full color with a white ring
-// when the stream will go (or is going) there. Twitch is the default palette.
-.restream-toggle {
-  --rs-color: #9146ff;
-
-  display: grid;
-  width: 30px;
-  height: 30px;
-  margin-left: 6px;
-  place-items: center;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--rs-color);
-  box-shadow: var(--rs-ring, none);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  opacity: 0.45;
-
-  // Clicking or selecting a circle gives it the app-wide .gamepad-focused
-  // class, whose !important background and ring would hide the on/off
-  // state. Keep both, and draw the toolbar's blue focus ring outside them.
-  &.gamepad-focused {
-    background-color: var(--rs-color) !important;
-    box-shadow: var(--rs-ring, 0 0 #0000), 0 0 0 5px #90caf9 !important;
-  }
-}
-
-.restream-toggle--youtube {
-  --rs-color: #f00;
-}
-
-.restream-toggle--kick {
-  --rs-color: #53fc18;
-  // Kick's green needs dark lettering when lit.
-  --rs-ink: #0b1a03;
-}
-
-.restream-toggle--on,
-.restream-toggle--error {
-  --rs-ring: 0 0 0 2px #fffb;
-  color: var(--rs-ink, #fff);
-  opacity: 1;
-}
-
-.restream-toggle--error {
-  --rs-ring: 0 0 0 2px #ffb4ab;
-}
-
-.restream-toggle--unavailable {
-  opacity: 0.2;
-}
-
-@keyframes pulse {
-
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.6);
-    opacity: 0.4;
-  }
-}
-
 :host {
   display: contents;
 }
@@ -566,20 +233,5 @@
       opacity: 0.85;
       font-size: clamp(14px, 2vw, 16px);
     }
-  }
-}
-
-@media (max-width: 800px) {
-  .stream-toolbar {
-    gap: 2px;
-    padding: 0 10px;
-  }
-
-  .audio-group__label {
-    display: none;
-  }
-
-  .mode-btn__label {
-    display: none;
   }
 }

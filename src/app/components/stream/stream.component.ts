@@ -117,6 +117,7 @@ export class StreamComponent
   readonly mediaState$ = this.mediaInput.state$;
   readonly previewState$ = this.mediaInput.preview$;
   readonly audioMix$ = this.mediaInput.audioMix$;
+  readonly audioMeter$ = this.mediaInput.audioMeter$;
 
   isAuthenticated = false;
   isLive = this.rtcStreamService.isLive$.value;
@@ -133,7 +134,8 @@ export class StreamComponent
   readonly restreamTargets = RESTREAM_TARGETS;
   /** Platforms the user has saved credentials for (profile > streaming). */
   private restreamAvailable = new Set<StreamPlatform>();
-  /** Platforms switched off for the next go-live; everything available is on by default. */
+  /** Platforms switched off for the next go-live. Saved on the account (the
+   *  stream key's "enabled"), so the Simulcast dialog and the phone agree. */
   private restreamDisabled = new Set<StreamPlatform>();
   /** Each restream's outcome for the current live session. */
   private restreamStatus = new Map<StreamPlatform, MultistreamStatus>();
@@ -197,6 +199,48 @@ export class StreamComponent
       lb: () => this.toggleMicrophoneMute(),
       rb: () => this.toggleGameMute(),
     });
+    // B: back to your profile (key line). Not while live - ending the
+    // stream is its own, confirmed action.
+    this.gamepadNavigation.setBackAction(() => {
+      if (this.isLive || this.isStarting) return false;
+      void this.router.navigate(['/profile']);
+      return true;
+    });
+  }
+
+  icon(name: string): string {
+    return `url(/assets/icons/tv/${name}.svg)`;
+  }
+
+  /** Meter fill, 0-100. Loudness is 0-1; a muted source reads empty. */
+  meterPercent(loudness: number, muted: boolean): number {
+    return muted ? 0 : Math.round(Math.min(1, Math.max(0, loudness)) * 100);
+  }
+
+  /** Where the gain mark sits on the meter (gain is 0-1 in MediaInputService). */
+  markPercent(level: number): number {
+    return Math.round(Math.min(1, Math.max(0, level)) * 100);
+  }
+
+  /** "Sat", "Sun"... for the When row: days after tomorrow. */
+  dayLabel(daysFromToday: number): string {
+    const day = new Date();
+    day.setDate(day.getDate() + daysFromToday);
+    return day.toLocaleDateString(undefined, { weekday: 'short' });
+  }
+
+  /** Top-right chip: the simulcast destinations this live also goes to. */
+  get alsoLiveOn(): string | null {
+    const names = RESTREAM_TARGETS.filter((target) => {
+      const state = this.restreamState(target);
+      return state === 'on' || state === 'live';
+    }).map((target) => target.label);
+    if (names.length === 0) return null;
+    return names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
+  }
+
+  goTo(path: string): void {
+    void this.router.navigate([path]);
   }
 
   /**
@@ -443,6 +487,9 @@ export class StreamComponent
               ),
             ).map((target) => target.platform),
           );
+          this.restreamDisabled = new Set(
+            keys.filter((key) => key.enabled === false).map((key) => key.platform),
+          );
         },
         error: () => (this.restreamAvailable = new Set()),
       });
@@ -466,11 +513,20 @@ export class StreamComponent
   toggleRestream(target: RestreamTarget): void {
     if (this.isLive || this.isStarting) return;
     if (!this.restreamAvailable.has(target.platform)) return;
-    if (this.restreamDisabled.has(target.platform)) {
-      this.restreamDisabled.delete(target.platform);
-    } else {
-      this.restreamDisabled.add(target.platform);
-    }
+    const on = this.restreamDisabled.has(target.platform);
+    this.setRestreamOn(target.platform, on);
+    // Shown at once; put back if the account couldn't be updated.
+    this.userService.setStreamKeyEnabled(target.platform, on).subscribe({
+      error: () => {
+        this.setRestreamOn(target.platform, !on);
+        this.multistreamError = `Couldn't switch ${target.label} ${on ? 'on' : 'off'}. Try again.`;
+      },
+    });
+  }
+
+  private setRestreamOn(platform: StreamPlatform, on: boolean): void {
+    if (on) this.restreamDisabled.delete(platform);
+    else this.restreamDisabled.add(platform);
   }
 
   /** Platforms the next go-live will also stream to. */
@@ -700,6 +756,7 @@ export class StreamComponent
   ngOnDestroy(): void {
     if (this.channelName) this.socket.leaveRoom(this.channelName);
     this.gamepadNavigation.clearAuxButtonActions();
+    this.gamepadNavigation.setBackAction(null);
     this.destroy$.next();
     this.destroy$.complete();
     this.mediaInput.stopPreview();

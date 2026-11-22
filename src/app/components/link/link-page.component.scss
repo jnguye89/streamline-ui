@@ -1,0 +1,210 @@
+// skriin.com/link, for phone browsers: one column on a phone held upright,
+// two side by side (like the app) when there's room.
+
+:host {
+  // Covers the TV's top bar, like the phone game page does.
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  overflow-y: auto;
+  background: #0f0f11;
+  color: #fff;
+  font-family: Inter, system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.link {
+  display: grid;
+  gap: 24px;
+  align-content: center;
+  min-height: 100%;
+  box-sizing: border-box;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: max(32px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+}
+
+@media (min-width: 720px) {
+  .link {
+    grid-template-columns: 1fr 1.15fr;
+    align-items: center;
+    column-gap: 40px;
+    max-width: 900px;
+  }
+
+  .link-app {
+    grid-column: 1 / -1;
+  }
+}
+
+.link-col {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+
+  &--act { gap: 14px; }
+  &--center { justify-items: center; }
+}
+
+h1 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.link-body {
+  margin: 0;
+  color: #b4b4bc;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.link-small {
+  margin: 0;
+  color: #b4b4bc;
+  font-size: 14px;
+  line-height: 1.45;
+
+  b { color: #fff; letter-spacing: 0.08em; }
+}
+
+.link-error {
+  margin: 0;
+  color: #ff8a9e;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.link-chip {
+  justify-self: start;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #1f1f24;
+  color: #d8d8de;
+  font-size: 13px;
+}
+
+.link-ext {
+  color: #9d97ff;
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.link-btn {
+  display: grid;
+  place-items: center;
+  height: 50px;
+  border: 0;
+  border-radius: 25px;
+  background: #4f46e5;
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:disabled { opacity: 0.5; cursor: default; }
+
+  &--quiet { background: #1f1f24; }
+}
+
+.link-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 50px;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: #1f1f24;
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #fff;
+    // 16px keeps iPhone Safari from zooming in on focus.
+    font: inherit;
+    font-size: 16px;
+
+    &::placeholder { color: rgba(255, 255, 255, 0.45); }
+  }
+
+  button {
+    border: 0;
+    background: none;
+    color: #fff;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  &:focus-within { box-shadow: 0 0 0 2px #4f46e5; }
+}
+
+// Four boxes drawn over one real input, so the phone's keyboard and
+// one-time-code autofill both work.
+.link-code {
+  position: relative;
+  display: block;
+  cursor: text;
+
+  input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+    font-size: 16px;
+  }
+}
+
+.link-code__boxes {
+  display: flex;
+  gap: 10px;
+}
+
+.link-code__box {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 66px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  background: #1f1f24;
+  font-size: 30px;
+  font-weight: 600;
+
+  &--next { border: 2px solid #4f46e5; }
+}
+
+.link-tick {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: #4f46e5;
+  font-size: 44px;
+}
+
+.link-app {
+  margin: 12px 0 0;
+  color: #8a8a92;
+  font-size: 14px;
+  text-align: center;
+
+  a { color: #fff; }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
